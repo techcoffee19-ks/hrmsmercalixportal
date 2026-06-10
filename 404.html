@@ -1,33 +1,337 @@
 <!DOCTYPE html>
-<html>
-  <head>
+<html lang="en">
+<head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Page Not Found</title>
+    <title>404 Asset Resource Not Found | Mercalix Enterprise</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
 
     <style media="screen">
-      body { background: #ECEFF1; color: rgba(0,0,0,0.87); font-family: Roboto, Helvetica, Arial, sans-serif; margin: 0; padding: 0; }
-      #message { background: white; max-width: 360px; margin: 100px auto 16px; padding: 32px 24px 16px; border-radius: 3px; }
-      #message h3 { color: #888; font-weight: normal; font-size: 16px; margin: 16px 0 12px; }
-      #message h2 { color: #ffa100; font-weight: bold; font-size: 16px; margin: 0 0 8px; }
-      #message h1 { font-size: 22px; font-weight: 300; color: rgba(0,0,0,0.6); margin: 0 0 16px;}
-      #message p { line-height: 140%; margin: 16px 0 24px; font-size: 14px; }
-      #message a { display: block; text-align: center; background: #039be5; text-transform: uppercase; text-decoration: none; color: white; padding: 16px; border-radius: 4px; }
-      #message, #message a { box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24); }
-      #load { color: rgba(0,0,0,0.4); text-align: center; font-size: 13px; }
-      @media (max-width: 600px) {
-        body, #message { margin-top: 0; background: white; box-shadow: none; }
-        body { border-top: 16px solid #ffa100; }
-      }
+        :root {
+            --primary: #ffb100;
+            --dark: #1e293b;
+            --light-bg: #f8fafc;
+            --border: #e2e8f0;
+            --danger: #ef4444;
+            --success: #10b981;
+        }
+
+        body { 
+            background: var(--light-bg); 
+            color: var(--dark); 
+            font-family: 'Inter', sans-serif; 
+            margin: 0; 
+            padding: 0; 
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Full Page Professional Watermark Overlay Background */
+        body::before {
+            content: "";
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: url('https://www.mercalix.co.in/MERCALIX/img/logo/logo.png') no-repeat center center;
+            background-size: 55%;
+            opacity: 0.05; /* Balanced 5% structure layer watermark so text stays readable */
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        /* 3D Flip Card Container Architecture */
+        .main-perspective {
+            perspective: 1000px;
+            width: 100%;
+            max-width: 440px;
+            padding: 20px;
+            box-sizing: border-box;
+            z-index: 10;
+        }
+
+        .flip-card-inner {
+            position: relative;
+            width: 100%;
+            height: 480px;
+            text-align: center;
+            transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+            transform-style: preserve-3d;
+        }
+
+        /* Class added dynamically by secret trigger execution */
+        .flip-card-inner.flipped {
+            transform: rotateY(180deg);
+        }
+
+        .card-front, .card-back {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            -webkit-backface-visibility: hidden;
+            backface-visibility: hidden;
+            background: white;
+            padding: 40px 30px;
+            border-radius: 16px;
+            box-sizing: border-box;
+            border: 1.5px solid var(--border);
+            box-shadow: 0 15px 35px rgba(30, 41, 59, 0.08);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* ─── FRONT SIDE STYLING (Standard 404 Corporate Alert) ─── */
+        .corporate-logo {
+            width: 160px;
+            margin-bottom: 25px;
+            object-fit: contain;
+        }
+
+        .error-badge {
+            background: rgba(255, 177, 0, 0.1);
+            color: #d49200;
+            font-size: 13px;
+            font-weight: 800;
+            padding: 6px 16px;
+            border-radius: 20px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 15px;
+            cursor: pointer; /* Hidden portal trigger map area */
+            user-select: none;
+        }
+
+        h1 {
+            font-size: 26px;
+            font-weight: 800;
+            color: var(--dark);
+            margin: 0 0 12px 0;
+            letter-spacing: -0.5px;
+        }
+
+        p.description {
+            font-size: 14px;
+            color: #64748b;
+            line-height: 1.6;
+            margin: 0 0 25px 0;
+            font-weight: 400;
+        }
+
+        .btn-action {
+            width: 100%;
+            background: var(--dark);
+            color: white;
+            text-decoration: none;
+            padding: 14px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 14px;
+            transition: 0.3s;
+            text-transform: uppercase;
+            box-sizing: border-box;
+            border: 1.5px solid var(--dark);
+        }
+
+        .btn-action:hover {
+            background: #000;
+            transform: translateY(-2px);
+        }
+
+        /* ─── BACK SIDE STYLING (Secret Spy Gateway Core) ─── */
+        .card-back {
+            transform: rotateY(180deg);
+            border-color: var(--primary);
+        }
+
+        .secret-title {
+            font-size: 18px;
+            font-weight: 800;
+            color: var(--dark);
+            text-transform: uppercase;
+            margin-bottom: 25px;
+            letter-spacing: 0.5px;
+        }
+
+        .portal-link-box {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .btn-portal {
+            width: 100%;
+            padding: 14px;
+            border-radius: 8px;
+            font-weight: 700;
+            font-size: 13px;
+            text-transform: uppercase;
+            text-decoration: none;
+            box-sizing: border-box;
+            transition: 0.3s;
+            cursor: pointer;
+            display: inline-block;
+        }
+
+        .btn-emp {
+            background: #f0fdf4;
+            color: var(--success);
+            border: 1.5px solid var(--success);
+        }
+        .btn-emp:hover { background: var(--success); color: white; }
+
+        .btn-adm {
+            background: #fff7ed;
+            color: #ea580c;
+            border: 1.5px solid #ea580c;
+        }
+        .btn-adm:hover { background: #ea580c; color: white; }
+
+        /* Hidden Password Validation Input Layout Drawer */
+        .password-gate-container {
+            width: 100%;
+            display: none;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 10px;
+            background: #f8fafc;
+            padding: 15px;
+            border-radius: 10px;
+            border: 1.5px solid var(--border);
+            box-sizing: border-box;
+        }
+
+        .gate-input {
+            width: 100%;
+            padding: 10px;
+            border-radius: 6px;
+            border: 1.5px solid var(--border);
+            outline: none;
+            font-size: 13px;
+            font-weight: 600;
+            text-align: center;
+            box-sizing: border-box;
+        }
+
+        .btn-verify {
+            background: var(--dark);
+            color: var(--primary);
+            border: 1.5px solid var(--primary);
+            padding: 8px;
+            border-radius: 6px;
+            font-weight: 800;
+            cursor: pointer;
+            font-size: 11px;
+            text-transform: uppercase;
+        }
+
+        /* Error shaking design layout */
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-6px); }
+            40%, 80% { transform: translateX(6px); }
+        }
+        .shake-animation {
+            animation: shake 0.4s ease-in-out;
+        }
+
+        @media(max-width: 480px) {
+            .card-front, .card-back { padding: 30px 20px; }
+        }
     </style>
-  </head>
-  <body>
-    <div id="message">
-      <h2>404</h2>
-      <h1>Page Not Found</h1>
-      <p>The specified file was not found on this website. Please check the URL for mistakes and try again.</p>
-      <h3>Why am I seeing this?</h3>
-      <p>This page was generated by the Firebase Command-Line Interface. To modify it, edit the <code>404.html</code> file in your project's configured <code>public</code> directory.</p>
+</head>
+<body>
+
+<div class="main-perspective">
+    <div class="flip-card-inner" id="rootFlipCardInstance">
+        
+        <div class="card-front">
+            <img class="corporate-logo" src="https://www.mercalix.co.in/MERCALIX/img/logo/logo.png" alt="Mercalix Logo">
+            
+            <div class="error-badge" onclick="triggerSecretFlipGate()">Status Code: 404</div>
+            
+            <h1>Resource Not Found</h1>
+            <p class="description">
+                The asset parameters or file matrix path you requested could not be tracked by the central gateway server cluster.
+            </p>
+            
+            <a href="https://hrmsmercalixportal.web.app/" class="btn-action">Return To Safety</a>
+        </div>
+
+        <div class="card-back">
+            <img class="corporate-logo" src="https://www.mercalix.co.in/MERCALIX/img/logo/logo.png" style="width:110px; margin-bottom:15px;">
+            <div class="secret-title">🛡️ Internal Gateway Access</div>
+            
+            <div class="portal-link-box">
+                <a href="https://hrmsmercalixportal.web.app/portal/login.html" class="btn-portal btn-emp">🔗 Employee Site Access</a>
+                
+                <button class="btn-portal btn-adm" onclick="openAdminPasswordGate()">🔐 Admin Site Access</button>
+            </div>
+
+            <div class="password-gate-container" id="adminCryptoGateBlock">
+                <input type="password" id="adminSecretKeyField" class="gate-input" placeholder="Enter System Token Key">
+                <button class="btn-verify" onclick="executeAdminLinkRedirection()">Verify Authenticator Code</button>
+            </div>
+            
+            <button class="btn-verify" style="margin-top: auto; background:none; border:none; color:#94a3b8; font-size:10px;" onclick="triggerSecretFlipGate()">↩️ Return to Error Status</button>
+        </div>
+
     </div>
-  </body>
+</div>
+
+<script>
+    // Secret Flip Handler Engine Activation mapped to 404 badge click
+    function triggerSecretFlipGate() {
+        const card = document.getElementById("rootFlipCardInstance");
+        card.classList.toggle("flipped");
+        
+        // Reset password fields context state on return toggle loops
+        document.getElementById("adminCryptoGateBlock").style.display = "none";
+        document.getElementById("adminSecretKeyField").value = "";
+    }
+
+    function openAdminPasswordGate() {
+        const gate = document.getElementById("adminCryptoGateBlock");
+        gate.style.display = (gate.style.display === "flex") ? "none" : "flex";
+        if(gate.style.display === "flex") {
+            document.getElementById("adminSecretKeyField").focus();
+        }
+    }
+
+    // Secured Redirection Interceptor Engine
+    function executeAdminLinkRedirection() {
+        const typedToken = document.getElementById("adminSecretKeyField").value;
+        const targetGateBlock = document.getElementById("adminCryptoGateBlock");
+        
+        // Exact encryption system key matching
+        if (typedToken === "Mercalix@19") {
+            alert("Authorization Confirmed! ✅ Redirecting to Admin Core Console...");
+            window.location.href = "https://hrmsmercalixportal.web.app/admin/index";
+        } else {
+            // Trigger interactive error warning vibration notification UI
+            targetGateBlock.classList.add("shake-animation");
+            document.getElementById("adminSecretKeyField").style.borderColor = "var(--danger)";
+            
+            alert("⚠️ SYSTEM SECURITY BREACH ALERT\nInvalid operational credential signature token injected!");
+            
+            setTimeout(() => {
+                targetGateBlock.classList.remove("shake-animation");
+            }, 400);
+        }
+    }
+
+    // Enter press support shortcut mapping inside password field
+    document.getElementById("adminSecretKeyField").addEventListener("keyup", function(event) {
+        if (event.key === "Enter") {
+            executeAdminLinkRedirection();
+        }
+    });
+</script>
+</body>
 </html>
