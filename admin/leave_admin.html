@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Leave Management - Admin</title>
+<style>
+    body { margin: 0; font-family: Arial, sans-serif; background: #ffffff; display: flex; flex-direction: column; min-height: 100vh; }
+    .header { background: #333333; padding: 10px; text-align: center; font-size: 48px; font-weight: bold; color: white; border-bottom: 2px solid #333333; }
+    .container { display: flex; flex: 1; }
+    .sidebar { width: 220px; background: #2e3b47; border-right: 2px solid #2e3b47; }
+    .sidebar a { display: block; padding: 15px; text-decoration: none; color: white; border-bottom: 2px solid #2e3b47; font-weight: bold; text-align: center; }
+    .sidebar a:hover { background: white; color: #2e3b47; }
+    .active-nav { background: white !important; color: #2e3b47 !important; }
+
+    .main { flex: 1; padding: 20px; color: #2e3b47; }
+    .topbar { background: #2e3b47; color: white; padding: 10px; text-align: center; font-weight: bold; margin-bottom: 20px; }
+
+    /* Leave Table */
+    table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+    table th, table td { border: 1px solid #2e3b47; padding: 12px; text-align: center; }
+    table th { background: #2e3b47; color: white; }
+
+    /* Status Styles */
+    .status-pending { background: #fff3cd; color: #856404; padding: 5px 10px; border-radius: 4px; font-weight: bold; }
+    .status-approved { background: #d4edda; color: #155724; padding: 5px 10px; border-radius: 4px; font-weight: bold; }
+    .status-rejected { background: #f8d7da; color: #721c24; padding: 5px 10px; border-radius: 4px; font-weight: bold; }
+
+    /* Action Buttons */
+    .btn { padding: 8px 15px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; margin: 2px; }
+    .btn-approve { background: #27ae60; color: white; }
+    .btn-reject { background: #e74c3c; color: white; }
+    .btn:disabled { background: #ccc; cursor: not-allowed; }
+
+    .footer { background: #333333; color: white; text-align: center; padding: 10px; }
+</style>
+</head>
+<body onload="loadLeaves()">
+
+<div class="header">💰 Payroll System</div>
+
+<div class="container">
+    <div class="sidebar">
+        <a href="home_page.html">HOME</a>
+        <a href="add_emp.html">ADD Employee</a>
+        <a href="employee-report.html">Employee Report</a>
+        <a href="salary.html">Salary</a>
+        <a href="salary_report.html">Salary Report</a>
+        <a href="leave_admin.html" class="active-nav">Leave Requests</a>
+        <a href="#" onclick="logout()">LogOut</a>
+    </div>
+
+    <div class="main">
+        <div class="topbar">ADMIN LEAVE APPROVAL PANEL</div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Emp Name</th>
+                    <th>Leave Type</th>
+                    <th>Reason</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="leaveTableBody">
+                </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="footer">Copyrights 2026 @ Payroll System</div>
+
+<script>
+// Sample Data (Agar real employee apply karega toh wahan se aayega)
+let leaves = JSON.parse(localStorage.getItem("leaveRequests")) || [
+    { id: 1, name: "Rahul Sharma", type: "Sick Leave", reason: "Fever", status: "Pending" },
+    { id: 2, name: "Priya Verma", type: "Vacation", reason: "Family Function", status: "Pending" }
+];
+
+function loadLeaves() {
+    localStorage.setItem("leaveRequests", JSON.stringify(leaves));
+    const body = document.getElementById("leaveTableBody");
+    body.innerHTML = "";
+
+    leaves.forEach((lv, index) => {
+        let statusClass = "status-" + lv.status.toLowerCase();
+        let isDone = lv.status !== "Pending";
+
+        body.innerHTML += `
+            <tr>
+                <td><strong>${lv.name}</strong></td>
+                <td>${lv.type}</td>
+                <td>${lv.reason}</td>
+                <td><span class="${statusClass}">${lv.status}</span></td>
+                <td>
+                    <button class="btn btn-approve" onclick="updateLeave(${index}, 'Approved')" ${isDone ? 'disabled' : ''}>Approve</button>
+                    <button class="btn btn-reject" onclick="updateLeave(${index}, 'Rejected')" ${isDone ? 'disabled' : ''}>Reject</button>
+                </td>
+            </tr>
+        `;
+    });
+}
+
+function updateLeave(index, newStatus) {
+    leaves[index].status = newStatus;
+    localStorage.setItem("leaveRequests", JSON.stringify(leaves));
+    
+    // Dashboard counts update karne ke liye logic
+    let counts = JSON.parse(localStorage.getItem("dashboardCounts")) || { approved: 0, rejected: 0 };
+    if(newStatus === 'Approved') counts.approved++;
+    if(newStatus === 'Rejected') counts.rejected++;
+    localStorage.setItem("dashboardCounts", JSON.stringify(counts));
+
+    alert("Leave " + newStatus + " Successfully!");
+    loadLeaves();
+}
+
+function logout(){ alert("Admin Logged out!"); }
+</script>
+</body>
+</html>

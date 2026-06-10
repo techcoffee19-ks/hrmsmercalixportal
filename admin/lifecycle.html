@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Employee Lifecycle | Mercalix Enterprise</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+    <script>
+        if (sessionStorage.getItem("isLoggedIn") !== "true") { window.location.href = "index.html"; }
+        
+        const userRole = sessionStorage.getItem("userRole");
+        const userBranch = sessionStorage.getItem("adminBranch");
+        const adminCompanyCode = sessionStorage.getItem("companyCode"); // CORE: Admin ka company code
+        const userPermissionsRaw = sessionStorage.getItem("userPermissions");
+        const rolePermissions = userPermissionsRaw ? JSON.parse(userPermissionsRaw) : {};
+
+        function toggleSidebarDropdown(btn) {
+            const container = btn.nextElementSibling;
+            const isVisible = (container.style.display === "block");
+            document.querySelectorAll('.dropdown-container').forEach(el => el.style.display = 'none');
+            if (!isVisible) container.style.display = "block";
+        }
+
+        function validateAccess(moduleId, targetPage) {
+            if (userRole === "super_admin" || userRole === "Main Admin" || userRole === "Main Admin (Boss)") { 
+                window.location.href = targetPage; 
+                return; 
+            }
+            if (rolePermissions && rolePermissions[moduleId] && rolePermissions[moduleId].view === true) {
+                window.location.href = targetPage;
+            } else { 
+                alert("⚠️ ACCESS DENIED\nMain Admin ne aapko is page ka access nahi diya hai."); 
+            }
+        }
+
+        function logout() { sessionStorage.clear(); window.location.href = "index.html"; }
+    </script>
+
+    <style>
+        :root { --primary: #ffb100; --dark: #1e293b; --success: #10b981; --danger: #ef4444; --warning: #f59e0b; --info: #3b82f6; --bg: #f1f5f9; --border: #e2e8f0; }
+        body { margin: 0; font-family: 'Inter', sans-serif; background: var(--bg); color: var(--dark); overflow-x: hidden; display: flex; flex-direction: column; min-height: 100vh; }
+        
+        .top-nav { width: 100%; padding: 0 20px; height: 70px; display: flex; justify-content: space-between; align-items: center; background: #ffffff; border-bottom: 3px solid var(--primary); position: sticky; top: 0; z-index: 1000; box-sizing: border-box; }
+        .logo-text { font-size: 18px; font-weight: 800; text-decoration: none; color: var(--dark); }
+        .logo-text span { color: var(--primary); }
+
+        .container { display: flex; flex: 1; min-height: calc(100vh - 70px); }
+        .sidebar { width: 260px; background: var(--dark); flex-shrink: 0; display: flex; flex-direction: column; height: calc(100vh - 70px); position: sticky; top: 70px; overflow-y: auto; }
+        .nav-links { display: flex; flex-direction: column; padding-top: 10px; flex-grow: 1; }
+        
+        .nav-item, .dropdown-btn { 
+            width: 100%; padding: 15px 20px; text-decoration: none; color: #cbd5e1; 
+            font-weight: 600; font-size: 11px; display: flex; justify-content: space-between; 
+            align-items: center; border-left: 4px solid transparent; transition: 0.3s; 
+            cursor: pointer; background: none; border: none; outline: none; box-sizing: border-box;
+            text-transform: uppercase; text-align: left; 
+        }
+        .nav-item:hover, .dropdown-btn:hover { background: rgba(255,177,0,0.1); color: var(--primary); border-left-color: var(--primary); }
+        
+        .dropdown-container { display: none; background-color: #111827; }
+        .dropdown-container a { padding: 12px 20px 12px 45px; text-decoration: none; color: #94a3b8; font-size: 10px; display: block; font-weight: 700; text-transform: uppercase; border-bottom: 1px solid rgba(255,255,255,0.02); }
+
+        .main { flex: 1; padding: 25px; box-sizing: border-box; width: 100%; }
+        
+        .lifecycle-card { background: white; padding: 30px; border-radius: 15px; border: 1.5px solid var(--border); box-shadow: 0 4px 6px rgba(0,0,0,0.02); max-width: 1000px; margin: auto; }
+        .search-input { width: 100%; padding: 12px 20px; border-radius: 10px; border: 1.5px solid var(--border); outline: none; font-size: 14px; margin-bottom: 20px; box-sizing: border-box; font-weight: 600; }
+        
+        .grid-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .section-box { background: #f8fafc; padding: 20px; border-radius: 12px; border: 1.5px solid var(--border); }
+        .section-header { font-size: 11px; font-weight: 800; color: var(--primary); text-transform: uppercase; margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 5px; }
+
+        .form-group { margin-bottom: 15px; display: flex; flex-direction: column; gap: 5px; }
+        .form-group label { font-size: 9px; font-weight: 800; color: #64748b; text-transform: uppercase; }
+        .form-group input, .form-group select { padding: 10px; border-radius: 8px; border: 1.5px solid var(--border); font-size: 13px; outline: none; font-weight: 600; background: #fff; }
+
+        .btn-action { width: 100%; padding: 12px; border-radius: 8px; border: none; font-weight: 800; cursor: pointer; text-transform: uppercase; transition: 0.3s; margin-top: 10px; font-size: 11px; }
+        .btn-sync { background: var(--dark); color: var(--primary); border: 1.5px solid var(--primary); }
+        .btn-offboard { background: #fee2e2; color: var(--danger); }
+        .btn-letter { background: var(--info); color: white; margin-top: 15px; }
+
+        .profile-strip { margin-bottom: 20px; display:flex; align-items:center; gap:15px; background:var(--dark); padding:15px; border-radius:12px; color:white; border-left: 5px solid var(--primary); }
+    </style>
+</head>
+<body onload="initPage()">
+
+<nav class="top-nav">
+    <div class="logo-container"><a href="#" class="logo-text">MERCALIX <span>SYSTEM</span></a></div>
+    <div style="font-size: 10px; font-weight: 800; color: var(--success); background: #f0fdf4; padding: 5px 15px; border-radius: 20px;">LIFECYCLE_MODULE_ACTIVE</div>
+</nav>
+
+<div class="container">
+    <aside class="sidebar">
+        <div class="nav-links">
+            <a href="branch_dashboard.html" class="nav-item">🏠 Dashboard</a>
+            <button class="dropdown-btn" onclick="toggleSidebarDropdown(this)">👥 Employee Management <span>▼</span></button>
+            <div class="dropdown-container" style="display:block;">
+                <a href="javascript:void(0)" onclick="validateAccess('workforce', 'add_emp.html')">➕ Add New Staff</a>
+                <a href="javascript:void(0)" onclick="validateAccess('workforce', 'bulk_import.html')">📁 Bulk Import (Excel)</a>
+                <a href="javascript:void(0)" onclick="validateAccess('workforce', 'employee-report.html')">🔍 Employee Directory</a>
+                <a href="javascript:void(0)" onclick="validateAccess('workforce', 'e_vault.html')">🔒 E-Vault Documents</a>
+                <a href="javascript:void(0)" onclick="validateAccess('workforce', 'lifecycle.html')" style="color:var(--primary)">🔄 Employee Lifecycle</a>
+                <a href="javascript:void(0)" onclick="validateAccess('workforce', 'assets.html')">💻 Asset Tracking</a>
+                                <a href="javascript:void(0)" onclick="validateAccess('workforce', 'hr_staff_directory.html')">📁 Workforce Directory</a>
+
+            </div>
+            <button class="dropdown-btn" onclick="toggleSidebarDropdown(this)">🕒 Attendance & Leaves <span>▼</span></button>
+            <div class="dropdown-container">
+                <a href="javascript:void(0)" onclick="validateAccess('attendance', 'attendance-log.html')">📅 Daily Logs</a>
+                <a href="javascript:void(0)" onclick="validateAccess('attendance', 'monthly-attendance.html')">📊 Monthly Report</a>
+            </div>
+            <button class="dropdown-btn" onclick="toggleSidebarDropdown(this)">💸 Payroll Engine <span>▼</span></button>
+            <div class="dropdown-container">
+                <a href="javascript:void(0)" onclick="validateAccess('payroll', 'run-payroll.html')">🚀 Process Salary</a>
+                <a href="javascript:void(0)" onclick="validateAccess('payroll', 'advance-requests.html')">💰 Advance Salary</a>
+                <a href="javascript:void(0)" onclick="validateAccess('payroll', 'salary-slip.html')">📄 Generate Payslips</a>
+                                <a href="javascript:void(0)" onclick="validateAccess('payroll', 'export-attendance.html')">📄 Employee Data</a>
+
+            </div>
+            <a onclick="logout()" style="margin-top:auto; color:var(--danger); font-weight:900; font-size:11px; padding:20px; display:block; border-top: 1px solid #334155; cursor:pointer;">🔓 SECURE LOGOUT</a>
+        </div>
+    </aside>
+
+    <main class="main">
+        <div class="lifecycle-card">
+            <h2 style="margin:0 0 15px 0; font-size: 20px;">Staff Movement & Exit Console</h2>
+            <input type="text" id="searchEmp" class="search-input" placeholder="Search by Employee ID or Name..." oninput="findEmployee()">
+
+            <div id="noData" style="text-align:center; padding:50px; color:#94a3b8;">
+                <img src="https://cdn-icons-png.flaticon.com/512/202/202381.png" width="40" style="opacity:0.3; margin-bottom:10px;"><br>
+                Type Employee Name to begin movement tracking.
+            </div>
+
+            <div id="lifecycleContent" style="display: none;">
+                <div class="profile-strip">
+                    <img id="empPhoto" src="https://cdn-icons-png.flaticon.com/512/3135/3135715.png" style="width:55px; height:55px; border-radius:50%; border:2px solid var(--primary); object-fit:cover;">
+                    <div>
+                        <h3 id="empName" style="margin:0; font-size:18px; letter-spacing:0.5px;">---</h3>
+                        <span id="empIdDisp" style="font-size:11px; font-weight:700; color:var(--primary); background:rgba(255,177,0,0.1); padding:2px 8px; border-radius:4px;">ID: ---</span>
+                    </div>
+                </div>
+
+                <div class="grid-layout">
+                    <div class="section-box">
+                        <div class="section-header">📈 PROMOTION & TRANSFER</div>
+                        <div class="form-group"><label>Current Designation</label><input type="text" id="currDesig" readonly style="background:#f1f5f9;"></div>
+                        <div class="form-group">
+                            <label>New Designation (Real-time)</label>
+                            <select id="newDesig"><option value="">-- NO CHANGE --</option></select>
+                        </div>
+                        <div class="form-group"><label>Current Branch</label><input type="text" id="currBranch" readonly style="background:#f1f5f9;"></div>
+                        <div class="form-group">
+                            <label>Transfer to Branch (Real-time)</label>
+                            <select id="newBranch"><option value="">-- NO CHANGE --</option></select>
+                        </div>
+                        <button class="btn-action btn-sync" onclick="updateMovement()">SYNC MOVEMENT DATA</button>
+                    </div>
+
+                    <div class="section-box">
+                        <div class="section-header" style="color:var(--danger)">🚪 OFF-BOARDING (EXIT)</div>
+                        <div class="form-group"><label>Last Working Day</label><input type="date" id="lwd"></div>
+                        <div class="form-group">
+                            <label>Exit Reason</label>
+                            <select id="exitReason">
+                                <option>Resignation</option><option>Termination</option><option>Absconded</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>F&F Status</label>
+                            <select id="ffStatus"><option>Pending</option><option>Cleared</option></select>
+                        </div>
+                        <button class="btn-action btn-offboard" onclick="processExit()">TERMINATE ACCESS & EXIT</button>
+                        <button class="btn-action btn-letter" onclick="generateResignationLetter()">📄 DOWNLOAD RESIGNATION LETTER</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyCkBeHploRe3UHq6ndukFUtfYc8sCkfx9g",
+  authDomain: "hrmsmercalixportal.firebaseapp.com",
+  projectId: "hrmsmercalixportal",
+  storageBucket: "hrmsmercalixportal.firebasestorage.app",
+  messagingSenderId: "126979860674",
+  appId: "1:126979860674:web:f486ad4b470b59189c735b",
+  measurementId: "G-EM1HY6T4NF"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+    let selectedEmpData = null;
+
+    function initPage() {
+        syncDropdowns();
+    }
+
+    // UPDATED: Syncing from org_structure logic
+    function syncDropdowns() {
+        // Sync Branches
+        db.collection("branches").where("companyCode", "==", adminCompanyCode).onSnapshot(snap => {
+            const sel = document.getElementById("newBranch");
+            if(!sel) return;
+            sel.innerHTML = '<option value="">-- NO CHANGE --</option>';
+            snap.forEach(doc => sel.innerHTML += `<option value="${doc.data().name}">${doc.data().name}</option>`);
+        });
+
+        // Sync Designations from org_structure -> designations -> list
+        db.collection("org_structure").doc("designations").collection("list")
+          .where("companyCode", "==", adminCompanyCode)
+          .onSnapshot(snap => {
+            const sel = document.getElementById("newDesig");
+            if(!sel) return;
+            sel.innerHTML = '<option value="">-- NO CHANGE --</option>';
+            snap.forEach(doc => sel.innerHTML += `<option value="${doc.data().name}">${doc.data().name}</option>`);
+        });
+    }
+
+    async function findEmployee() {
+        const val = document.getElementById("searchEmp").value.trim().toLowerCase();
+        const noDataBox = document.getElementById("noData");
+        const contentBox = document.getElementById("lifecycleContent");
+
+        if(val.length < 2) {
+            contentBox.style.display = "none";
+            noDataBox.style.display = "block";
+            noDataBox.innerHTML = "Type Employee Name or ID to begin.";
+            return;
+        }
+
+        try {
+            const myCC = adminCompanyCode;
+            let q = db.collection("employees");
+            
+            // FIX: Agar GENERAL ya empty code hai toh pure employees search karega
+            if(myCC && myCC !== "" && myCC !== "GENERAL" && myCC !== "null") {
+                q = q.where("companyCode", "==", myCC);
+            }
+
+            const snap = await q.get();
+
+            if (snap.empty) {
+                noDataBox.innerHTML = `No employees found in registry.`;
+                return;
+            }
+
+            // Flexible Search: ID, Name ya DocID match karega
+            const empDoc = snap.docs.find(doc => {
+                const d = doc.data();
+                const idMatch = (d.id || "").toLowerCase().includes(val);
+                const nameMatch = (d.name || "").toLowerCase().includes(val);
+                const docIdMatch = doc.id.toLowerCase().includes(val);
+                return idMatch || nameMatch || docIdMatch;
+            });
+
+            if(empDoc) {
+                selectedEmpData = { id: empDoc.id, ...empDoc.data() };
+                contentBox.style.display = "block";
+                noDataBox.style.display = "none";
+                
+                document.getElementById("empName").innerText = selectedEmpData.name;
+                document.getElementById("empIdDisp").innerText = "ID: " + (selectedEmpData.id || empDoc.id);
+                document.getElementById("currDesig").value = selectedEmpData.desig || selectedEmpData.designation || "Staff";
+                document.getElementById("currBranch").value = selectedEmpData.branch || "Not Assigned";
+                
+                // Photo Logic Fix
+                const photo = selectedEmpData.general?.profilephoto || selectedEmpData.kyc?.passport_photo_url || selectedEmpData.profilePhotoUrl;
+                document.getElementById("empPhoto").src = photo || "https://cdn-icons-png.flaticon.com/512/3135/3135715.png";
+            } else {
+                contentBox.style.display = "none";
+                noDataBox.style.display = "block";
+                noDataBox.innerHTML = `No match found for "<b>${val}</b>".`;
+            }
+        } catch (error) {
+            console.error("Search Error:", error);
+            noDataBox.innerHTML = "Sync Error. Check connection.";
+        }
+    }
+
+    async function updateMovement() {
+        if(!selectedEmpData) return;
+        const nDesig = document.getElementById("newDesig").value;
+        const nBranch = document.getElementById("newBranch").value;
+        
+        const updateData = {};
+        if(nDesig) updateData.desig = nDesig;
+        if(nBranch) updateData.branch = nBranch;
+
+        if(Object.keys(updateData).length === 0) return alert("Please select a new Designation or Branch to sync!");
+
+        const cleanId = selectedEmpData.id.replace(/\//g, "");
+        await db.collection("employees").doc(cleanId).update(updateData);
+        alert("Success! Employee records synced to database. ✅");
+        location.reload();
+    }
+
+    async function processExit() {
+        const lwd = document.getElementById("lwd").value;
+        if(!lwd) return alert("Select Last Working Day!");
+        if(confirm("Confirm Exit? This will block all portal access for the user.")) {
+            const cleanId = selectedEmpData.id.replace(/\//g, "");
+            await db.collection("employees").doc(cleanId).update({
+                status: "Deactive", // Matching with directory status
+                lwd: lwd,
+                exitReason: document.getElementById("exitReason").value,
+                ffStatus: document.getElementById("ffStatus").value
+            });
+            alert("Employee Marked as Exited / Deactive.");
+            location.reload();
+        }
+    }
+
+    function generateResignationLetter() {
+        const lwd = document.getElementById("lwd").value;
+        if(!lwd) return alert("Please enter Last Working Day first!");
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        doc.setFontSize(18);
+        doc.text("Mercalix Enterprise", 105, 20, { align: "center" });
+        doc.setFontSize(14);
+        doc.text("Resignation Acceptance Letter", 105, 30, { align: "center" });
+        doc.setFontSize(11);
+        doc.text(`Date: ${new Date().toLocaleDateString()}`, 20, 50);
+        doc.text(`To, ${selectedEmpData.name}`, 20, 60);
+        doc.text(`Staff ID: ${selectedEmpData.id}`, 20, 65);
+        const body = `Dear ${selectedEmpData.name},\n\nWe hereby acknowledge the receipt of your resignation. After due consideration, management has accepted your request. Your last working day with Mercalix Enterprise will be ${lwd}.\n\nWe thank you for your service and wish you success in your future journey.\n\nPlease complete the clearance process for all company assets before your exit.`;
+        const splitText = doc.splitTextToSize(body, 170);
+        doc.text(splitText, 20, 85);
+        doc.text("Regards,", 20, 150);
+        doc.text("HR Department", 20, 160);
+        doc.save(`Resignation_${selectedEmpData.id}.pdf`);
+    }
+</script>
+</body>
+</html>

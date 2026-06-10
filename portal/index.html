@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mercalix Terminal | Biometric Intelligence</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap');
+        :root { --primary: #ffb100; --dark: #0f172a; }
+        body { font-family: 'Inter', sans-serif; background: radial-gradient(circle at center, #1e293b 0%, #0f172a 100%); color: #e2e8f0; margin: 0; min-height: 100vh; overflow: hidden; }
+        .top-nav { width: 100%; padding: 15px 40px; box-sizing: border-box; display: flex; justify-content: space-between; align-items: center; background: rgba(0, 0, 0, 0.4); backdrop-filter: blur(20px); border-bottom: 2px solid var(--primary); position: fixed; top: 0; z-index: 1000; }
+        .logo-text { font-size: 20px; font-weight: 800; color: white; text-decoration: none; letter-spacing: 1px; }
+        .logo-text span { color: var(--primary); }
+        .glass-panel { background: rgba(30, 41, 59, 0.5); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.08); }
+        .scanner-line { height: 4px; background: var(--primary); width: 100%; position: absolute; top: 0; box-shadow: 0 0 25px var(--primary); animation: scan 2.5s infinite ease-in-out; z-index: 30; }
+        @keyframes scan { 0%, 100% { top: 5%; opacity: 0.2; } 50% { top: 95%; opacity: 1; } }
+        #video-feed { transform: scaleX(-1); border-radius: 2rem; object-fit: cover; }
+        .btn-punch { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); border-bottom-width: 6px; }
+        .btn-punch:active { transform: translateY(4px); border-bottom-width: 0px; }
+    </style>
+</head>
+<body class="flex flex-col" onload="initTerminal()">
+
+    <nav class="top-nav">
+        <a href="#" class="logo-text">MERCALIX <span>SYSTEM</span></a>
+        <div class="flex items-center gap-4">
+            <div id="clock" class="text-white font-bold text-sm bg-slate-800 px-4 py-1.5 rounded-full border border-slate-700">--:--:--</div>
+            <a href="login.html" class="text-[10px] font-black text-amber-500 border-2 border-amber-500 px-4 py-1.5 rounded-lg hover:bg-amber-500 hover:text-black transition-all">ADMIN ACCESS</a>
+        </div>
+    </nav>
+
+    <main class="flex-1 max-w-4xl mx-auto w-full p-6 flex flex-col items-center justify-center pt-28">
+        <div class="text-center mb-6">
+            <p id="cloud-status" class="text-amber-500 text-[10px] font-black uppercase tracking-[0.3em] mb-1">Neural Pulse: Initialising...</p>
+            <h2 class="text-4xl font-black text-white tracking-tighter">ATTENDANCE <span class="text-slate-400">TERMINAL</span></h2>
+        </div>
+
+        <div class="w-full relative glass-panel rounded-[3rem] p-4 border border-white/5 shadow-2xl aspect-video overflow-hidden mb-8">
+            <div id="scanner-line" class="scanner-line hidden"></div>
+            <div id="scan-overlay" class="absolute inset-0 z-20 pointer-events-none flex items-center justify-center">
+                <div id="overlay-msg" class="px-10 py-5 rounded-3xl border-2 hidden text-sm font-black shadow-2xl backdrop-blur-2xl uppercase tracking-widest text-center"></div>
+            </div>
+            <video id="video-feed" autoplay playsinline class="w-full h-full bg-slate-900 opacity-40 transition-opacity duration-700"></video>
+            <canvas id="capture-canvas" width="640" height="480" class="hidden"></canvas>
+            <div id="setup-screen" class="absolute inset-0 flex flex-col items-center justify-center bg-slate-950/95 z-40">
+                <div id="ai-loader" class="w-12 h-12 border-4 border-amber-500 border-t-transparent rounded-full animate-spin mb-6"></div>
+                <button id="cam-init-btn" disabled onclick="startCamera()" class="bg-amber-500 text-slate-950 px-12 py-4 rounded-2xl font-black disabled:opacity-30 uppercase text-xs tracking-widest">Initialise Biometric Link</button>
+            </div>
+        </div>
+
+        <div class="flex gap-6 w-full max-w-xl">
+            <button onclick="triggerPunch('IN')" class="btn-punch flex-1 bg-emerald-500 text-emerald-950 font-black py-6 rounded-3xl text-2xl border-emerald-700 shadow-xl">PUNCH IN</button>
+            <button onclick="triggerPunch('OUT')" class="btn-punch flex-1 bg-rose-500 text-rose-950 font-black py-6 rounded-3xl text-2xl border-rose-700 shadow-xl">PUNCH OUT</button>
+        </div>
+    </main>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyCkBeHploRe3UHq6ndukFUtfYc8sCkfx9g",
+            authDomain: "hrmsmercalixportal.firebaseapp.com",
+            projectId: "hrmsmercalixportal",
+            storageBucket: "hrmsmercalixportal.firebasestorage.app",
+            messagingSenderId: "126979860674",
+            appId: "1:126979860674:web:f486ad4b470b59189c735b"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        
+        let biometricRegistry = []; 
+        let activeStream = null;
+        
+        let terminalCC = sessionStorage.getItem("companyCode") || localStorage.getItem("terminalCC") || "GENERAL";
+        if(terminalCC !== "GENERAL") localStorage.setItem("terminalCC", terminalCC);
+
+        const video = document.getElementById('video-feed');
+        const canvas = document.getElementById('capture-canvas');
+
+        async function initTerminal() { 
+            setInterval(() => { document.getElementById('clock').innerText = new Date().toLocaleTimeString(); }, 1000);
+            const MODEL_URL = 'https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js/weights';
+            
+            try {
+                await Promise.all([
+                    faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
+                    faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
+                    faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)
+                ]);
+                
+                document.getElementById('ai-loader').classList.add('hidden');
+                document.getElementById('cam-init-btn').disabled = false;
+                
+                let query = db.collection("vc_biometrics");
+                if (terminalCC !== "GENERAL") {
+                    query = query.where("companyCode", "==", terminalCC);
+                }
+
+                query.onSnapshot(snap => {
+                    biometricRegistry = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    document.getElementById('cloud-status').innerText = `SYSTEM READY: ${biometricRegistry.length} IDENTITIES SYNCED`;
+                });
+            } catch (e) { alert("Neural Engine Error."); }
+        }
+
+        async function startCamera() {
+            try { 
+                // Mobile processors par load kam karne aur speed ke liye resolution ko optimize kiya
+                activeStream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { 
+                        facingMode: "user",
+                        width: { ideal: 640 }, 
+                        height: { ideal: 480 } 
+                    } 
+                }); 
+                video.srcObject = activeStream; 
+                video.classList.replace('opacity-40', 'opacity-100');
+                document.getElementById('setup-screen').classList.add('hidden'); 
+            } catch (e) { alert("Camera Access Denied."); }
+        }
+
+        async function getAddressFromCoords(lat, lng) {
+            if(!lat || lat === 0) return "Location Secured";
+            try {
+                const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`);
+                const data = await res.json();
+                return data.display_name || "Location Secured";
+            } catch (e) { return `${lat}, ${lng}`; }
+        }
+
+        async function triggerPunch(type) {
+    if (!activeStream) return alert("Initialise Neural Link First");
+    const line = document.getElementById('scanner-line');
+
+    updateUI("SCANNING BIOMETRICS...<br><span class='text-[10px] text-amber-500'>VERIFYING IDENTITY & GPS</span>", "bg-slate-900 border-amber-500/50");
+    line.classList.remove('hidden');
+
+    try {
+        // Mobile speed ko 3x badhane ke liye TinyFaceDetectorOptions ka input size chota configure kiya
+        const faceOptions = new faceapi.TinyFaceDetectorOptions({ inputSize: 160, scoreThreshold: 0.5 });
+        const detection = await faceapi.detectSingleFace(video, faceOptions).withFaceLandmarks().withFaceDescriptor();
+        
+        if (!detection) {
+            line.classList.add('hidden');
+            return updateUI("FACE NOT DETECTED", "bg-rose-600");
+        }
+
+        let bestMatch = null;
+        let minDistance = 0.45;
+
+        biometricRegistry.forEach(user => {
+            const dist = faceapi.euclideanDistance(detection.descriptor, new Float32Array(user.descriptor));
+            if (dist < minDistance) { minDistance = dist; bestMatch = user; }
+        });
+
+        if (bestMatch) {
+            // --- MANDATORY LOCATION LOGIC ---
+            const coords = await new Promise((resolve) => {
+                navigator.geolocation.getCurrentPosition(
+                    (p) => resolve({ lat: p.coords.latitude, lng: p.coords.longitude }),
+                    (e) => resolve(null), 
+                    { enableHighAccuracy: true, timeout: 6000 } 
+                );
+            });
+
+            if (!coords || coords.lat === 0) {
+                line.classList.add('hidden');
+                return updateUI("ACCESS DENIED<br><span class='text-[10px] text-rose-300'>GPS LOCATION REQUIRED TO PUNCH</span>", "bg-rose-800");
+            }
+
+            const todayStr = new Date().toLocaleDateString('en-GB').replace(/\//g, '-');
+            
+            // --- INDEX-FREE SEQUENCE CHECK ---
+            const logsSnap = await db.collection("vc_logs")
+                .where("id", "==", String(bestMatch.id))
+                .where("date", "==", todayStr)
+                .get();
+
+            let allLogs = [];
+            logsSnap.forEach(doc => allLogs.push(doc.data()));
+            allLogs.sort((a, b) => b.timestamp - a.timestamp);
+            
+            const lastLog = allLogs[0]; 
+            const lastType = lastLog ? lastLog.type : null;
+
+            if (type === "IN" && lastType === "IN") {
+                line.classList.add('hidden');
+                return updateUI(`ALREADY PUNCHED IN<br><span class='text-[10px] text-amber-500'>PLEASE PUNCH OUT FIRST</span>`, "bg-amber-600");
+            } 
+            if (type === "OUT" && (!lastType || lastType === "OUT")) {
+                line.classList.add('hidden');
+                return updateUI(`PUNCH IN FIRST<br><span class='text-[10px] text-amber-500'>NO ACTIVE SESSION FOUND</span>`, "bg-amber-600");
+            }
+
+            // --- FINAL EXECUTION ---
+            updateUI(`IDENTITY: ${bestMatch.name.toUpperCase()}<br><span class='text-[10px] text-emerald-400'>SECURE SYNC IN PROGRESS...</span>`, "bg-slate-900 border-emerald-500/50");
+            
+            const addr = await getAddressFromCoords(coords.lat, coords.lng);
+            await finalizePunch(bestMatch, type, coords.lat, coords.lng, addr);
+
+        } else {
+            line.classList.add('hidden');
+            updateUI("IDENTITY UNKNOWN", "bg-rose-700");
+        }
+    } catch (err) { 
+        console.error("Critical Sync Error:", err);
+        updateUI("SYNC BUSY - RETRY", "bg-slate-800"); 
+    } finally {
+        line.classList.add('hidden');
+    }
+}
+
+async function finalizePunch(user, type, lat, lng, addr) {
+    const now = new Date();
+    const dateStr = now.toLocaleDateString('en-GB').replace(/\//g, '-');
+    const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+
+    let isLate = false;
+    let punchStatus = "ON TIME";
+    const officeDeadline = 10.0; 
+
+    if (type === "IN") {
+        const currentTimeDecimal = now.getHours() + (now.getMinutes() / 60);
+        if (currentTimeDecimal > officeDeadline) { 
+            isLate = true; 
+            punchStatus = "LATE MARK"; 
+        }
+    }
+    
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0, 640, 480);
+    const photoData = canvas.toDataURL('image/jpeg', 0.1); 
+
+    try {
+        await db.collection("vc_logs").add({
+            id: String(user.id), 
+            empId: String(user.id), 
+            name: String(user.name),
+            companyCode: String(user.companyCode || terminalCC),
+            type: String(type),
+            date: String(dateStr),
+            time: String(timeStr),
+            late: isLate,
+            status: punchStatus,
+            photo: photoData,
+            lat: Number(lat),
+            lng: Number(lng),
+            location: String(addr),
+            timestamp: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        
+        const uiColor = isLate ? "bg-orange-500" : "bg-emerald-500";
+        updateUI(`GREETINGS: ${user.name.toUpperCase()}<br><span style="font-size:12px;">STATUS: ${punchStatus} | GPS OK</span>`, uiColor);
+    } catch (e) { updateUI("CLOUD SYNC ERROR", "bg-rose-800"); }
+}
+
+        function updateUI(txt, cls) {
+            const el = document.getElementById('overlay-msg');
+            el.innerHTML = txt;
+            el.className = `${cls} text-white px-10 py-5 rounded-3xl border-2 block text-center shadow-2xl backdrop-blur-md z-50`;
+            el.classList.remove('hidden');
+            if(!txt.includes("SCANNING") && !txt.includes("ACQUIRING")) setTimeout(() => el.classList.add('hidden'), 2000);
+        }
+    </script>
+</body>
+</html>

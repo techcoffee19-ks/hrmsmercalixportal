@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Salary Receipt</title>
+
+<style>
+body{ 
+    margin:0;
+    font-family: Arial, Helvetica, sans-serif;
+    background:#ffffff;
+}
+
+/* TOP HEADER */
+.header{
+    border:2px solid #2e3b47;
+    padding:12px;
+    text-align:center;
+    font-size:40px;
+    font-weight:bold;
+    background:#2e3b47;
+    color:white;
+}
+
+/* TITLE BAR */
+.title-bar{
+    background:#2e3b47;
+    color:white;
+    padding:10px;
+    font-weight:bold;
+    text-align:center;
+    position:relative;
+}
+
+.back-btn{
+    position:absolute;
+    left:10px;
+    top:6px;
+    background:white;
+    color:#2e3b47;
+    border:2px solid #2e3b47;
+    padding:4px 14px;
+    font-weight:bold;
+    cursor:pointer;
+}
+
+.back-btn:hover{
+    background:#2e3b47;
+    color:white;
+}
+
+/* VIEWER FRAME */
+.viewer{
+    margin:20px;
+    border:2px solid #2e3b47;
+    background:#f4f6f9;
+    padding:20px;
+}
+
+/* PAPER */
+.paper{
+    background:white;
+    border:2px solid #2e3b47;
+    padding:25px;
+}
+
+/* HEADING */
+.paper h2{
+    text-align:center;
+    margin-bottom:15px;
+    color:#2e3b47;
+}
+
+/* NAME BOX */
+.name-box{
+    border:1px solid #2e3b47;
+    padding:8px;
+    font-weight:bold;
+    margin-bottom:15px;
+    color:#2e3b47;
+}
+
+/* MAIN GRID */
+.grid{
+    display:grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap:10px;
+}
+
+/* COMMON BOX */
+.box{
+    border:1px solid #2e3b47;
+    padding:10px;
+    font-size:14px;
+    color:#2e3b47;
+}
+
+.box h4{
+    margin:0 0 8px 0;
+    text-align:center;
+    text-decoration:underline;
+    color:#2e3b47;
+}
+
+/* RIGHT ALIGN */
+.right{text-align:right;}
+.bold{font-weight:bold;}
+
+/* NET PAY */
+.netpay{
+    margin-top:10px;
+    text-align:right;
+    font-size:18px;
+    font-weight:bold;
+    color:#2e3b47;
+}
+
+/* FOOTER */
+.footer{
+    margin-top:10px;
+    display:flex;
+    justify-content:space-between;
+    font-size:13px;
+    color:#2e3b47;
+}
+</style>
+</head>
+
+<body>
+
+<div class="header">
+    💰 Payroll System
+</div>
+
+<div class="title-bar">
+    <button class="back-btn" onclick="history.back()">BACK</button>
+    My Salary Detail
+</div>
+
+<div class="viewer">
+<div class="paper">
+
+    <h2>Salary Receipt</h2>
+
+    <div class="name-box">
+        Name : <span id="name"></span>
+    </div>
+
+    <div class="grid">
+
+        <!-- LEFT -->
+        <div class="box">
+            Class : <span id="class"></span><br><br>
+            Bank : <span id="bank"></span><br><br>
+            Basic Pay : 5,000.00<br><br>
+            Salary : 40,000.00
+        </div>
+
+        <!-- ALLOWANCE -->
+        <div class="box">
+            <h4>Allowance</h4>
+            Travell : <span id="travel"></span>.00<br><br>
+            Medical : <span id="medical"></span>.00<br><br>
+            Washing : <span id="washing"></span>.00<br><br>
+            <div class="bold right">
+                Total : <span id="allowTotal"></span>.00
+            </div>
+        </div>
+
+        <!-- DEDUCTION -->
+        <div class="box">
+            <h4>Deduction</h4>
+            HR : <span id="hr"></span>.00<br><br>
+            DA : <span id="da"></span>.00<br><br>
+            Leave : 0.00<br><br>
+            <div class="bold right">
+                Total : <span id="dedTotal"></span>.00
+            </div>
+        </div>
+
+    </div>
+
+    <div class="netpay">
+        Net Pay : <span id="netpay"></span>.00
+    </div>
+
+    <div class="footer">
+        <div>
+            Month : <span id="month"></span> &nbsp;
+            Year : <span id="year"></span>
+        </div>
+        <div id="datetime"></div>
+    </div>
+
+</div>
+</div>
+
+<script>
+const p = new URLSearchParams(window.location.search);
+
+function set(id,val){ document.getElementById(id).innerText = val || "0"; }
+
+set("name",p.get("name"));
+set("class",p.get("class"));
+set("bank",p.get("bank"));
+
+set("travel",p.get("travel"));
+set("medical",p.get("medical"));
+set("washing",p.get("washing"));
+
+set("hr",p.get("hr"));
+set("da",p.get("da"));
+
+set("month",p.get("month"));
+set("year",p.get("year"));
+
+let allow = (+p.get("travel") + +p.get("medical") + +p.get("washing"));
+let ded = (+p.get("hr") + +p.get("da"));
+
+set("allowTotal",allow);
+set("dedTotal",ded);
+
+let net = 5000 + 40000 + allow - ded;
+set("netpay",net);
+
+document.getElementById("datetime").innerText =
+    new Date().toLocaleString();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Payroll Engine | Mercalix Enterprise</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+
+    <script>
+        const userRole = sessionStorage.getItem("userRole");
+        const isLoggedIn = sessionStorage.getItem("isLoggedIn");
+        const adminBranch = sessionStorage.getItem("adminBranch");
+
+        if (isLoggedIn !== "true") {
+            window.location.href = "login.html";
+        }
+        function logout() { sessionStorage.clear(); window.location.href = "login.html"; }
+    </script>
+
+    <style>
+        :root { --primary: #ffb100; --dark: #1e293b; --success: #10b981; --danger: #ef4444; --warning: #f59e0b; --info: #3b82f6; --bg: #f1f5f9; --border: #e2e8f0; }
+        body { margin: 0; font-family: 'Inter', sans-serif; background: var(--bg); display: flex; flex-direction: column; min-height: 100vh; color: var(--dark); overflow-x: hidden; }
+        
+        /* TOP NAV SYNCED */
+        .top-nav { width: 100%; padding: 0 20px; height: 70px; display: flex; justify-content: space-between; align-items: center; background: #ffffff; border-bottom: 3px solid var(--primary); position: sticky; top: 0; z-index: 1000; box-sizing: border-box; }
+        .logo-text { font-size: 18px; font-weight: 800; color: var(--dark); text-decoration: none; }
+        .logo-text span { color: var(--primary); }
+
+        .container { display: flex; flex: 1; min-height: calc(100vh - 70px); }
+        
+        /* SIDEBAR SYNCED & FIXED SIZE */
+        .sidebar { width: 250px; background: var(--dark); display: flex; flex-direction: column; flex-shrink: 0; }
+        .nav-links { display: flex; flex-direction: column; padding-top: 10px; flex-grow: 1; }
+        
+        .nav-item, .dropdown-btn { 
+            width: 100%; padding: 14px 20px; text-decoration: none; color: #cbd5e1; 
+            font-weight: 600; font-size: 11px; display: flex; justify-content: space-between; 
+            align-items: center; border-left: 3px solid transparent; transition: 0.3s; 
+            cursor: pointer; background: none; border: none; outline: none; box-sizing: border-box;
+            text-transform: uppercase; letter-spacing: 0.5px; text-align: left;
+        }
+        
+        .nav-item:hover, .dropdown-btn:hover, .active-link { 
+            background: rgba(255,177,0,0.1); color: var(--primary); border-left-color: var(--primary); 
+        }
+        
+        .dropdown-container { display: none; background-color: #16202e; padding-left: 0; }
+        .dropdown-container a { 
+            padding: 12px 20px 12px 45px; text-decoration: none; color: #94a3b8; 
+            font-size: 10px; display: block; transition: 0.2s; font-weight: 500;
+            text-transform: uppercase; border-bottom: 1px solid rgba(255,255,255,0.02);
+        }
+        .dropdown-container a:hover { color: var(--primary); background: rgba(255,255,255,0.02); }
+
+        /* MAIN CONTENT */
+        .main { flex: 1; padding: 25px; box-sizing: border-box; width: 100%; }
+        
+        .control-panel { background: white; padding: 20px; border-radius: 15px; border: 1.5px solid var(--border); display: flex; gap: 15px; align-items: flex-end; flex-wrap: wrap; margin-bottom: 25px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); }
+        .filter-group { display: flex; flex-direction: column; gap: 8px; flex: 1; min-width: 150px; }
+        .filter-group label { font-size: 10px; font-weight: 800; color: #64748b; text-transform: uppercase; }
+        .input-ctrl { padding: 10px; border-radius: 8px; border: 1.5px solid var(--border); font-size: 13px; outline: none; font-family: inherit; width: 100%; }
+
+        .btn-load { background: var(--dark); color: var(--primary); border: 1.5px solid var(--primary); padding: 10px 20px; border-radius: 8px; font-weight: 800; cursor: pointer; text-transform: uppercase; font-size: 11px; height: 42px; transition: 0.3s; }
+        .btn-load:hover { background: #000; }
+        .btn-mass-pay { background: #8e44ad; color: white; border: none; padding: 10px 20px; border-radius: 8px; font-weight: 800; cursor: pointer; display: none; height: 42px; text-transform: uppercase; font-size: 11px; }
+        
+        .table-container { background: white; border-radius: 15px; border: 1px solid var(--border); overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.02); }
+        table { width: 100%; border-collapse: collapse; min-width: 900px; }
+        table th { background: #f8fafc; color: #64748b; padding: 15px; text-align: left; font-size: 10px; font-weight: 800; text-transform: uppercase; border-bottom: 2px solid #f1f5f9; }
+        table td { padding: 15px; border-bottom: 1px solid #f1f5f9; font-size: 13px; font-weight: 500; }
+        
+        .net-pay { font-weight: 800; color: var(--success); font-size: 15px; }
+        .status-badge { padding: 4px 12px; border-radius: 20px; font-size: 9px; font-weight: 800; text-transform: uppercase; }
+        .paid { background: #dcfce7; color: #166534; }
+        .btn-pay { background: var(--success); color: white; border: none; padding: 8px 16px; border-radius: 8px; font-weight: 800; cursor: pointer; font-size: 10px; text-transform: uppercase; }
+        
+        .footer { padding: 15px; text-align: center; font-size: 11px; color: #64748b; background: #fff; border-top: 1px solid #e2e8f0; margin-top: auto; }
+        .deduction-detail { font-size: 10px; color: var(--danger); display: block; margin-top: 4px; font-weight: 700; }
+    </style>
+</head>
+<body onload="initPayroll()">
+
+<nav class="top-nav">
+    <div class="logo-container">
+        <a href="#" class="logo-text">MERCALIX <span>PAYROLL</span></a>
+    </div>
+    <div id="branchTag" style="font-size: 10px; font-weight: 800; color: var(--success); background: #f0fdf4; padding: 6px 15px; border-radius: 20px;">
+        STATION: SYNCING...
+    </div>
+</nav>
+
+<div class="container">
+    <aside class="sidebar">
+        <div class="nav-links">
+            <a href="branch_dashboard.html" class="nav-item">🏠 Dashboard</a>
+            
+            <button class="dropdown-btn" onclick="toggleSidebarDropdown(this)">👥 Employee Management <span>▼</span></button>
+            <div class="dropdown-container">
+                <a href="add_emp.html">➕ Add New Staff</a>
+                <a href="bulk_import.html">📁 Bulk Import (Excel)</a>
+                <a href="employee-report.html">🔍 Employee Directory</a>
+                <a href="e_vault.html">🔒 E-Vault (Documents)</a>
+                <a href="lifecycle.html">🔄 Employee Lifecycle</a>
+                <a href="assets.html">💻 Asset Tracking</a>
+            </div>
+
+            <button class="dropdown-btn" onclick="toggleSidebarDropdown(this)">🕒 Attendance & Leaves <span>▼</span></button>
+            <div class="dropdown-container">
+                <a href="attendance-log.html">📅 Daily Attendance Logs</a>
+                <a href="monthly-attendance.html">📊 Monthly Report</a>
+                <a href="manual-punch.html">✍️ Manual Punch entry</a>
+                <a href="upcoming-leaves.html">🗓️ Upcoming Leaves</a>
+                <a href="holidays.html">🗓️ Holiday Calendar</a>
+            </div>
+            
+            <a href="salary.html" class="nav-item active-link" style="color:var(--primary)">💸 Payroll Engine</a>
+
+            <button class="dropdown-btn" onclick="toggleSidebarDropdown(this)">📈 Advanced Reports <span>▼</span></button>
+            <div class="dropdown-container">
+                <a href="branch-reports.html">🏢 Branch wise Report</a>
+                <a href="audit-logs.html">🛡️ System Audit Logs</a>
+            </div>
+        </div>
+        
+        <div style="padding: 20px; border-top: 1px solid #334155;">
+            <a onclick="logout()" style="color:#ef4444; font-size:11px; font-weight:800; cursor:pointer; text-decoration:none; text-transform:uppercase;">🔓 Secure Logout</a>
+        </div>
+    </aside>
+
+    <main class="main">
+        <div class="control-panel">
+            <div class="filter-group">
+                <label>Billing Month</label>
+                <select id="month" class="input-ctrl">
+                    <option value="-01-">January</option><option value="-02-">February</option>
+                    <option value="-03-" selected>March</option><option value="-04-">April</option>
+                    <option value="-05-">May</option><option value="-06-">June</option>
+                    <option value="-07-">July</option><option value="-08-">August</option>
+                    <option value="-09-">September</option><option value="-10-">October</option>
+                    <option value="-11-">November</option><option value="-12-">December</option>
+                </select>
+            </div>
+            <div class="filter-group"><label>Year</label><input type="number" id="year" class="input-ctrl" value="2026"></div>
+            <button class="btn-load" onclick="calculateBulkSalary()">⚡ RUN PAYROLL ENGINE</button>
+            <button class="btn-mass-pay" id="massPayBtn" onclick="processMassDisbursement()">🚀 BATCH RELEASE</button>
+        </div>
+
+        <div class="table-container">
+            <div style="overflow-x: auto;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Staff Member</th>
+                            <th>Attendance Summary</th>
+                            <th>Gross Salary</th>
+                            <th>Approved Leaves</th>
+                            <th>Deductions</th>
+                            <th>Net Payout</th>
+                            <th>Status</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="payrollTableBody">
+                        <tr><td colspan="8" style="text-align: center; padding: 60px; color: #94a3b8; font-weight: 600;">Ready to process. Click 'Run Payroll' to sync biometric and leave data.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+</div>
+
+<footer class="footer">&copy; 2026 @ Mercalix Enterprise | Management Portal</footer>
+
+<script>
+    // Is block ko replace karein
+const firebaseConfig = {
+  apiKey: "AIzaSyCkBeHploRe3UHq6ndukFUtfYc8sCkfx9g",
+  authDomain: "hrmsmercalixportal.firebaseapp.com",
+  projectId: "hrmsmercalixportal",
+  storageBucket: "hrmsmercalixportal.firebasestorage.app",
+  messagingSenderId: "126979860674",
+  appId: "1:126979860674:web:f486ad4b470b59189c735b",
+  measurementId: "G-EM1HY6T4NF"
+};
+
+// Initialize Firebase (Compat Version)
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+    let allEmployees = [];
+    let pendingPayments = [];
+
+    // FIXED SIDEBAR DROPDOWN LOGIC
+    function toggleSidebarDropdown(btn) {
+        const container = btn.nextElementSibling;
+        const isVisible = container.style.display === "block";
+        document.querySelectorAll('.dropdown-container').forEach(el => el.style.display = 'none');
+        document.querySelectorAll('.dropdown-btn').forEach(el => el.classList.remove('active-link'));
+        if (!isVisible) {
+            container.style.display = "block";
+            btn.classList.add('active-link');
+        }
+    }
+
+    async function initPayroll() {
+        const branchTag = document.getElementById("branchTag");
+        branchTag.innerText = (userRole === "super_admin") ? "MASTER CONTROL: ALL" : `STATION: ${adminBranch.toUpperCase()}`;
+
+        let query = db.collection("employees");
+        if (userRole === "branch_admin") { query = query.where("branch", "==", adminBranch); }
+        const empSnap = await query.get();
+        allEmployees = empSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    }
+
+    async function calculateBulkSalary() {
+        const month = document.getElementById("month").value;
+        const year = document.getElementById("year").value;
+        const tbody = document.getElementById("payrollTableBody");
+        const massBtn = document.getElementById("massPayBtn");
+        
+        tbody.innerHTML = "<tr><td colspan='8' style='text-align: center; padding: 40px;'>Calculating sync with Biometrics & Leave Portal... ⏳</td></tr>";
+        pendingPayments = [];
+
+        const histSnap = await db.collection("salary_history").where("month", "==", month).where("year", "==", year).get();
+        const paidIds = histSnap.docs.map(doc => doc.data().empId);
+
+        let html = "";
+        for (let emp of allEmployees) {
+            const logsSnap = await db.collection("vc_logs").where("id", "==", emp.id).get();
+            const monthlyLogs = logsSnap.docs.map(d => d.data()).filter(l => l.date.includes(month) && l.date.includes(year));
+            
+            const workedDays = new Set(monthlyLogs.filter(l => l.type === "IN").map(l => l.date)).size;
+            const lateCount = monthlyLogs.filter(l => l.type === "IN" && l.late === true).length;
+            const latePenaltyDays = Math.floor(lateCount / 3) * 0.5;
+
+            const leaveSnap = await db.collection("emp_leaves")
+                .where("empId", "==", emp.id)
+                .where("status", "==", "Approved").get();
+            
+            let approvedLeaveDays = 0;
+            leaveSnap.forEach(d => {
+                const lData = d.data();
+                if(lData.startDate && lData.startDate.includes(year) && lData.startDate.includes(month.replace(/-/g,''))) {
+                    approvedLeaveDays += parseInt(lData.days || 0);
+                }
+            });
+
+            const perDaySalary = parseFloat(emp.salary || 0) / 26;
+            const allowedPaidLeaves = parseInt(emp.allowedLeaves) || 0;
+            const rawAbsents = Math.max(0, 26 - workedDays - approvedLeaveDays);
+            const unpaidAbsents = Math.max(0, rawAbsents - allowedPaidLeaves);
+            
+            const absentDeduction = Math.round(unpaidAbsents * perDaySalary);
+            const lateDeduction = Math.round(latePenaltyDays * perDaySalary);
+            
+            const totalDeduction = absentDeduction + lateDeduction;
+            const grossSalary = parseFloat(emp.salary || 0);
+            const net = Math.round(grossSalary - totalDeduction);
+
+            const isPaid = paidIds.includes(emp.id);
+            if(!isPaid) pendingPayments.push({ id: emp.id, name: emp.name, worked: workedDays, total: net });
+
+            html += `<tr>
+                <td><b>${emp.name}</b><br><small style="color:#64748b; font-weight:700;">ID: ${emp.id}</small></td>
+                <td>${workedDays}d Present<br><small style="color:var(--warning); font-weight:700;">${lateCount} Lates</small></td>
+                <td>₹${grossSalary.toLocaleString('en-IN')}</td>
+                <td style="color:var(--success); font-weight:800;">${approvedLeaveDays} Days</td>
+                <td>
+                    <span style="color:var(--danger); font-weight:800;">-₹${totalDeduction.toLocaleString('en-IN')}</span>
+                    <span class="deduction-detail">Loss of Pay: ${unpaidAbsents}d</span>
+                </td>
+                <td class="net-pay">₹${net.toLocaleString('en-IN')}</td>
+                <td>${isPaid ? '<span class="status-badge paid">PAID ✅</span>' : '<span style="color:#94a3b8; font-size:10px; font-weight:800;">PENDING</span>'}</td>
+                <td><button class="btn-pay" ${isPaid ? 'disabled' : ''} onclick="disburseSalary('${emp.id}', '${emp.name}', ${workedDays}, ${net})">RELEASE</button></td>
+            </tr>`;
+        }
+        tbody.innerHTML = html || "<tr><td colspan='8' align='center'>No staff records found.</td></tr>";
+        massBtn.style.display = pendingPayments.length > 0 ? "block" : "none";
+    }
+
+    async function disburseSalary(id, name, worked, amount) {
+        if(!confirm(`Confirm payment of ₹${amount} for ${name}?`)) return;
+        const month = document.getElementById("month").value;
+        const year = document.getElementById("year").value;
+        await db.collection("salary_history").add({
+            name, empId: id, month, year, presentDays: worked, total: amount, timestamp: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        alert("Transaction Successful! ✅"); calculateBulkSalary();
+    }
+
+    async function processMassDisbursement() {
+        if(!confirm(`Release Batch Payout for ${pendingPayments.length} employees?`)) return;
+        const month = document.getElementById("month").value;
+        const year = document.getElementById("year").value;
+        for(let p of pendingPayments) {
+            await db.collection("salary_history").add({
+                name: p.name, empId: p.id, month, year, presentDays: p.worked, total: p.total, timestamp: firebase.firestore.FieldValue.serverTimestamp()
+            });
+        }
+        alert("Batch Disbursement Completed! 🚀"); calculateBulkSalary();
+    }
+</script>
+</body>
+</html>

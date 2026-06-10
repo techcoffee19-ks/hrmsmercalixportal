@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Monthly Attendance Hub | Mercalix Enterprise</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <style>
+        :root { --primary: #ffb100; --dark: #1e293b; --dark-deep: #0f172a; --success: #10b981; --danger: #ef4444; --warning: #f59e0b; --info: #3b82f6; --bg: #f8fafc; --border: #e2e8f0; }
+        body, html { margin: 0; padding: 0; height: 100%; font-family: 'Inter', sans-serif; background: var(--bg); color: var(--dark); overflow-x: hidden; }
+        .wrapper { display: flex; flex-direction: column; min-height: 100vh; }
+        
+        .top-nav { width: 100%; padding: 0 20px; height: 70px; display: flex; justify-content: space-between; align-items: center; background: #ffffff; border-bottom: 3px solid var(--primary); position: sticky; top: 0; z-index: 1000; box-shadow: 0 2px 10px rgba(0,0,0,0.05); box-sizing: border-box; }
+        .logo-text { font-size: 18px; font-weight: 800; color: var(--dark); text-decoration: none; }
+        .logo-text span { color: var(--primary); }
+
+        .container { display: flex; flex: 1; min-height: calc(100vh - 70px); }
+        .sidebar { width: 250px; background: var(--dark); display: flex; flex-direction: column; flex-shrink: 0; }
+        .nav-links { display: flex; flex-direction: column; padding-top: 10px; flex-grow: 1; }
+        
+        .nav-item, .dropdown-btn { 
+            width: 100%; padding: 14px 20px; text-decoration: none; color: #cbd5e1; 
+            font-weight: 600; font-size: 11px; display: flex; justify-content: space-between; 
+            align-items: center; border-left: 3px solid transparent; transition: 0.3s; 
+            cursor: pointer; background: none; border: none; outline: none; box-sizing: border-box;
+            text-transform: uppercase; letter-spacing: 0.5px; text-align: left;
+        }
+        
+        .nav-item:hover, .dropdown-btn:hover, .active-link { background: rgba(255,177,0,0.1); color: var(--primary); border-left-color: var(--primary); }
+        .dropdown-container { display: none; background-color: #16202e; padding-left: 0; }
+        .dropdown-container a { padding: 12px 20px 12px 45px; text-decoration: none; color: #94a3b8; font-size: 10px; display: block; transition: 0.2s; font-weight: 500; text-transform: uppercase; border-bottom: 1px solid rgba(255,255,255,0.02); }
+
+        .main { flex: 1; padding: 25px; box-sizing: border-box; }
+        .header-action { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .filter-bar { background: white; padding: 15px 25px; border-radius: 12px; border: 1.5px solid var(--border); display: flex; gap: 15px; align-items: center; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.02); }
+        .search-input, .select-input { padding: 10px; border-radius: 8px; border: 1.5px solid var(--border); width: 180px; outline: none; font-size: 13px; font-weight: 600; }
+        
+        .data-card { background: white; border-radius: 15px; border: 1.5px solid var(--border); overflow: hidden; }
+        table { width: 100%; border-collapse: collapse; }
+        table th { background: #f8fafc; color: #64748b; padding: 15px; text-align: left; font-size: 11px; font-weight: 800; text-transform: uppercase; border-bottom: 2px solid #f1f5f9; position: sticky; top: 0; }
+        table td { padding: 15px; border-bottom: 1px solid #f1f5f9; font-size: 13px; font-weight: 600; }
+        .emp-link { color: var(--info); font-weight: 800; cursor: pointer; text-decoration: none; }
+        .emp-link:hover { text-decoration: underline; }
+
+        /* ORIGINAL COMPACT MODAL SIZE DESIGN */
+        .modal { display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.4); backdrop-filter: blur(4px); align-items: center; justify-content: center; }
+        .modal-content { background: white; width: 480px; max-height: 95vh; border-radius: 12px; overflow-y: auto; box-shadow: 0 20px 40px rgba(0,0,0,0.2); animation: slideUp 0.25s ease-out; box-sizing: border-box; border-top: 5px solid var(--primary); }
+        @keyframes slideUp { from { transform: translateY(15px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        
+        .modal-header { background: var(--dark-deep); color: white; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; }
+        .modal-header-left { display: flex; flex-direction: column; gap: 1px; }
+        .modal-header-right { display: flex; align-items: center; gap: 10px; }
+        
+        .modal-select { padding: 6px 10px; font-size: 12px; font-weight: 700; border-radius: 6px; border: 1px solid #cbd5e1; background-color: #2e3a4e; color: #fff; outline: none; cursor: pointer; }
+        
+        .modal-body { padding: 20px; background: #fff; display: flex; flex-direction: column; gap: 20px; box-sizing: border-box; }
+        .calendar-wrapper { background: #f8fafc; padding: 12px; border-radius: 8px; border: 1px solid var(--border); box-sizing: border-box; }
+        .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+        .day-name { text-align: center; font-size: 10px; font-weight: 800; color: #64748b; text-transform: uppercase; padding-bottom: 6px; }
+        .calendar-day { aspect-ratio: 1; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 12px; color: var(--dark-deep); background: #ffffff; border: 1px solid var(--border); transition: 0.15s; position: relative; }
+        
+        /* EXACT COLOR MATRIX PROTECTION */
+        .status-p { background: #dcfce7 !important; color: #15803d !important; border-color: #bbf7d0 !important; }
+        .status-a { background: #fee2e2 !important; color: #b91c1c !important; border-color: #fecaca !important; }
+        .status-l { background: #fef3c7 !important; color: #b45309 !important; border-color: #fde68a !important; }
+        .status-h { background: #e0f2fe !important; color: #0369a1 !important; border-color: #bae6fd !important; }
+        .status-s { background: #f1f5f9 !important; color: #94a3b8 !important; border-color: #e2e8f0 !important; font-weight: 600; }
+        .day-empty { background: transparent !important; border: none !important; pointer-events: none; }
+
+        .summary-box { background: #f8fafc; border-radius: 8px; padding: 15px; border: 1px solid var(--border); box-sizing: border-box; }
+        .summary-stat { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px dashed #e2e8f0; font-size: 12px; font-weight: 700; color: #475569; }
+        .summary-stat b { font-size: 13px; color: var(--dark-deep); }
+    </style>
+</head>
+<body onload="initMonthlyModule()">
+
+<div class="wrapper">
+    <nav class="top-nav">
+        <div class="logo-container"><a href="#" class="logo-text">MERCALIX <span>SYSTEM</span></a></div>
+        <div style="font-size: 10px; font-weight: 800; color: var(--success); background: #f0fdf4; padding: 6px 15px; border-radius: 20px;">MONTHLY ANALYTICS</div>
+    </nav>
+
+    <div class="container">
+        <aside class="sidebar">
+            <div class="nav-links">
+                <a href="branch_dashboard.html" class="nav-item">🏠 Dashboard</a>
+                <button class="dropdown-btn" onclick="toggleSidebarDropdown(this)">👥 Employee Management <span>▼</span></button>
+                <div class="dropdown-container">
+                    <a href="add_emp.html">➕ Add New Staff</a>
+                    <a href="bulk_import.html">📁 Bulk Import (Excel)</a>
+                    <a href="employee-report.html">🔍 Employee Directory</a>
+                    <a href="e_vault.html">🔒 E-Vault (Documents)</a>
+                    <a href="lifecycle.html">🔄 Employee Lifecycle</a>
+                    <a href="assets.html">💻 Asset Tracking</a>
+                                    <a href="javascript:void(0)" onclick="validateAccess('workforce', 'hr_staff_directory.html')">📁 Workforce Directory</a>
+
+                </div>
+                <button class="dropdown-btn" onclick="toggleSidebarDropdown(this)">🕒 Attendance & Leaves <span>▼</span></button>
+                <div class="dropdown-container" style="display:block;">
+                    <a href="attendance-log.html">📅 Daily Attendance Logs</a>
+                    <a href="monthly-attendance.html" style="color:var(--primary);">📊 Monthly Report</a>
+                </div>
+                <button class="dropdown-btn" onclick="toggleSidebarDropdown(this)">💸 Payroll Engine <span>▼</span></button>
+                <div class="dropdown-container">
+                    <a href="run-payroll.html">🚀 Process Salary</a>
+                    <a href="advance-requests.html">💰 Advance Salary</a>
+                    <a href="salary-slip.html">📄 Generate Payslips</a>
+                    <a href="export-attendance.html">📄 Employee Data</a>
+                </div>
+            </div>
+        </aside>
+
+        <main class="main">
+            <div class="header-action">
+                <h2 style="margin:0; font-size:22px; font-weight:800;">Attendance Audit Console</h2>
+                <div class="filter-bar">
+                    <select id="deptFilter" class="select-input" onchange="filterTable()">
+                        <option value="All">All Departments</option>
+                    </select>
+                    <input type="month" id="monthPicker" class="search-input" onchange="loadStaffList()">
+                    <input type="text" id="staffSearch" class="search-input" placeholder="Search ID or Name..." oninput="filterTable()">
+                </div>
+            </div>
+
+            <div class="data-card">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Employee ID</th>
+                            <th>Full Name</th>
+                            <th>Department</th>
+                            <th>Branch</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="staffTableBody">
+                        <tr><td colspan="5" align="center" style="padding:50px;">Syncing workforce registry...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </main>
+    </div>
+</div>
+
+<!-- ORIGINAL DESIGN MODAL CONTAINER -->
+<div id="calendarModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <div class="modal-header-left">
+                <h3 id="modalEmpName" style="margin:0; font-size:14px; font-weight:900; text-transform: uppercase;">---</h3>
+                <span id="modalEmpId" style="font-size:10px; color:var(--primary); font-weight:800;">ID: ---</span>
+            </div>
+            <div class="modal-header-right">
+                <select id="modalMonthYearSelect" class="modal-select" onchange="handleModalMonthChange()"></select>
+                <button onclick="closeModal()" style="background:none; border:none; color:white; font-size:22px; cursor:pointer; line-height:1;">&times;</button>
+            </div>
+        </div>
+        <div class="modal-body">
+            <div class="calendar-wrapper">
+                <div class="calendar-grid" id="calendarDays"></div>
+            </div>
+            <div class="summary-box">
+                <h4 style="margin-top:0; font-size:11px; text-transform:uppercase; color:#64748b; font-weight:800; margin-bottom:10px;">Attendance Summary</h4>
+                <div class="summary-stat"><span>Days in Month</span> <b id="statTotal">0</b></div>
+                <div class="summary-stat"><span style="color:var(--success)">Present Days</span> <b id="statPresent">0</b></div>
+                <div class="summary-stat"><span style="color:var(--danger)">Absent Days</span> <b id="statAbsent">0</b></div>
+                <div class="summary-stat"><span style="color:var(--warning)">Late Marks</span> <b id="statLate">0</b></div>
+                <div class="summary-stat"><span style="color:var(--info)">Half Days</span> <b id="statHalf">0</b></div>
+                
+                <div style="margin-top:12px; font-size:9px; color:#94a3b8; line-height:1.5; font-weight:700; border-top:1px dashed var(--border); padding-top:8px;">
+                    🟢 Present | 🔴 Absent | 🟠 Late | 🔵 Half Day | ⚪ Sunday
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyCkBeHploRe3UHq6ndukFUtfYc8sCkfx9g",
+  authDomain: "hrmsmercalixportal.firebaseapp.com",
+  projectId: "hrmsmercalixportal",
+  storageBucket: "hrmsmercalixportal.firebasestorage.app",
+  messagingSenderId: "126979860674",
+  appId: "1:126979860674:web:f486ad4b470b59189c735b",
+  measurementId: "G-EM1HY6T4NF"
+};
+
+if (!firebase.apps.length) {
+    firebase.initializeApp(firebaseConfig);
+}
+const db = firebase.firestore();
+
+let allStaff = [];
+let currentActiveDocId = ""; 
+let currentActiveEmpName = "";
+const adminCompanyCode = sessionStorage.getItem("companyCode");
+
+function toggleSidebarDropdown(btn) {
+    const container = btn.nextElementSibling;
+    const isVisible = container.style.display === "block";
+    document.querySelectorAll('.dropdown-container').forEach(el => el.style.display = 'none');
+    if (!isVisible) container.style.display = "block";
+}
+
+async function initMonthlyModule() {
+    if (sessionStorage.getItem("isLoggedIn") !== "true") { window.location.href = "index.html"; return; }
+    const now = new Date();
+    document.getElementById("monthPicker").value = now.toISOString().slice(0, 7);
+    
+    db.collection("org_structure").where("type", "==", "Department").onSnapshot(snap => {
+        const dFilter = document.getElementById("deptFilter");
+        if(!dFilter) return;
+        dFilter.innerHTML = '<option value="All">All Departments</option>';
+        snap.forEach(doc => dFilter.innerHTML += `<option value="${doc.data().name}">${doc.data().name}</option>`);
+    });
+
+    buildModalDropdownEngine();
+    loadStaffList();
+}
+
+function buildModalDropdownEngine() {
+    const modalDropdown = document.getElementById("modalMonthYearSelect");
+    modalDropdown.innerHTML = "";
+    const monthsNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+    const currentSysDate = new Date();
+    const currentYear = currentSysDate.getFullYear();
+    
+    for (let y = currentYear; y >= 2025; y--) {
+        let startMonth = (y === currentYear) ? currentSysDate.getMonth() : 11;
+        for (let m = startMonth; m >= 0; m--) {
+            const padMonth = String(m + 1).padStart(2, '0');
+            const valueStr = `${padMonth}-${y}`;
+            const textStr = `${monthsNames[m]} ${y}`;
+            
+            const opt = document.createElement("option");
+            opt.value = valueStr;
+            opt.innerText = textStr;
+            modalDropdown.appendChild(opt);
+        }
+    }
+}
+
+async function loadStaffList() {
+    db.collection("employees").onSnapshot(snap => {
+        let temp = snap.docs.map(doc => ({ docId: doc.id, ...doc.data() }));
+        if (!adminCompanyCode || adminCompanyCode === "" || adminCompanyCode === "GENERAL" || adminCompanyCode === "null") {
+            allStaff = temp;
+        } else {
+            allStaff = temp.filter(e => e.companyCode === adminCompanyCode);
+        }
+        renderTable(allStaff);
+    });
+}
+
+function renderTable(data) {
+    const tbody = document.getElementById("staffTableBody");
+    if(!tbody) return;
+    
+    if(data.length === 0) {
+        tbody.innerHTML = "<tr><td colspan='5' align='center' style='padding:50px; color:gray;'>No employees found in this month's registry.</td></tr>";
+        return;
+    }
+
+    tbody.innerHTML = data.map(emp => `
+        <tr>
+            <td><b style="color:var(--dark)">${emp.id || emp.docId}</b></td>
+            <td><span class="emp-link" onclick="openAttendanceCalendar('${emp.docId}', '${emp.name.replace(/'/g, "\\'")}')">${emp.name}</span></td>
+            <td><span style="font-weight:600; color:#64748b;">${emp.dept || 'N/A'}</span></td>
+            <td>${emp.branch || '---'}</td>
+            <td><button class="emp-link" style="border:none; background:none; font-size:11px; font-weight:800;" onclick="openAttendanceCalendar('${emp.docId}', '${emp.name.replace(/'/g, "\\'")}')">VIEW CALENDAR</button></td>
+        </tr>
+    `).join('');
+}
+
+async function openAttendanceCalendar(docId, empName) {
+    currentActiveDocId = docId;
+    currentActiveEmpName = empName;
+    
+    const pageMonthVal = document.getElementById("monthPicker").value; 
+    const [pYear, pMonth] = pageMonthVal.split("-");
+    const targetValueStr = `${pMonth}-${pYear}`;
+    
+    const modalDropdown = document.getElementById("modalMonthYearSelect");
+    modalDropdown.value = targetValueStr; 
+
+    document.getElementById("modalEmpName").innerText = empName;
+    document.getElementById("calendarModal").style.display = "flex";
+
+    fetchAndPopulateModalMatrix(pYear, pMonth);
+}
+
+function handleModalMonthChange() {
+    const selectedMonthVal = document.getElementById("modalMonthYearSelect").value; 
+    const [mMonth, mYear] = selectedMonthVal.split("-");
+    fetchAndPopulateModalMatrix(mYear, mMonth);
+}
+
+async function fetchAndPopulateModalMatrix(yearStr, monthStr) {
+    const monthYearSuffix = `${monthStr}-${yearStr}`;
+    const container = document.getElementById("calendarDays");
+    container.innerHTML = '<div style="grid-column: 1/-1; text-align:center; padding:30px; font-size:11px; color:#94a3b8; font-weight:700;">🔄 Syncing calculations...</div>';
+
+    try {
+        const empDoc = await db.collection("employees").doc(currentActiveDocId).get();
+        if(!empDoc.exists) return;
+        const empData = empDoc.data();
+        const displayId = empData.id || currentActiveDocId;
+        const cleanId = displayId.replace(/\//g, '');
+        
+        document.getElementById("modalEmpId").innerText = "STAFF ID: " + displayId;
+
+        const logsSnap = await db.collection("vc_logs").get();
+        const allLogs = logsSnap.docs.map(d => d.data()).filter(l => 
+            (l.id === displayId || l.id === cleanId) && l.date.endsWith(`-${monthYearSuffix}`)
+        );
+
+        const leaveSnap = await db.collection("emp_leaves").where("name", "==", currentActiveEmpName).where("status", "==", "Approved").get();
+        const allLeaves = leaveSnap.docs.map(d => d.data()).filter(lv => lv.startDate && lv.startDate.startsWith(`${yearStr}-${monthStr}`));
+
+        renderModalCalendarMatrix(parseInt(yearStr), parseInt(monthStr), empData, allLogs, allLeaves);
+
+    } catch (e) {
+        console.error(e);
+    }
+}
+
+function renderModalCalendarMatrix(year, month, empData, logs, leaves) {
+    const container = document.getElementById("calendarDays");
+    container.innerHTML = "";
+    
+    ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].forEach(d => container.innerHTML += `<div class="day-name">${d}</div>`);
+
+    const firstDayIndex = new Date(year, month - 1, 1).getDay();
+    const daysInMonth = new Date(year, month, 0).getDate();
+
+    for (let i = 0; i < firstDayIndex; i++) {
+        container.innerHTML += `<div class="calendar-day day-empty"></div>`;
+    }
+
+    let pCount = 0, aCount = 0, lCount = 0, hCount = 0;
+    const manualLogs = empData.attendance_manual_logs || {};
+    const monthStrPad = String(month).padStart(2, '0');
+    const monthPrefix = `${year}-${monthStrPad}-`;
+
+    for (let d = 1; d <= daysInMonth; d++) {
+        const dayPad = String(d).padStart(2, '0');
+        const dateKey = `${monthPrefix}${dayPad}`;
+        const biometricDateStr = `${dayPad}-${monthStrPad}-${year}`;
+        const dayOfWeek = new Date(year, month - 1, d).getDay();
+
+        let statusClass = "status-a"; 
+        let titleText = "Absent";
+
+        if (dayOfWeek === 0) {
+            statusClass = "status-s";
+            titleText = "Sunday (Weekly Off)";
+        } else {
+            if (manualLogs[dateKey]) {
+                const mStatus = String(manualLogs[dateKey]).toUpperCase().trim();
+                if (mStatus === "PRESENT") { statusClass = "status-p"; pCount++; titleText = "Present (Regularized)"; }
+                else if (mStatus === "LATE") { statusClass = "status-l"; lCount++; pCount++; titleText = "Late Mark (Regularized)"; }
+                else if (mStatus === "HALF" || mStatus === "HALF_DAY" || mStatus === "HALF DAY") { statusClass = "status-h"; hCount++; pCount += 0.5; titleText = "Half Day (Regularized)"; }
+                else { statusClass = "status-a"; aCount++; }
+            } 
+            else {
+                const bioLog = logs.find(l => l.date === biometricDateStr && l.type === "IN");
+                if (bioLog) {
+                    const bioStatus = String(bioLog.status || "").toUpperCase().trim();
+                    if (bioStatus === "HALF" || bioStatus === "HALF_DAY" || bioStatus === "HALF DAY") {
+                        statusClass = "status-h"; hCount++; pCount += 0.5; titleText = `Half Day - ${bioLog.time || ''}`;
+                    } else if (bioStatus === "LATE" || bioLog.isLate === true || bioLog.late === true) {
+                        statusClass = "status-l"; lCount++; pCount++; titleText = `Late Mark - ${bioLog.time || ''}`;
+                    } else {
+                        statusClass = "status-p"; pCount++; titleText = `Present - ${bioLog.time || ''}`;
+                    }
+                } 
+                else {
+                    const matchedLeave = leaves.find(lv => lv.startDate === `${year}-${monthStrPad}-${dayPad}`);
+                    if (matchedLeave) {
+                        statusClass = "status-p"; 
+                        pCount++; 
+                        titleText = `Approved Leave: ${matchedLeave.leaveType || 'Leave'}`;
+                    } else {
+                        statusClass = "status-a";
+                        aCount++;
+                    }
+                }
+            }
+        }
+
+        container.innerHTML += `<div class="calendar-day ${statusClass}" title="${titleText}">${d}</div>`;
+    }
+
+    document.getElementById("statTotal").innerText = daysInMonth;
+    document.getElementById("statPresent").innerText = pCount;
+    document.getElementById("statAbsent").innerText = aCount;
+    document.getElementById("statLate").innerText = lCount;
+    document.getElementById("statHalf").innerText = hCount;
+}
+
+function filterTable() {
+    const term = document.getElementById("staffSearch").value.toLowerCase();
+    const dept = document.getElementById("deptFilter").value;
+    const filtered = allStaff.filter(s => {
+        const matchSearch = s.name.toLowerCase().includes(term) || (s.id && s.id.toLowerCase().includes(term));
+        const matchDept = (dept === "All" || s.dept === dept);
+        return matchSearch && matchDept;
+    });
+    renderTable(filtered);
+}
+
+function closeModal() { document.getElementById("calendarModal").style.display = "none"; }
+function logout() { sessionStorage.removeItem("isLoggedIn"); window.location.href = "index.html"; }
+</script>
+</body>
+</html>

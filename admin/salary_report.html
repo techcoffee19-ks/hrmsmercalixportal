@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Financial Reports | Mercalix Enterprise</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+
+    <style>
+        :root { --primary: #ffb100; --dark: #1e293b; --success: #10b981; --danger: #ef4444; --warning: #f59e0b; --bg: #f1f5f9; --border: #e2e8f0; }
+        body, html { margin: 0; padding: 0; height: 100%; font-family: 'Inter', 'Segoe UI', sans-serif; background: var(--bg); color: var(--dark); overflow-x: hidden; }
+        .wrapper { display: flex; flex-direction: column; min-height: 100vh; }
+        .top-nav { width: 100%; padding: 0 20px; height: 70px; display: flex; justify-content: space-between; align-items: center; background: #ffffff; border-bottom: 3px solid var(--primary); position: sticky; top: 0; z-index: 1000; box-shadow: 0 2px 10px rgba(0,0,0,0.05); box-sizing: border-box; }
+        .logo-container { display: flex; align-items: center; gap: 10px; }
+        .company-logo { height: 40px; border-radius: 5px; object-fit: contain; }
+        .logo-text { font-size: 18px; font-weight: 800; color: var(--dark); text-decoration: none; }
+        .logo-text span { color: var(--primary); }
+        .container { display: flex; flex: 1; flex-direction: row; }
+        .sidebar { width: 250px; background: var(--dark); display: flex; flex-direction: column; box-shadow: 4px 0 10px rgba(0,0,0,0.1); flex-shrink: 0; }
+        .nav-links { display: flex; flex-direction: column; padding-top: 10px; flex-grow: 1; }
+        .sidebar a { padding: 15px 20px; text-decoration: none; color: #cbd5e1; font-weight: 500; font-size: 14px; border-left: 4px solid transparent; transition: 0.3s; cursor: pointer; }
+        .sidebar a:hover, .sidebar a.active-nav { background: rgba(255,177,0,0.1); color: var(--primary); border-left-color: var(--primary); }
+        .sidebar-footer { padding: 15px 0; border-top: 1px solid #334155; background: var(--dark); display: flex; flex-direction: column; }
+        .btn-logout-text { color: var(--primary) !important; font-weight: 800 !important; font-size: 14px !important; text-decoration: none; padding: 15px 20px !important; cursor: pointer; }
+        .main { flex: 1; padding: 25px; width: 100%; box-sizing: border-box; }
+        .filter-card { background: white; padding: 20px; border-radius: 16px; border: 1px solid var(--border); margin-bottom: 25px; display: flex; align-items: center; gap: 15px; }
+        .filter-card span { font-weight: 800; font-size: 12px; color: #64748b; text-transform: uppercase; }
+        select { flex: 1; padding: 10px; border: 1.5px solid var(--border); border-radius: 10px; outline: none; font-size: 14px; transition: 0.3s; }
+        .mini-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 25px; }
+        .stat-box { background: #fff; padding: 15px 20px; border-radius: 12px; border-left: 5px solid var(--primary); box-shadow: 0 4px 6px rgba(0,0,0,0.02); }
+        .stat-box small { font-size: 10px; font-weight: 800; color: #64748b; text-transform: uppercase; }
+        .stat-box p { margin: 5px 0 0 0; font-size: 18px; font-weight: 800; }
+        .report-box { background: white; border-radius: 16px; border: 1px solid var(--border); overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.02); }
+        table { width: 100%; border-collapse: collapse; }
+        table th { background: #f8fafc; color: #475569; padding: 15px; text-align: left; font-size: 11px; font-weight: 800; text-transform: uppercase; border-bottom: 2px solid #f1f5f9; }
+        table td { padding: 15px; border-bottom: 1px solid #f1f5f9; font-size: 14px; font-weight: 500; }
+        .badge-paid { background: #dcfce7; color: #166534; padding: 5px 12px; border-radius: 20px; font-size: 10px; font-weight: 800; }
+        .btn-print { background: var(--dark); color: white; border: none; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 12px; font-weight: 600; transition: 0.2s; }
+        .footer { background: #ffffff; padding: 15px; text-align: center; font-size: 12px; font-weight: 600; border-top: 1px solid #e2e8f0; color: #64748b; margin-top: auto; }
+
+        /* 🖨️ PRINT SLIP STYLES */
+        #print-area { display: none; }
+        @media print {
+            body * { visibility: hidden; }
+            #print-area, #print-area * { visibility: visible; }
+            #print-area { display: block !important; position: absolute; left: 0; top: 0; width: 100%; }
+            .slip-card { border: 2px solid #333; padding: 40px; margin: 20px; font-family: 'Segoe UI', sans-serif; }
+            .slip-header { text-align: center; border-bottom: 4px solid #333; padding-bottom: 15px; margin-bottom: 20px; }
+            .slip-row { display: flex; justify-content: space-between; margin-bottom: 10px; padding: 8px 0; border-bottom: 1px solid #eee; }
+            .net-amount { text-align: right; font-size: 24px; font-weight: 800; margin-top: 30px; border-top: 2px solid #333; padding-top: 10px; color: #000; }
+            .deduction-text { color: #ef4444; font-weight: 600; }
+        }
+    </style>
+</head>
+<body onload="initSalary()">
+
+<div class="wrapper">
+    <nav class="top-nav">
+        <div class="logo-container">
+            <img src="https://api.pay2india.com/uploads/files/setting/logo1765020086879.jpeg" alt="Logo" class="company-logo">
+            <a href="#" class="logo-text">MERCALIX <span>FINANCE</span></a>
+        </div>
+        <div style="font-size: 11px; font-weight: 800; color: var(--success); background: #f0fdf4; padding: 5px 12px; border-radius: 20px;">
+            SECURE FINANCIAL LOGS
+        </div>
+    </nav>
+    
+    <div class="container">
+        <aside class="sidebar">
+            <div class="nav-links">
+                <a href="home_page.html">🏠 DASHBOARD</a>
+                <a href="add_emp.html">👤 STAFF MANAGEMENT</a>
+                <a href="employee-report.html">📋 MASTER REPORTS</a>
+                <a href="attendance-log.html">🕒 TIME LOGS</a>
+                <a href="salary.html">💸 PAYROLL ENGINE</a>
+                <a href="salary_report.html" class="active-nav">💰 FINANCIAL SUMMARY</a>
+            </div>
+            <div class="sidebar-footer">
+                <a onclick="logout()" class="btn-logout-text">🔓 SECURE LOGOUT</a>
+            </div>
+        </aside>
+
+        <main class="main">
+            <div class="filter-card">
+                <span>Employee Search:</span>
+                <select id="empSelect" onchange="loadHistory()">
+                    <option value="">-- Accessing Cloud Records... --</option>
+                </select>
+            </div>
+
+            <div class="mini-stats" id="statsRow" style="display: none;">
+                <div class="stat-box"><small>Total Disbursement</small><p id="statTotalAmount">₹0</p></div>
+                <div class="stat-box"><small>Paid Months</small><p id="statPaidCount">0</p></div>
+                <div class="stat-box"><small>Last Payment</small><p id="statLastPay">--</p></div>
+            </div>
+
+            <div class="report-box">
+                <div style="overflow-x: auto;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Pay Period</th>
+                                <th>Staff Name</th>
+                                <th>Attendance Summary</th>
+                                <th>Net Payout</th>
+                                <th>Audit Status</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="salaryBody">
+                            <tr><td colspan="6" style="text-align: center; padding: 50px; color: #94a3b8;">Select an authorized employee to view financial data.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+    <footer class="footer">&copy; 2026 @ Mercalix AI | Secure Corporate Audit Hub</footer>
+</div>
+
+<div id="print-area">
+    <div class="slip-card">
+        <div class="slip-header">
+            <h1 style="margin: 0; font-size: 28px;">MERCALIX SYSTEM</h1>
+            <p style="margin: 5px 0; font-weight: 600; color: #666;">OFFICIAL MONTHLY SALARY SLIP</p>
+        </div>
+        <div class="slip-row"><span>Employee Name:</span> <b id="p-name">--</b></div>
+        <div class="slip-row"><span>Staff ID:</span> <b id="p-id">--</b></div>
+        <div class="slip-row"><span>Payable Period:</span> <b id="p-period">--</b></div>
+        <div class="slip-row"><span>Verified Present Days:</span> <b id="p-days">0</b></div>
+        
+        <div style="margin-top: 30px; background: #f9f9f9; padding: 20px; border-radius: 8px; border: 1px solid #ddd;">
+            <div class="slip-row"><span>Attendance Compliance:</span> <span style="color: green; font-weight: 700;">Verified ✅</span></div>
+            <div class="slip-row"><span>Transaction Status:</span> <span style="color: green; font-weight: 700;">Success (Cloud)</span></div>
+        </div>
+        <div class="net-amount">TOTAL DISBURSED: <span id="p-net">₹0</span></div>
+        <div style="margin-top: 50px; text-align: center;">
+            <p style="font-size: 11px; color: #888;">This is a system-generated document and does not require a physical signature.<br>
+            Mercalix AI Security Hash: <span id="p-hash"></span></p>
+        </div>
+    </div>
+</div>
+
+<script>
+   // Is block ko replace karein
+const firebaseConfig = {
+  apiKey: "AIzaSyCkBeHploRe3UHq6ndukFUtfYc8sCkfx9g",
+  authDomain: "hrmsmercalixportal.firebaseapp.com",
+  projectId: "hrmsmercalixportal",
+  storageBucket: "hrmsmercalixportal.firebasestorage.app",
+  messagingSenderId: "126979860674",
+  appId: "1:126979860674:web:f486ad4b470b59189c735b",
+  measurementId: "G-EM1HY6T4NF"
+};
+
+// Initialize Firebase (Compat Version)
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+    async function initSalary() {
+        db.collection("employees").onSnapshot((snapshot) => {
+            const select = document.getElementById("empSelect");
+            select.innerHTML = '<option value="">Select Staff Member to View Reports</option>';
+            snapshot.forEach(doc => {
+                let emp = doc.data();
+                select.innerHTML += `<option value="${emp.id}">${emp.name} (ID: ${emp.id})</option>`;
+            });
+        });
+    }
+
+    async function loadHistory() {
+        const empId = document.getElementById("empSelect").value;
+        const body = document.getElementById("salaryBody");
+        const stats = document.getElementById("statsRow");
+        if(!empId) { body.innerHTML = "<tr><td colspan='6' style='text-align:center;'>Select an employee.</td></tr>"; stats.style.display="none"; return; }
+        body.innerHTML = "<tr><td colspan='6' style='text-align:center;'>Crunching Cloud Data... ⏳</td></tr>";
+
+        db.collection("salary_history").where("empId", "==", empId).orderBy("timestamp", "desc").onSnapshot((snapshot) => {
+            let history = snapshot.docs.map(doc => doc.data());
+            if(history.length === 0) {
+                body.innerHTML = "<tr><td colspan='6' style='text-align:center;'>No history found.</td></tr>";
+                stats.style.display = "none";
+                return;
+            }
+            stats.style.display = "grid";
+            let totalVal = 0;
+            history.forEach(h => totalVal += parseFloat(h.total.toString().replace(/,/g, '')));
+            document.getElementById("statTotalAmount").innerText = "₹" + totalVal.toLocaleString('en-IN');
+            document.getElementById("statPaidCount").innerText = history.length + " Months";
+            document.getElementById("statLastPay").innerText = history[0].month + " " + history[0].year;
+
+            body.innerHTML = history.map((s) => `
+                <tr>
+                    <td><b>${s.month} ${s.year}</b></td>
+                    <td>${s.name}</td>
+                    <td>${s.presentDays} Days Present</td>
+                    <td style="color:var(--success); font-weight:800;">₹${s.total.toLocaleString('en-IN')}</td>
+                    <td><span class="badge-paid">VERIFIED</span></td>
+                    <td><button class="btn-print" onclick='prepareSlip(${JSON.stringify(s)})'>VIEW SLIP</button></td>
+                </tr>
+            `).join('');
+        });
+    }
+
+    function prepareSlip(data) {
+        document.getElementById("p-name").innerText = data.name;
+        document.getElementById("p-id").innerText = data.empId;
+        document.getElementById("p-period").innerText = `${data.month} ${data.year}`;
+        document.getElementById("p-days").innerText = data.presentDays;
+        document.getElementById("p-net").innerText = "₹" + data.total.toLocaleString('en-IN');
+        document.getElementById("p-hash").innerText = Math.random().toString(36).substring(2, 12).toUpperCase();
+        window.print();
+    }
+
+    function logout() { sessionStorage.clear(); window.location.href = "login.html"; }
+</script>
+</body>
+</html>

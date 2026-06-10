@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Staff Portal | Mercalix OS</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --primary-cyan: #00d4ff;
+            --primary-amber: #ffb100;
+            --dark-blue: #002b3d;
+            --text-dark: #1e293b;
+            --text-gray: #64748b;
+        }
+        
+        body, html { 
+            margin: 0; padding: 0; height: 100%; width: 100%;
+            font-family: 'Plus Jakarta Sans', sans-serif; 
+            background: #ffffff; 
+            overflow: hidden;
+        }
+
+        .top-nav {
+            width: 100%; padding: 10px 50px; box-sizing: border-box;
+            display: flex; justify-content: space-between; align-items: center;
+            background: #1a1a1a;
+            border-bottom: 3px solid var(--primary-cyan);
+            position: fixed; top: 0; z-index: 1000;
+        }
+        
+        .nav-logo { height: 40px; display: flex; align-items: center; }
+        .nav-logo img { height: 100%; object-fit: contain; }
+
+        .btn-attendance { 
+            background: transparent; color: var(--primary-amber); border: 2px solid var(--primary-amber);
+            padding: 8px 20px; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.3s; text-decoration: none; font-size: 12px;
+        }
+        .btn-attendance:hover { background: var(--primary-amber); color: #000; }
+
+        .page-wrapper {
+            display: flex; height: 100vh; width: 100%;
+            padding-top: 60px; box-sizing: border-box;
+        }
+
+        .left-panel {
+            flex: 1.2; position: relative; background-color: var(--primary-cyan);
+            overflow: hidden; display: flex; align-items: center; padding-left: 80px;
+        }
+
+        .bg-img { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0.4; }
+
+        .left-panel::after {
+            content: ""; position: absolute; top: 0; right: -2px; width: 100%; height: 100%;
+            background: #fff; clip-path: polygon(85% 0, 100% 0, 100% 100%, 75% 100%, 90% 75%, 70% 50%, 90% 25%);
+            z-index: 1;
+        }
+
+        .left-content { position: relative; z-index: 2; color: white; max-width: 500px; }
+        .left-content h1 { font-size: 48px; font-weight: 800; margin: 0; line-height: 1.1; }
+        .left-content p { font-size: 18px; opacity: 0.9; margin-top: 15px; }
+
+        .right-panel {
+            flex: 0.8; background: white; display: flex; flex-direction: column;
+            justify-content: center; padding: 0 100px; position: relative;
+        }
+
+        .form-container { width: 100%; max-width: 400px; }
+        .form-container h2 { font-size: 32px; font-weight: 800; color: var(--text-dark); margin-bottom: 10px; }
+        .form-container p { color: var(--text-gray); font-size: 14px; margin-bottom: 40px; line-height: 1.6; }
+
+        .input-group { margin-bottom: 25px; position: relative; }
+        .input-group label { display: block; font-size: 11px; font-weight: 800; color: var(--text-gray); margin-bottom: 8px; text-transform: uppercase; }
+        .input-group input, .input-group select {
+            width: 100%; padding: 16px 20px; border: none; border-radius: 12px;
+            background: #f1f5f9; font-size: 15px; font-weight: 600; outline: none;
+            box-sizing: border-box; transition: 0.3s;
+        }
+        .input-group input:focus, .input-group select:focus { background: #e2e8f0; box-shadow: 0 0 0 3px rgba(0,212,255,0.2); }
+
+        .login-btn {
+            background: var(--primary-cyan); color: white; border: none;
+            padding: 14px 45px; border-radius: 12px; font-size: 16px; font-weight: 800;
+            cursor: pointer; transition: 0.3s; float: right; margin-top: 10px;
+            box-shadow: 0 10px 20px rgba(0, 212, 255, 0.3);
+        }
+        .login-btn:hover { transform: translateY(-3px); box-shadow: 0 15px 25px rgba(0, 212, 255, 0.4); }
+
+        /* Naya Forgot Password & Modal CSS */
+        .forgot-link {
+            display: block; margin-top: 10px; font-size: 11px; color: var(--text-gray);
+            font-weight: 700; text-decoration: none; cursor: pointer; transition: 0.2s;
+        }
+        .forgot-link:hover { color: var(--primary-cyan); }
+
+        .modal { display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); backdrop-filter: blur(5px); }
+        .modal-content { background: white; margin: 10% auto; padding: 30px; border-radius: 20px; width: 350px; text-align: center; box-shadow: 0 20px 40px rgba(0,0,0,0.2); }
+        .otp-input { width: 100%; padding: 12px; margin: 10px 0; border: 1.5px solid #e2e8f0; border-radius: 10px; font-size: 14px; text-align: center; outline: none; box-sizing: border-box; }
+
+        .footer-links {
+            position: absolute; bottom: 40px; left: 100px;
+            display: flex; gap: 20px; font-size: 11px; color: var(--text-gray); font-weight: 600;
+        }
+    </style>
+</head>
+<body onload="loadCompanyCodes()">
+
+    <nav class="top-nav">
+        <a href="#" class="nav-logo">
+            <img src="https://api.pay2india.com/uploads/files/setting/logo1765020086879.jpeg" alt="Logo">
+        </a>
+        <a href="index.html" class="btn-attendance">📸 PUNCH ATTENDANCE</a>
+    </nav>
+
+    <div class="page-wrapper">
+        <div class="left-panel">
+            <img src="https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=1500&q=80" class="bg-img">
+            <div class="left-content">
+                <h1>MERCALIX<br><span>WORKFLOW</span></h1>
+                <p>Advanced Enterprise Portal. Dedicated access for global workforce management.</p>
+            </div>
+        </div>
+
+        <div class="right-panel">
+            <div class="form-container">
+                <h2>Account Login</h2>
+                <p>Select your company code and enter your 4-digit ID.</p>
+                
+                <div class="input-group">
+                    <label>Select Company Code</label>
+                    <select id="companyCodeSelect">
+                        <option value="">-- LOADING CODES --</option>
+                    </select>
+                </div>
+
+                <div class="input-group">
+                    <label>Employee ID (4 Digits)</label>
+                    <input type="text" id="shortIdInput" placeholder="e.g. 1224" maxlength="4" autocomplete="off">
+                </div>
+                
+                <div class="input-group">
+                    <label>Secure Password</label>
+                    <input type="password" id="passwordInput" placeholder="••••••••">
+                    <a class="forgot-link" onclick="openForgotModal()">Forgot Password? Receive OTP</a>
+                </div>
+                
+                <button class="login-btn" id="loginBtn" onclick="processLogin()">Login</button>
+            </div>
+
+            <div class="footer-links">
+                <span>Security Policy</span> | <span>Privacy Policy</span> | <span>Legal</span> | <span>Support</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- FORGOT PASSWORD MODAL -->
+    <div id="forgotModal" class="modal">
+        <div class="modal-content">
+            <h3 id="modalTitle" style="margin-top:0;">Reset Access</h3>
+            <p id="modalDesc" style="font-size: 11px; color: #64748b; margin-bottom:20px;">Verify your Employee ID to receive a secure OTP.</p>
+            
+            <div id="step1">
+                <label style="font-size: 10px; font-weight: 800; color: #64748b; display: block; text-align: left;">ENTER FULL EMPLOYEE ID</label>
+                <input type="text" id="resetEmpId" placeholder="e.g. MSB00010001" class="otp-input">
+                <button onclick="sendOTP()" class="login-btn" style="float:none; width:100%; margin-top:10px;">Send OTP</button>
+            </div>
+
+            <div id="step2" style="display:none;">
+                <label style="font-size: 10px; font-weight: 800; color: #64748b; display: block; text-align: left;">ENTER 6-DIGIT OTP</label>
+                <input type="text" id="otpInp" placeholder="000000" maxlength="6" class="otp-input" style="letter-spacing: 5px;">
+                <button onclick="verifyOTP()" class="login-btn" style="float:none; width:100%; margin-top:10px;">Verify OTP</button>
+            </div>
+
+            <div id="step3" style="display:none;">
+                <label style="font-size: 10px; font-weight: 800; color: #64748b; display: block; text-align: left;">SET NEW PASSWORD</label>
+                <input type="password" id="newResetPwd" placeholder="New Strong Password" class="otp-input">
+                <button onclick="updateNewPassword()" class="login-btn" style="float:none; width:100%; margin-top:10px;">Update Password</button>
+            </div>
+            
+            <button onclick="closeForgotModal()" style="margin-top:20px; border:none; background:none; color:var(--danger); font-size:10px; font-weight:800; cursor:pointer; text-transform:uppercase;">Cancel</button>
+        </div>
+    </div>
+
+    <script>
+        const firebaseConfig = {
+          apiKey: "AIzaSyCkBeHploRe3UHq6ndukFUtfYc8sCkfx9g",
+          authDomain: "hrmsmercalixportal.firebaseapp.com",
+          projectId: "hrmsmercalixportal",
+          storageBucket: "hrmsmercalixportal.firebasestorage.app",
+          messagingSenderId: "126979860674",
+          appId: "1:126979860674:web:f486ad4b470b59189c735b",
+          measurementId: "G-EM1HY6T4NF"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        function loadCompanyCodes() {
+            const select = document.getElementById("companyCodeSelect");
+            db.collection("company_codes").onSnapshot(snap => {
+                select.innerHTML = '<option value="">-- CHOOSE CODE --</option>';
+                snap.forEach(doc => {
+                    select.innerHTML += `<option value="${doc.id}">${doc.id}</option>`;
+                });
+            });
+        }
+
+        async function processLogin() {
+            const compCode = document.getElementById("companyCodeSelect").value;
+            const shortId = document.getElementById("shortIdInput").value.trim(); 
+            const pass = document.getElementById("passwordInput").value.trim();
+            
+            if (!compCode || !shortId || !pass) { alert("Please fill all fields!"); return; }
+
+            const dbLookupId = compCode + shortId;
+            const btn = document.getElementById("loginBtn"); 
+            btn.disabled = true; btn.innerText = "Verifying...";
+            
+            try {
+                const doc = await db.collection("employees").doc(dbLookupId).get();
+                if (doc.exists) {
+                    const empData = doc.data();
+                    if (empData.password === pass) {
+                        if(empData.status === "Deactive") {
+                            alert("Your account is deactivated.");
+                        } else {
+                            sessionStorage.clear();
+                            sessionStorage.setItem("empId", dbLookupId); 
+                            sessionStorage.setItem("empName", empData.name);
+                            window.location.href = "employee-dashboard.html";
+                        }
+                    } else { alert("Incorrect Password."); }
+                } else { alert("Invalid Code or Employee ID."); }
+            } catch (e) { alert("Connection Error!"); } 
+            finally { btn.disabled = false; btn.innerText = "Login"; }
+        }
+
+        // --- Naya Forgot Password Logic ---
+        let generatedOTP = null;
+        let targetEmpId = null;
+
+        function openForgotModal() { document.getElementById('forgotModal').style.display = 'block'; }
+        function closeForgotModal() { document.getElementById('forgotModal').style.display = 'none'; }
+
+        async function sendOTP() {
+            const fullId = document.getElementById('resetEmpId').value.trim();
+            if(!fullId) return alert("Please enter Full Employee ID!");
+
+            const doc = await db.collection("employees").doc(fullId).get();
+            if(!doc.exists) return alert("Employee record not found!");
+
+            targetEmpId = fullId;
+            const mobile = doc.data().mobile || "Mobile Not Found";
+            
+            // Demo OTP generation
+            generatedOTP = Math.floor(100000 + Math.random() * 900000);
+            alert(`[DEMO OTP]: ${generatedOTP}\nOTP sent to XXXXXX${mobile.slice(-4)}`);
+            
+            document.getElementById('step1').style.display = 'none';
+            document.getElementById('step2').style.display = 'block';
+            document.getElementById('modalTitle').innerText = "OTP Verification";
+        }
+
+        function verifyOTP() {
+            const entered = document.getElementById('otpInp').value;
+            if(entered == generatedOTP) {
+                document.getElementById('step2').style.display = 'none';
+                document.getElementById('step3').style.display = 'block';
+                document.getElementById('modalTitle').innerText = "Create New Password";
+            } else { alert("Incorrect OTP! Please try again."); }
+        }
+
+        async function updateNewPassword() {
+            const newP = document.getElementById('newResetPwd').value;
+            if(newP.length < 8) return alert("Password must be at least 8 characters!");
+
+            try {
+                await db.collection("employees").doc(targetEmpId).update({ 
+                    password: newP,
+                    isFirstLogin: false 
+                });
+                alert("Security updated successfully! You can now login.");
+                closeForgotModal();
+                location.reload();
+            } catch(e) { alert("Update failed. Please check your connection."); }
+        }
+
+        document.addEventListener('keypress', (e) => { if (e.key === 'Enter') processLogin(); });
+    </script>
+</body>
+</html>

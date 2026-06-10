@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Master Face Attendance | Mercalix Admin</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap');
+        :root { --primary: #ffb100; --dark: #1e293b; --success: #10b981; --danger: #ef4444; --warning: #f59e0b; --info: #3b82f6; --bg: #f1f5f9; --border: #e2e8f0; }
+        
+        body, html { margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', sans-serif; background: var(--bg); overflow: hidden; height: 100vh; }
+        .p-container { display: flex; height: 100vh; width: 100%; }
+
+        .sidebar { width: 250px; background: var(--dark); flex-shrink: 0; display: flex; flex-direction: column; height: 100vh; position: sticky; top: 0; }
+        .sidebar-logo { padding: 25px; color: white; font-weight: 800; border-bottom: 1px solid rgba(255,255,255,0.1); text-transform: uppercase; font-size: 14px; }
+        .nav-links { display: flex; flex-direction: column; padding-top: 10px; flex-grow: 1; overflow-y: auto; }
+        .menu-item, .dropdown-btn { padding: 12px 20px; color: #cbd5e1; font-weight: 600; font-size: 11px; text-transform: uppercase; cursor: pointer; display: flex; justify-content: space-between; align-items: center; text-decoration: none; border-left: 4px solid transparent; transition: 0.3s; background: none; border: none; width: 100%; outline: none; text-align: left; }
+        .menu-item:hover, .menu-item.active, .dropdown-btn:hover { background: rgba(255,177,0,0.1); color: var(--primary); border-left-color: var(--primary); }
+        .dropdown-container { display: none; background: #111827; width: 100%; }
+        .dropdown-container a { padding: 10px 20px 10px 45px; color: #94a3b8; font-size: 10px; display: block; text-decoration: none; font-weight: 700; text-transform: uppercase; border-bottom: 1px solid rgba(255,255,255,0.02); }
+
+        .main { flex: 1; display: flex; flex-direction: column; height: 100vh; overflow: hidden; padding: 20px; box-sizing: border-box; }
+        .top-nav { height: 60px; background: #fff; display: flex; justify-content: space-between; align-items: center; padding: 0 30px; border-bottom: 3px solid var(--primary); margin: -20px -20px 20px -20px; flex-shrink: 0; }
+
+        .filter-card { background: white; padding: 20px; border-radius: 15px; border: 1px solid var(--border); margin-bottom: 20px; display: grid; grid-template-columns: 1.5fr 1fr 1fr 1fr; gap: 15px; flex-shrink: 0; }
+        .inp { padding: 10px; border-radius: 8px; border: 1.5px solid var(--border); font-size: 12px; font-weight: 600; outline: none; width: 100%; box-sizing: border-box; }
+
+        .data-card { background: white; border-radius: 15px; border: 1px solid var(--border); overflow-y: auto; flex-grow: 1; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+        table { width: 100%; border-collapse: collapse; min-width: 800px; }
+        thead { position: sticky; top: 0; z-index: 10; background: #f8fafc; }
+        th { background: #f8fafc; color: #64748b; padding: 15px; text-align: left; font-size: 10px; font-weight: 800; text-transform: uppercase; border-bottom: 2px solid #f1f5f9; }
+        td { padding: 12px 15px; border-bottom: 1px solid #f1f5f9; font-size: 12px; font-weight: 600; }
+        
+        .prof-img { width: 45px; height: 45px; border-radius: 10px; object-fit: cover; border: 2px solid var(--primary); cursor: pointer; }
+
+        /* OVERLAY SIDE PANEL WORKED STATUS BADGES */
+        .overlay { display: none; position: fixed; right: 0; top: 0; width: 500px; height: 100vh; background: white; z-index: 5000; box-shadow: -10px 0 30px rgba(0,0,0,0.2); border-left: 6px solid var(--primary); padding: 0; overflow-y: auto; animation: slideIn 0.3s ease; }
+        @keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
+        .ov-header { background: var(--dark); color: white; padding: 30px; position: relative; }
+        .ov-body { padding: 25px; }
+        .history-card { background: #fff; border: 1px solid var(--border); border-radius: 15px; margin-bottom: 20px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.03); }
+        .punch-row { display: flex; gap: 15px; padding: 15px; align-items: center; border-bottom: 1px solid #f8fafc; }
+        .punch-img { width: 55px; height: 55px; border-radius: 10px; object-fit: cover; border: 1px solid #eee; }
+        
+        .hrs-total-badge { background: #fff7ed; color: #ea580c; border: 1px dashed #fdba74; padding: 4px 12px; border-radius: 8px; font-size: 11px; font-weight: 800; }
+    </style>
+</head>
+<body onload="initMasterAttendance()">
+
+<div class="p-container">
+    <aside class="sidebar">
+        <div class="sidebar-logo">MERCALIX <span style="color:var(--primary)">ADMIN</span></div>
+        <div class="nav-links">
+            <a href="home_page.html" class="menu-item">📊 Global Dashboard</a>
+            <div class="dropdown-btn" onclick="toggleDrop(this)">🔐 System Access <span>▼</span></div>
+            <div class="dropdown-container">
+                <a href="admin_create_login.html">Create New Login</a>
+                <a href="admin_org_master.html">Create Department</a>
+                <a href="admin_manage_roles.html">Manage Roles</a>
+            </div>
+            <div class="dropdown-btn" onclick="toggleDrop(this)">👥 Workforce <span>▼</span></div>
+            <div class="dropdown-container">
+                <a href="admin_kyc_verify.html">KYC Verification</a>
+                <a href="admin_staff_directory.html">Master Directory</a>
+            </div>
+            <div class="dropdown-btn" onclick="toggleDrop(this)">💰 Enterprise Payroll <span>▼</span></div>
+            <div class="dropdown-container">
+                <a href="admin_salary_register.html">Salary Register</a>
+            </div>
+            <a href="admin_attendance_master.html" class="menu-item active">📈 Global Attendance</a>
+            <a href="admin_performance_review.html" class="menu-item">📈 Staff Audit</a>
+        </div>
+        <a onclick="logout()" style="color:var(--danger); padding:15px; border-top:1px solid #334155; cursor:pointer; font-weight:800; font-size:10px; text-align:center;">🔓 SECURE LOGOUT</a>
+    </aside>
+
+    <main class="main">
+        <nav class="top-nav">
+            <div style="font-weight: 800; font-size: 14px;">MERCALIX <span style="color:var(--primary)">MASTER LOGS</span> (<span id="totalCount">0</span> Staff)</div>
+            <div id="liveClock" style="font-size: 12px; font-weight: 900;">00:00:00</div>
+        </nav>
+
+        <div class="filter-card">
+            <input type="text" id="sSearch" class="inp" placeholder="🔍 Search ID or Name..." oninput="filterData()">
+            <select id="sManager" class="inp" onchange="filterData()"><option value="All">All Managers</option></select>
+            <select id="sDept" class="inp" onchange="filterData()"><option value="All">All Departments</option></select>
+            <select id="sBranch" class="inp" onchange="filterData()"><option value="All">All Branches</option></select>
+        </div>
+
+        <div class="data-card">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Photo</th>
+                        <th>ID</th>
+                        <th>Name</th>
+                        <th>Manager</th>
+                        <th>Punch In</th>
+                        <th>Punch Out</th>
+                        <th>Working Hrs</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody id="masterTable"></tbody>
+            </table>
+        </div>
+    </main>
+</div>
+
+<div id="logOverlay" class="overlay">
+    <div class="ov-header">
+        <span onclick="closeOverlay()" style="position:absolute; top:20px; right:20px; font-size:30px; cursor:pointer;">×</span>
+        <h2 id="ovName">---</h2>
+        <p id="ovId" style="color:var(--primary); font-weight:800; font-size:12px;">ID: ---</p>
+    </div>
+    <div class="ov-body" id="historyContainer"></div>
+</div>
+
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyCkBeHploRe3UHq6ndukFUtfYc8sCkfx9g",
+  authDomain: "hrmsmercalixportal.firebaseapp.com",
+  projectId: "hrmsmercalixportal",
+  storageBucket: "hrmsmercalixportal.firebasestorage.app",
+  messagingSenderId: "126979860674",
+  appId: "1:126979860674:web:f486ad4b470b59189c735b"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+let allEmps = [], todayLogs = [];
+const todayStr = new Date().toLocaleDateString('en-GB').replace(/\//g, '-');
+
+function toggleDrop(btn) {
+    const container = btn.nextElementSibling;
+    if(container) container.style.display = container.style.display === "block" ? "none" : "block";
+}
+
+// SECURE TIMESTAMPS PARSING ALGORITHM
+function parseHoursToMinutes(str) {
+    if(!str) return 0;
+    let rawTimeString = str.trim();
+    let h = 0, m = 0;
+    
+    if (rawTimeString.toUpperCase().includes("AM") || rawTimeString.toUpperCase().includes("PM")) {
+        let parts = rawTimeString.split(" ");
+        let timeParts = parts[0].split(":");
+        h = parseInt(timeParts[0]) || 0;
+        m = parseInt(timeParts[1]) || 0;
+        if (parts[1].toUpperCase() === "PM" && h < 12) h += 12;
+        if (parts[1].toUpperCase() === "AM" && h === 12) h = 0;
+    } else {
+        let timeParts = rawTimeString.split(":");
+        h = parseInt(timeParts[0]) || 0;
+        m = parseInt(timeParts[1]) || 0;
+    }
+    return (h * 60) + m;
+}
+
+async function initMasterAttendance() {
+    setInterval(() => { 
+        document.getElementById("liveClock").innerText = new Date().toLocaleTimeString(); 
+    }, 1000);
+    syncFilters();
+    db.collection("employees").onSnapshot(s => {
+        allEmps = s.docs.map(d => ({id: d.id, ...d.data()}));
+        document.getElementById("totalCount").innerText = allEmps.length;
+        fetchTodayLogs();
+    });
+}
+
+function syncFilters() {
+    db.collection("admins").onSnapshot(s => {
+        let h = '<option value="All">All Managers</option>';
+        s.forEach(doc => h += `<option value="${doc.data().name}">${doc.data().name}</option>`);
+        document.getElementById("sManager").innerHTML = h;
+    });
+    db.collection("org_structure").onSnapshot(s => {
+        let h = '<option value="All">All Departments</option>';
+        s.forEach(doc => h += `<option value="${doc.data().name || doc.id}">${doc.data().name || doc.id}</option>`);
+        document.getElementById("sDept").innerHTML = h;
+    });
+    db.collection("branches").onSnapshot(s => {
+        let h = '<option value="All">All Branches</option>';
+        s.forEach(doc => h += `<option value="${doc.data().name}">${doc.data().name}</option>`);
+        document.getElementById("sBranch").innerHTML = h;
+    });
+}
+
+function fetchTodayLogs() {
+    db.collection("vc_logs").where("date", "==", todayStr).onSnapshot(s => {
+        todayLogs = s.docs.map(d => d.data());
+        filterData();
+    });
+}
+
+function filterData() {
+    const term = document.getElementById("sSearch").value.toLowerCase();
+    const mgr = document.getElementById("sManager").value;
+    const dept = document.getElementById("sDept").value;
+    const branch = document.getElementById("sBranch").value;
+    
+    const filtered = allEmps.filter(e => {
+        const nameMatch = (e.name || "").toLowerCase().includes(term);
+        const idMatch = (String(e.id || "")).toLowerCase().includes(term);
+        const mgrMatch = (mgr === "All" || e.reportingManager === mgr);
+        const deptMatch = (dept === "All" || e.dept === dept || e.department === dept);
+        const branchMatch = (branch === "All" || e.branch === branch);
+        return (nameMatch || idMatch) && mgrMatch && deptMatch && branchMatch;
+    });
+
+    const tbody = document.getElementById("masterTable");
+    tbody.innerHTML = filtered.map(e => {
+        const rawEmpId = String(e.id);
+        const cleanEmpId = rawEmpId.replace(/\//g, '');
+        
+        // Filter and sort today logs for active calculations matrix
+        const logs = todayLogs.filter(l => 
+            String(l.id) === rawEmpId || String(l.id) === cleanEmpId || 
+            String(l.empId) === rawEmpId || String(l.empId) === cleanEmpId
+        ).sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+        
+        const latestIn = logs.find(l => String(l.type || l.activity).toUpperCase().trim().includes("IN"));
+        const latestOut = logs.find(l => String(l.type || l.activity).toUpperCase().trim().includes("OUT"));
+        
+        let status = latestIn ? (latestIn.status === "LATE MARK" || latestIn.late === true ? "LATE" : "PRESENT") : "ABSENT";
+        let statusColor = latestIn ? (latestIn.status === "LATE MARK" || latestIn.late === true ? "var(--warning)" : "var(--success)") : "#94a3b8";
+        let profileImg = (latestIn && latestIn.photo) ? latestIn.photo : (e.general?.profilephoto || 'https://cdn-icons-png.flaticon.com/512/3135/3135715.png');
+
+        // ─── 🌟 DAILY WORKING HOURS TABLE CELL CALCULATOR 🌟 ───
+        let totalMinutesWorked = 0;
+        let currentInMinutes = null;
+        let activeShiftLive = false;
+
+        logs.forEach(log => {
+            const act = String(log.type || log.activity).toUpperCase().trim();
+            if(act === "IN" || act === "PUNCH IN") {
+                currentInMinutes = parseHoursToMinutes(log.time);
+                activeShiftLive = true;
+            } else if((act === "OUT" || act === "PUNCH OUT") && currentInMinutes !== null) {
+                const outMinutes = parseHoursToMinutes(log.time);
+                if(outMinutes >= currentInMinutes) {
+                    totalMinutesWorked += (outMinutes - currentInMinutes);
+                }
+                currentInMinutes = null;
+                activeShiftLive = false;
+            }
+        });
+
+        let workingHoursDisplay = "--";
+        if(totalMinutesWorked > 0) {
+            const finalH = Math.floor(totalMinutesWorked / 60);
+            const finalM = totalMinutesWorked % 60;
+            workingHoursDisplay = `<b>${finalH}h ${finalM.toString().padStart(2,'0')}m</b>`;
+            if(activeShiftLive) workingHoursDisplay += ` <small style="color:var(--success); font-weight:800;">(Active)</small>`;
+        } else if(activeShiftLive) {
+            workingHoursDisplay = `<span style="color:var(--success); font-weight:800;"><i class="fas fa-sign-in-alt"></i> Active</span>`;
+        }
+
+        return `
+            <tr style="cursor:pointer;" onclick="viewFullHistory('${rawEmpId}', '${e.name}')">
+                <td><img src="${profileImg}" class="prof-img"></td>
+                <td style="color:var(--info); font-weight:800;">${rawEmpId}</td>
+                <td><b>${e.name}</b></td>
+                <td>${e.reportingManager || 'Not Assigned'}</td>
+                <td style="color:var(--success); font-weight:800;">${latestIn ? latestIn.time : '--:--'}</td>
+                <td style="color:var(--danger); font-weight:800;">${latestOut ? latestOut.time : '--:--'}</td>
+                <td>${workingHoursDisplay}</td>
+                <td><span style="color:${statusColor}; font-weight:900; font-size:10px; border:1px solid ${statusColor}; padding:2px 8px; border-radius:4px;">${status}</span></td>
+            </tr>
+        `;
+    }).join('');
+}
+
+// ─── 🌟 DRAWER SIDE OVERLAY DETAILED ACCUMULATOR LOGIC 🌟 ───
+async function viewFullHistory(id, name) {
+    document.getElementById("ovName").innerText = name;
+    document.getElementById("ovId").innerText = "STAFF ID: " + id;
+    const container = document.getElementById("historyContainer");
+    container.innerHTML = "<div style='padding:20px; text-align:center; font-weight:700;'>🔍 Processing Daily Timelines...</div>";
+    document.getElementById("logOverlay").style.display = "block";
+
+    const cleanId = String(id).replace(/\//g, '');
+
+    db.collection("vc_logs").onSnapshot(snap => {
+        const allLogs = snap.docs.map(doc => doc.data()).filter(l => 
+            String(l.id) === String(id) || String(l.id) === cleanId || 
+            String(l.empId) === String(id) || String(l.empId) === cleanId
+        );
+
+        const groupedByDate = {};
+        allLogs.forEach(l => {
+            if(!groupedByDate[l.date]) groupedByDate[l.date] = [];
+            groupedByDate[l.date].push(l);
+        });
+
+        const sortedDates = Object.keys(groupedByDate).sort((a,b) => {
+            return b.split('-').reverse().join('').localeCompare(a.split('-').reverse().join(''));
+        });
+
+        if(sortedDates.length === 0) {
+            container.innerHTML = "<div style='text-align:center; padding:50px; color:gray;'>No biometric records found.</div>";
+            return;
+        }
+
+        container.innerHTML = sortedDates.map(date => {
+            const dayLogs = groupedByDate[date];
+            
+            // Step 1: Sort logs chronologically (ascending) for accurate calculations
+            dayLogs.sort((a, b) => {
+                if(a.timestamp && b.timestamp) return a.timestamp - b.timestamp;
+                return (a.time || "").localeCompare(b.time || "");
+            });
+
+            // Step 2: Continuous calculation mapping algorithm
+            let accumulatedMins = 0;
+            let lastInMinutes = null;
+            let activeShiftDetected = false;
+
+            dayLogs.forEach(log => {
+                const actType = String(log.type || log.activity).toUpperCase().trim();
+                if(actType === "IN" || actType === "PUNCH IN") {
+                    lastInMinutes = parseHoursToMinutes(log.time);
+                    activeShiftDetected = true;
+                } else if((actType === "OUT" || actType === "PUNCH OUT") && lastInMinutes !== null) {
+                    const outMinutes = parseHoursToMinutes(log.time);
+                    if(outMinutes >= lastInMinutes) {
+                        accumulatedMins += (outMinutes - lastInMinutes);
+                    }
+                    lastInMinutes = null; // reset track key
+                    activeShiftDetected = false;
+                }
+            });
+
+            let computedShiftHoursStr = "---";
+            if(accumulatedMins > 0) {
+                const finalHrs = Math.floor(accumulatedMins / 60);
+                const finalMins = accumulatedMins % 60;
+                computedShiftHoursStr = `${finalHrs}h ${finalMins.toString().padStart(2,'0')}m`;
+                if(activeShiftDetected) computedShiftHoursStr += " + Active";
+            } else if (activeShiftDetected) {
+                computedShiftHoursStr = "Active Shift";
+            }
+
+            let dayHtml = `
+                <div style="background:#f8fafc; padding:12px 15px; font-size:11px; font-weight:800; color:#64748b; border-bottom:1px solid #eee; margin-top:15px; display:flex; justify-content:space-between; align-items:center; border-radius:10px 10px 0 0;">
+                    <span>📅 DATE: ${date}</span>
+                    <span class="hrs-total-badge"><i class="fas fa-stopwatch"></i> WORKED: ${computedShiftHoursStr}</span>
+                </div>
+            `;
+            
+            dayHtml += dayLogs.map(log => {
+                const actType = String(log.type || log.activity).toUpperCase().trim();
+                const isIn = actType.includes("IN");
+                const color = isIn ? "#10b981" : "#ef4444";
+                const isLate = log.status === "LATE MARK" || log.late === true;
+                const statusTag = (isIn && isLate) ? `<span style="font-size:8px; color:#f59e0b; border:1px solid #f59e0b; padding:1px 4px; border-radius:3px; margin-left:5px; font-weight:800;">LATE</span>` : "";
+                
+                const cleanLat = String(log.lat || "").trim();
+                const mapLink = (cleanLat && cleanLat !== "0" && cleanLat !== "undefined") ? 
+                    `<a href="https://maps.google.com/?q=${log.lat},${log.lng}" target="_blank" style="font-size:10px; color:#3b82f6; font-weight:800; text-decoration:none;"><i class="fas fa-map-marker-alt"></i> VIEW ON MAP</a>` : 
+                    `<small style="font-size:9px; color:#94a3b8;">📍 Location Secured</small>`;
+
+                return `
+                <div style="background:white; border:1px solid #e2e8f0; border-top:none; padding:15px; display:flex; gap:15px; align-items:center;">
+                    <img src="${log.photo || 'https://cdn-icons-png.flaticon.com/512/3135/3135715.png'}" style="width:50px; height:50px; border-radius:10px; object-fit:cover; border:1px solid #eee;">
+                    <div style="flex:1">
+                        <b style="color:${color}; font-size:12px;">PUNCH ${isIn ? "IN" : "OUT"}: ${log.time}</b> ${statusTag}<br>
+                        ${mapLink}
+                    </div>
+                </div>`;
+            }).join("");
+            
+            return `<div class="history-card" style="margin-bottom:12px; border-radius:10px; overflow:hidden;">${dayHtml}</div>`;
+        }).join("");
+    });
+}
+
+function closeOverlay() { document.getElementById("logOverlay").style.display = "none"; }
+function logout() { sessionStorage.clear(); window.location.href="index.html"; }
+</script>
+</body>
+</html>

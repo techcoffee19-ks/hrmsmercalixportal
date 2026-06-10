@@ -1,0 +1,15 @@
+{
+  "projects": {
+    "default": "hrmsmercalixportal"
+  },
+  "targets": {
+    "payrollsystem-27f50": {
+      "hosting": {
+        "main-site": [
+          "payrollmanagementbytechcoffee"
+        ]
+      }
+    }
+  },
+  "etags": {}
+}

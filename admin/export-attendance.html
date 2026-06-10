@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Mercalix Workflow - Enterprise Attendance Auditor Engine</title>
+    <!-- Firebase SDK Legacy Compatibility Layer -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --primary: #ffb100;
+            --dark: #1e293b;
+            --dark-deep: #0f172a;
+            --bg: #f8fafc;
+            --border: #e2e8f0;
+            --success: #10b981;
+        }
+        body, html { 
+            margin: 0; padding: 0; height: 100%; 
+            font-family: 'Inter', sans-serif; 
+            background-color: var(--bg); color: var(--dark); 
+        }
+        .app-layout {
+            display: flex;
+            min-height: 100vh;
+        }
+        /* LEFT CONTROLS PANEL */
+        .sidebar-panel {
+            width: 320px;
+            background: white;
+            border-right: 1.5px solid var(--border);
+            padding: 30px 24px;
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+            box-shadow: 4px 0 20px rgba(0,0,0,0.02);
+        }
+        .back-btn {
+            text-decoration: none;
+            color: var(--dark);
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 40px;
+            transition: 0.2s;
+        }
+        .back-btn:hover { color: var(--primary); }
+        h2 { font-size: 20px; font-weight: 800; color: var(--dark-deep); margin: 0 0 5px 0; text-transform: uppercase; }
+        h2 span { color: var(--primary); }
+        .desc { color: #64748b; font-size: 12px; font-weight: 500; line-height: 1.5; margin-bottom: 30px; }
+        
+        .form-group { margin-bottom: 20px; }
+        label { font-size: 10px; font-weight: 800; color: #64748b; text-transform: uppercase; display: block; margin-bottom: 8px; letter-spacing: 0.5px; }
+        select { width: 100%; padding: 12px; font-size: 14px; border: 1.5px solid #cbd5e1; border-radius: 8px; outline: none; background: var(--bg); font-weight: 700; color: var(--dark); box-sizing: border-box; transition: 0.2s; }
+        select:focus { border-color: var(--primary); }
+        
+        .btn-prime { width: 100%; padding: 14px; font-size: 12px; background: var(--dark-deep); color: var(--primary); border: 1.5px solid var(--primary); border-radius: 8px; cursor: pointer; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; transition: 0.3s; }
+        .btn-prime:hover { background: #000; color: #fff; border-color: #000; }
+        .btn-download { width: 100%; padding: 14px; font-size: 12px; background: var(--success); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; transition: 0.3s; margin-top: 12px; display: none; }
+        .btn-download:hover { background: #059669; transform: translateY(-1px); }
+        
+        #status { margin-top: 20px; font-size: 11px; font-weight: 700; background: var(--bg); padding: 12px; border-radius: 6px; border: 1px dashed #cbd5e1; display: none; line-height: 1.4; }
+        
+        /* RIGHT PREVIEW WORKSPACE */
+        .main-workspace {
+            flex: 1;
+            padding: 40px;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+        }
+        .preview-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .preview-title { font-size: 14px; font-weight: 800; text-transform: uppercase; color: #64748b; display: flex; align-items: center; gap: 8px; }
+        .badge-working-days { background: #eff6ff; color: #2563eb; padding: 6px 12px; border-radius: 20px; font-size: 11px; font-weight: 700; display: none; border: 1px solid #bfdbfe; }
+        
+        .table-container {
+            background: white;
+            border-radius: 12px;
+            border: 1.5px solid var(--border);
+            overflow-x: auto;
+            flex: 1;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.01);
+            max-height: calc(100vh - 150px);
+        }
+        table { width: 100%; border-collapse: collapse; min-width: 1000px; text-align: left; }
+        table th { background: #f8fafc; color: #64748b; padding: 14px 16px; font-size: 10px; font-weight: 800; text-transform: uppercase; border-bottom: 2px solid #f1f5f9; position: sticky; top: 0; z-index: 10; }
+        table td { padding: 14px 16px; border-bottom: 1px solid #f1f5f9; font-size: 12px; font-weight: 600; color: var(--dark); }
+        table tr:hover td { background: #fafafa; }
+        .empty-state { padding: 80px 20px; text-align: center; color: #94a3b8; font-weight: 600; font-size: 13px; }
+    </style>
+</head>
+<body onload="generateDynamicTimeDropdowns()">
+
+    <div class="app-layout">
+        <!-- CONTROLS SIDEBAR -->
+        <aside class="sidebar-panel">
+            <a href="branch_dashboard.html" class="back-btn">⬅️ Back to Dashboard</a>
+            
+            <h2>MERCALIX <span>TERMINAL</span></h2>
+            <div class="desc">Enterprise Corporate Ledger: Real-Time Dynamic Synchronization & Data Verification Preview Engine.</div>
+            
+            <div class="form-group">
+                <label>Select Audit Target Period</label>
+                <select id="monthYearSelect"></select>
+            </div>
+
+            <button class="btn-prime" id="previewBtn" onclick="compileAndPreviewData()">🔍 Fetch & Preview Report</button>
+            <button class="btn-download" id="downloadBtn" onclick="triggerCSVDownload()">💾 Confirm & Export Excel (CSV)</button>
+            
+            <div id="status"></div>
+        </aside>
+
+        <!-- MAIN LIVE PREVIEW AREA -->
+        <main class="main-workspace">
+            <div class="preview-header">
+                <div class="preview-title">📊 Real-Time Screen Preview Ledger</div>
+                <div class="badge-working-days" id="workingDaysBadge">Net Target Working Days: 0 Days</div>
+            </div>
+            
+            <div class="table-container">
+                <table id="previewTable">
+                    <thead>
+                        <tr>
+                            <th>Employee ID</th>
+                            <th>Employee Name</th>
+                            <th>Branch</th>
+                            <th>Working Days</th>
+                            <th>Present Days</th>
+                            <th>Absent Days</th>
+                            <th>Half Days</th>
+                            <th>Late Marks</th>
+                            <th>Leave Balance (PL)</th>
+                            <th>Approved Leaves</th>
+                            <th>Pending Leaves</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody">
+                        <tr>
+                            <td colspan="11" class="empty-state">Select a target period from the left menu and click "Fetch & Preview Report" to inspect real-time logs.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // Your Verified Live Database Routing Token
+        const firebaseConfig = {
+          apiKey: "AIzaSyCkBeHploRe3UHq6ndukFUtfYc8sCkfx9g",
+          authDomain: "hrmsmercalixportal.firebaseapp.com",
+          projectId: "hrmsmercalixportal",
+          storageBucket: "hrmsmercalixportal.firebasestorage.app",
+          messagingSenderId: "126979860674",
+          appId: "1:126979860674:web:f486ad4b470b59189c735b",
+          measurementId: "G-EM1HY6T4NF"
+        };
+        
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
+        const db = firebase.firestore();
+
+        let compiledCSVString = ""; 
+        let activeDownloadName = "";
+
+        // 🧠 AUTOMATIC LIFETIME CALENDAR POPULATION TRACKER ENGINE
+        function generateDynamicTimeDropdowns() {
+            const dropdown = document.getElementById("monthYearSelect");
+            dropdown.innerHTML = "";
+            const monthsNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+            const currentSysDate = new Date();
+            const currentYear = currentSysDate.getFullYear();
+            
+            // Loop goes back from current dynamic system year down to deployment year (2025)
+            for (let y = currentYear; y >= 2025; y--) {
+                let startMonth = (y === currentYear) ? currentSysDate.getMonth() : 11;
+                for (let m = startMonth; m >= 0; m--) {
+                    const padMonth = String(m + 1).padStart(2, '0');
+                    const valueStr = `${padMonth}-${y}`;
+                    const textStr = `${monthsNames[m]} ${y}`;
+                    
+                    const opt = document.createElement("option");
+                    opt.value = valueStr;
+                    opt.innerText = textStr;
+                    if (valueStr === "05-2026") opt.selected = true;
+                    dropdown.appendChild(opt);
+                }
+            }
+        }
+
+        async function compileAndPreviewData() {
+            const statusDiv = document.getElementById("status");
+            const tbody = document.getElementById("tableBody");
+            const selectedVal = document.getElementById('monthYearSelect').value; // "MM-YYYY"
+            const [monthStr, yearStr] = selectedVal.split('-');
+            
+            const month = parseInt(monthStr);
+            const year = parseInt(yearStr);
+            
+            statusDiv.style.display = "block";
+            statusDiv.style.color = "#3b82f6";
+            statusDiv.innerHTML = "🔄 Opening live data synchronization tunnels...";
+            tbody.innerHTML = '<tr><td colspan="11" class="empty-state">⏳ Pulling live fields and building attendance rows... Please wait.</td></tr>';
+            
+            document.getElementById("downloadBtn").style.display = "none";
+
+            try {
+                // 1. Fetch data aggregates
+                const empSnap = await db.collection('employees').where('status', '==', 'Active').get();
+                if (empSnap.empty) {
+                    statusDiv.style.color = "red";
+                    statusDiv.innerHTML = "⚠️ Failure: No active employee logs found.";
+                    tbody.innerHTML = '<tr><td colspan="11" class="empty-state" style="color:red;">No records found.</td></tr>';
+                    return;
+                }
+
+                const logsSnap = await db.collection('vc_logs').get();
+                const allLogs = [];
+                logsSnap.forEach(d => allLogs.push(d.data()));
+
+                const leavesSnap = await db.collection('emp_leaves').get();
+                const allLeaves = [];
+                leavesSnap.forEach(d => allLeaves.push(d.data()));
+
+                // 2. Sundays calculation framework
+                const totalDaysInMonth = new Date(year, month, 0).getDate();
+                let netWorkingDaysInMonth = 0;
+                for (let d = 1; d <= totalDaysInMonth; d++) {
+                    if (new Date(year, month - 1, d).getDay() !== 0) {
+                        netWorkingDaysInMonth++;
+                    }
+                }
+
+                document.getElementById("workingDaysBadge").style.display = "block";
+                document.getElementById("workingDaysBadge").innerText = `Net Target Working Days: ${netWorkingDaysInMonth} Days`;
+
+                // 3. Initiate spreadsheet string building structures with approved/pending leaves
+                let csvContent = "data:text/csv;charset=utf-8,";
+                csvContent += `MERCALIX ENTERPRISE CORPORATE AUDIT REPORT - TRACKING PERIOD: ${selectedVal}\n`;
+                csvContent += `Calculated Net Working Days in Month (Excluding Sundays): ${netWorkingDaysInMonth} Days\n\n`;
+                csvContent += "Employee ID,Employee Name,Branch,Total Month Working Days,Present Days,Absent Days,Late Marks Count,Remaining Leave Balance (PL Account),Half Days,Approved Leaves,Pending Leaves\n";
+
+                let htmlContent = "";
+                let processedCount = 0;
+
+                empSnap.forEach(doc => {
+                    const emp = doc.data();
+                    const empId = emp.id || doc.id;
+                    const empName = emp.name || "Unknown Staff";
+                    const branch = emp.branch || "N/A";
+                    const cleanId = empId.replace(/\//g, '');
+
+                    let remainingLeaveBalance = parseFloat(emp.pl !== undefined ? emp.pl : (emp.leaveBalance !== undefined ? emp.leaveBalance : 2.33));
+                    if (monthStr === "03" && remainingLeaveBalance > 28) remainingLeaveBalance = 28;
+
+                    let actualWorkedDaysSet = new Set();
+                    let halfDaysSet = new Set();
+                    let lateMarks = 0;
+                    const manualLogs = emp.attendance_manual_logs || {};
+
+                    // A. Manual panel calculations sync from run-payroll
+                    const monthPrefix = `${year}-${monthStr}-`;
+                    for (let d = 1; d <= totalDaysInMonth; d++) {
+                        if (new Date(year, month - 1, d).getDay() === 0) continue; 
+                        const dayPad = String(d).padStart(2, '0');
+                        const dateKey = `${monthPrefix}${dayPad}`;
+                        
+                        if (manualLogs[dateKey]) {
+                            const manualStatus = String(manualLogs[dateKey]).toUpperCase().trim();
+                            if (manualStatus === "PRESENT" || manualStatus === "LATE") {
+                                actualWorkedDaysSet.add(d);
+                                if (manualStatus === "LATE") lateMarks++;
+                            } else if (manualStatus === "HALF" || manualStatus === "HALF_DAY" || manualStatus === "HALF DAY") {
+                                halfDaysSet.add(d);
+                                actualWorkedDaysSet.add(d); 
+                            }
+                        }
+                    }
+
+                    // B. Biometric sync rules integration
+                    allLogs.forEach(l => {
+                        const logId = l.id || "";
+                        const logDate = l.date || ""; 
+                        const logType = l.type || ""; 
+
+                        if ((logId === empId || logId === cleanId) && logDate.includes(`-${selectedVal}`) && logType === "IN") {
+                            const logDay = parseInt(logDate.split('-')[0]);
+                            const logDayOfWeek = new Date(year, month - 1, logDay).getDay();
+                            
+                            if (logDayOfWeek !== 0 && !actualWorkedDaysSet.has(logDay)) { 
+                                const rawStatus = String(l.status || "").toUpperCase().trim();
+                                if (rawStatus === "HALF" || rawStatus === "HALF_DAY" || rawStatus === "HALF DAY") {
+                                    halfDaysSet.add(logDay);
+                                    actualWorkedDaysSet.add(logDay);
+                                } else {
+                                    actualWorkedDaysSet.add(logDay);
+                                    if (rawStatus === "LATE" || l.isLate === true || l.late === true) lateMarks++;
+                                }
+                            }
+                        }
+                    });
+
+                    // C. Leave Requests Calculations Matching Target Selector Month
+                    let approvedLeavesCount = 0;
+                    let pendingLeavesCount = 0;
+
+                    allLeaves.forEach(lv => {
+                        const lvName = lv.name || "";
+                        if (lvName.toLowerCase().trim() === empName.toLowerCase().trim() && lv.startDate && lv.startDate.startsWith(`${year}-${monthStr}`)) {
+                            const dayPart = parseInt(lv.startDate.split('-')[2]);
+                            const logDayOfWeek = new Date(year, month - 1, dayPart).getDay();
+
+                            if (logDayOfWeek !== 0) { 
+                                const leaveStatus = String(lv.status || "").toUpperCase().trim();
+                                if (leaveStatus === "APPROVED") {
+                                    approvedLeavesCount++;
+                                } else if (leaveStatus === "PENDING") {
+                                    pendingLeavesCount++;
+                                }
+                            }
+                        }
+                    });
+
+                    // D. CORE MATH ENGINE
+                    let totalRawDaysCalculated = actualWorkedDaysSet.size;
+                    let halfDaysCount = halfDaysSet.size;
+                    let presentDaysFinal = totalRawDaysCalculated - (halfDaysCount * 0.5);
+                    
+                    let netPresentWithLeaves = presentDaysFinal + approvedLeavesCount;
+                    if (netPresentWithLeaves > netWorkingDaysInMonth) netPresentWithLeaves = netWorkingDaysInMonth;
+
+                    const totalAbsents = Math.max(0, netWorkingDaysInMonth - netPresentWithLeaves);
+
+                    // Inject to live UI Preview Row (Added Approved and Pending Columns)
+                    htmlContent += `
+                        <tr>
+                            <td><b>${empId}</b></td>
+                            <td>${empName}</td>
+                            <td><span style="color:#64748b; font-size:11px; font-weight:700;">📍 ${branch}</span></td>
+                            <td><b style="color:#2563eb">${netWorkingDaysInMonth}</b></td>
+                            <td><b style="color:var(--success)">${netPresentWithLeaves}</b></td>
+                            <td><b style="color:#ef4444">${totalAbsents}</b></td>
+                            <td>${halfDaysCount}</td>
+                            <td><b style="color:#f59e0b">${lateMarks}</b></td>
+                            <td><b style="color:var(--dark-deep)">${remainingLeaveBalance.toFixed(2)}</b></td>
+                            <td><b style="color:#3b82f6">${approvedLeavesCount}</b></td>
+                            <td><b style="color:#64748b">${pendingLeavesCount}</b></td>
+                        </tr>
+                    `;
+
+                    // Inject to global CSV string structure
+                    csvContent += `"${empId}","${empName}","${branch}","${netWorkingDaysInMonth}","${netPresentWithLeaves}","${totalAbsents}","${lateMarks}","${remainingLeaveBalance.toFixed(2)}","${halfDaysCount}","${approvedLeavesCount}","${pendingLeavesCount}"\n`;
+                    processedCount++;
+                });
+
+                // Update viewport components
+                tbody.innerHTML = htmlContent;
+                compiledCSVString = csvContent;
+                activeDownloadName = `Mercalix_Corporate_Audit_${selectedVal}.csv`;
+
+                statusDiv.style.color = "green";
+                statusDiv.innerHTML = `✅ Preview ledger generated successfully! Verified rows for ${processedCount} active employees.`;
+                document.getElementById("downloadBtn").style.display = "block";
+
+            } catch (error) {
+                console.error(error);
+                statusDiv.style.color = "red";
+                statusDiv.innerHTML = "❌ Synchronization Error: " + error.message;
+                tbody.innerHTML = '<tr><td colspan="11" class="empty-state" style="color:red;">Failed to build matrix.</td></tr>';
+            }
+        }
+
+        function triggerCSVDownload() {
+            if(!compiledCSVString || !activeDownloadName) return;
+            const encodedUri = encodeURI(compiledCSVString);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", activeDownloadName);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    </script>
+</body>
+</html>

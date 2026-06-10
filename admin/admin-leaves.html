@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Leave Management | Mercalix Admin</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+
+    <script>
+        const loginTimestamp = Date.now();
+        function checkAdminAccess() {
+            const isLoggedIn = sessionStorage.getItem("isLoggedIn");
+            const role = sessionStorage.getItem("userRole");
+            if (!isLoggedIn || isLoggedIn !== "true" || (role !== "super_admin" && role !== "branch_admin")) { 
+                window.location.href = "login.html"; 
+            }
+        }
+        checkAdminAccess();
+        function logout() { sessionStorage.clear(); window.location.href = "login.html"; }
+
+        function toggleDrop(btn) {
+            const dropdown = btn.nextElementSibling;
+            document.querySelectorAll('.dropdown-container').forEach(dd => { if(dd !== dropdown) dd.style.display = 'none'; });
+            dropdown.style.display = (dropdown.style.display === "block") ? "none" : "block";
+        }
+
+        function toggleProfMenu(event) {
+            event.stopPropagation();
+            const menu = document.getElementById("profDropdown");
+            menu.style.display = (menu.style.display === "block") ? "none" : "block";
+        }
+
+        function toggleProfileForm() {
+            const drawer = document.getElementById("profileDrawer");
+            drawer.style.right = drawer.style.right === "0px" ? "-350px" : "0px";
+        }
+
+        window.onclick = function(event) {
+            if (!event.target.closest('.profile-trigger')) {
+                document.getElementById("profDropdown").style.display = "none";
+            }
+            if (!event.target.closest('.notif-wrapper')) {
+                document.getElementById("notifDrawer").style.display = "none";
+            }
+        }
+    </script>
+
+    <style>
+        :root { --primary: #ffb100; --dark: #1e293b; --success: #10b981; --danger: #ef4444; --warning: #f59e0b; --info: #3b82f6; --bg: #f1f5f9; --border: #e2e8f0; }
+        body { margin: 0; font-family: 'Inter', sans-serif; background: var(--bg); color: var(--dark); overflow-x: hidden; min-height: 100vh; display: flex; flex-direction: column; }
+        
+        .top-nav { width: 100%; padding: 0 20px; height: 70px; display: flex; justify-content: space-between; align-items: center; background: #fff; border-bottom: 3px solid var(--primary); position: sticky; top: 0; z-index: 1000; box-sizing: border-box; }
+        
+        .header-right { display: flex; align-items: center; gap: 20px; }
+        .notif-wrapper { position: relative; cursor: pointer; display: flex; align-items: center; justify-content: center; width: 38px; height: 38px; background: #f8fafc; border-radius: 50%; border: 1.5px solid var(--border); }
+        .notif-badge { position: absolute; top: -2px; right: -2px; background: var(--danger); color: white; font-size: 9px; padding: 2px 6px; border-radius: 50%; font-weight: 800; border: 2px solid white; display: none; }
+        .notif-drawer { position: absolute; top: 75px; right: 80px; width: 300px; background: white; border-radius: 16px; box-shadow: 0 15px 35px rgba(0,0,0,0.2); display: none; z-index: 6000; border: 1px solid var(--border); overflow: hidden; animation: slideUp 0.3s ease; }
+        .notif-item { padding: 15px; border-bottom: 1px solid #f1f5f9; cursor: pointer; display: flex; align-items: center; gap: 12px; transition: 0.2s; text-align: left; }
+        .notif-item:hover { background: #f0f9ff; }
+        .notif-item .dot { width: 10px; height: 10px; background: var(--primary); border-radius: 50%; }
+
+        .profile-trigger { width: 42px; height: 42px; border-radius: 50%; background: var(--dark); border: 2px solid var(--primary); cursor: pointer; overflow: hidden; position: relative; flex-shrink: 0; }
+        .profile-trigger img { width: 100%; height: 100%; object-fit: cover; }
+
+        .container { display: flex; flex: 1; width: 100%; }
+        
+        /* Sidebar (Same as Home Page) */
+        .sidebar { width: 250px; background: var(--dark); flex-shrink: 0; display: flex; flex-direction: column; }
+        .nav-links { display: flex; flex-direction: column; padding-top: 10px; flex-grow: 1; }
+        .menu-item, .dropdown-btn { padding: 15px 20px; color: #cbd5e1; font-weight: 600; font-size: 11px; text-transform: uppercase; cursor: pointer; display: flex; justify-content: space-between; border-left: 4px solid transparent; text-decoration: none; align-items: center; background: none; border: none; width: 100%; box-sizing: border-box; outline: none; text-align: left; }
+        .menu-item:hover, .menu-item.active, .dropdown-btn:hover { background: rgba(255,177,0,0.1); color: var(--primary); border-left-color: var(--primary); }
+        .dropdown-container { display: none; background: #111827; width: 100%; }
+        .dropdown-container a { padding: 12px 20px 12px 45px; color: #94a3b8; font-size: 10px; display: block; text-decoration: none; font-weight: 700; text-transform: uppercase; border-bottom: 1px solid rgba(255,255,255,0.02); }
+
+        .main { flex: 1; padding: 25px; box-sizing: border-box; display: flex; gap: 20px; }
+        .content-area { flex: 1; }
+        .summary-panel { width: 300px; background: white; border-radius: 15px; border: 1px solid var(--border); padding: 20px; height: fit-content; position: sticky; top: 95px; box-shadow: 0 4px 10px rgba(0,0,0,0.02); }
+        .summary-panel h3 { margin: 0 0 15px 0; font-size: 12px; font-weight: 800; color: var(--dark); border-bottom: 2px solid var(--primary); padding-bottom: 5px; }
+        .shift-badge { padding: 10px; border-radius: 8px; margin-bottom: 10px; background: #f8fafc; border-left: 4px solid var(--info); }
+        .shift-badge b { font-size: 11px; display: block; color: var(--dark); text-transform: uppercase; }
+        .shift-badge span { font-size: 9px; color: #64748b; font-weight: 700; }
+
+        .req-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 20px; }
+        .req-card { background: white; border-radius: 15px; border: 1px solid var(--border); padding: 20px; border-top: 5px solid var(--primary); transition: 0.3s; box-shadow: 0 4px 6px rgba(0,0,0,0.02); }
+        .user-block { display: flex; align-items: center; gap: 15px; margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px solid #f1f5f9; }
+        .user-block .init { width: 45px; height: 45px; background: var(--dark); color: var(--primary); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 900; }
+        .duration-tag { background: #fff7ed; color: #c2410c; padding: 3px 10px; border-radius: 5px; font-size: 10px; font-weight: 800; border: 1px solid #ffedd5; }
+        .action-flex { display: flex; gap: 10px; margin-top: 20px; }
+        .btn-act { flex: 1; padding: 12px; border: none; border-radius: 10px; font-weight: 800; cursor: pointer; text-transform: uppercase; font-size: 11px; transition: 0.2s; }
+        .btn-app { background: var(--success); color: white; }
+        .btn-rej { background: #fef2f2; color: var(--danger); }
+        
+        .prof-dropdown-wrapper { position: absolute; top: 75px; right: 20px; width: 260px; background: white; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); display: none; z-index: 5000; border: 1px solid var(--border); overflow: hidden; }
+        .profile-drawer { position: fixed; top: 0; right: -350px; width: 320px; height: 100%; background: white; z-index: 2000; box-shadow: -5px 0 15px rgba(0,0,0,0.1); transition: 0.4s; padding: 25px; box-sizing: border-box; }
+    </style>
+</head>
+<body onload="initAdmin()">
+
+<div id="profDropdown" class="prof-dropdown-wrapper">
+    <div style="padding: 15px; background: #f8fafc; border-bottom: 1px solid #eee; display: flex; align-items: center; gap: 10px;">
+        <img id="dropAvatar" src="https://cdn-icons-png.flaticon.com/512/3135/3135715.png" width="40">
+        <div style="font-size: 12px; font-weight: 800;" id="dropName">ADMIN PANEL</div>
+    </div>
+    <div style="padding: 8px 0;">
+        <div style="padding: 10px 20px; font-size: 11px; font-weight: 700; cursor: pointer;" onclick="toggleProfileForm()">👤 View Profile</div>
+        <div style="padding: 10px 20px; font-size: 11px; font-weight: 700; cursor: pointer; color: var(--danger); border-top: 1px solid #f1f5f9;" onclick="logout()">🔓 Log Out</div>
+    </div>
+</div>
+
+<nav class="top-nav">
+    <div style="display:flex; align-items:center; gap:12px;">
+        <img src="https://api.pay2india.com/uploads/files/setting/logo1765020086879.jpeg" height="40px">
+        <span style="font-size: 18px; font-weight: 900;">MERCALIX <span style="color:var(--primary)">ADMIN</span></span>
+    </div>
+
+    <div class="header-right">
+        <div style="text-align: right;">
+            <div id="liveClock" style="font-size: 12px; font-weight: 900; color: var(--dark);">00:00:00</div>
+            <div id="loginDuration" style="font-size: 9px; color: var(--warning); font-weight: 800;">LOGIN: 00:00:00</div>
+        </div>
+        <div class="notif-wrapper" onclick="toggleNotifDrawer(event)">
+            <span>🔔</span><span id="globalNotifBadge" class="notif-badge">0</span>
+        </div>
+        <div class="profile-trigger" onclick="toggleProfMenu(event)"><img id="navAvatar" src="https://cdn-icons-png.flaticon.com/512/3135/3135715.png"></div>
+    </div>
+
+    <div id="notifDrawer" class="notif-drawer">
+        <div style="padding:15px; background:var(--dark); color:var(--primary); font-size:11px; font-weight:800; text-transform:uppercase;">📢 Global Alerts</div>
+        <div id="notifList" style="max-height:350px; overflow-y:auto;"></div>
+    </div>
+</nav>
+
+<div class="container">
+    <aside class="sidebar">
+        <div class="nav-links">
+            <a href="home_page.html" class="menu-item">📊 Global Dashboard</a>
+            <a href="admin_expense_control.html" class="menu-item">💸 Expense Approvals</a>
+
+            <div class="dropdown-btn" onclick="toggleDrop(this)">🔐 System Access <span>▼</span></div>
+            <div class="dropdown-container">
+                <a href="admin_create_login.html">Create New Login</a>
+                <a href="admin_manage_roles.html">Manage Roles</a>
+            </div>
+
+            <div class="dropdown-btn" onclick="toggleDrop(this)">📍 Branch Control <span>▼</span></div>
+            <div class="dropdown-container">
+                <a href="admin_add_branch.html">Add New Branch</a>
+                <a href="admin_branch_analytics.html">Branch Analytics</a>
+            </div>
+
+            <div class="dropdown-btn" onclick="toggleDrop(this)">👥 Workforce <span>▼</span></div>
+            <div class="dropdown-container" style="display: block;">
+                <a href="add_emp.html">Enroll New Staff</a>
+                <a href="admin_kyc_verify.html">KYC Verification</a>
+                <a href="admin-leaves.html" style="color:var(--primary)">Leave Approvals</a>
+                <a href="admin_staff_directory.html">Master Directory</a>
+            </div>
+
+            <div class="dropdown-btn" onclick="toggleDrop(this)">💰 Enterprise Payroll <span>▼</span></div>
+            <div class="dropdown-container">
+                <a href="admin_salary_approvals.html">Salary Approvals</a>
+                <a href="admin_salary_register.html">Salary Register</a>
+            </div>
+
+            <a href="admin_announcements.html" class="menu-item">📢 Announcements</a>
+            <a href="attendance-log.html" class="menu-item">📈 Global Attendance</a>
+            <a href="admin_master_reports.html" class="menu-item">📑 Master Reports</a>
+            <a href="admin_support_desk.html" class="menu-item">🎫 Support Desk</a>
+            <a href="admin_performance_review.html" class="menu-item">📈 Staff Audit</a>
+        </div>
+        <div style="padding: 20px; border-top: 1px solid #334155; margin-top: auto;">
+            <a onclick="logout()" style="color:var(--primary); cursor:pointer; font-weight:800; font-size:11px; text-decoration:none;">🔓 SECURE LOGOUT</a>
+        </div>
+    </aside>
+
+    <main class="main">
+        <div class="content-area">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
+                <div>
+                    <h1 style="margin: 0; font-size: 24px; font-weight: 900;">Pending Requests</h1>
+                    <p style="margin: 5px 0 0 0; color: #64748b; font-size: 12px; font-weight: 600;">Action required on employee applications.</p>
+                </div>
+                <span id="pendingCount" style="background: var(--dark); color: var(--primary); padding: 5px 15px; border-radius: 20px; font-weight: 900; font-size: 11px;">0 PENDING</span>
+            </div>
+            <div id="requestGrid" class="req-grid"></div>
+            <div id="emptyState" style="display: none; text-align: center; padding: 100px 0;"><h2 style="color: #94a3b8;">✅ All clear! No pending requests.</h2></div>
+        </div>
+
+        <div class="summary-panel">
+            <h3>⚡ SHIFT DYNAMICS (TODAY)</h3>
+            <div id="shiftList"></div>
+        </div>
+    </main>
+</div>
+
+<audio id="alertTone" src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" preload="auto"></audio>
+
+<script>
+    // Is block ko replace karein
+const firebaseConfig = {
+  apiKey: "AIzaSyCkBeHploRe3UHq6ndukFUtfYc8sCkfx9g",
+  authDomain: "hrmsmercalixportal.firebaseapp.com",
+  projectId: "hrmsmercalixportal",
+  storageBucket: "hrmsmercalixportal.firebasestorage.app",
+  messagingSenderId: "126979860674",
+  appId: "1:126979860674:web:f486ad4b470b59189c735b",
+  measurementId: "G-EM1HY6T4NF"
+};
+
+// Initialize Firebase (Compat Version)
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+    const adminID = sessionStorage.getItem("adminID") || "purva_mam_admin";
+
+    let firstLoadGlobal = true;
+    let activeNotifs = { leaves: [], late: [], expenses: [] };
+
+    function toggleNotifDrawer(e) { e.stopPropagation(); document.getElementById("notifDrawer").style.display = (document.getElementById("notifDrawer").style.display === "block") ? "none" : "block"; }
+
+    function monitorGlobalRequests() {
+        setTimeout(() => { firstLoadGlobal = false; }, 3000);
+        
+        db.collection("emp_leaves").where("status", "==", "Pending").onSnapshot(snap => {
+            activeNotifs.leaves = snap.docs.map(doc => ({id: doc.id, type: 'Leave', ...doc.data()}));
+            updateUINotifs(snap);
+            renderLocalGrid(); 
+        });
+
+        db.collection("late_requests").where("status", "==", "Pending").onSnapshot(snap => {
+            activeNotifs.late = snap.docs.map(doc => ({id: doc.id, type: 'Late Arrival', ...doc.data()}));
+            updateUINotifs(snap);
+        });
+
+        const today = new Date().toLocaleDateString('en-GB').replace(/\//g, '-');
+        db.collection("emp_leaves").where("status", "==", "Approved").onSnapshot(snap => {
+            const list = document.getElementById("shiftList");
+            list.innerHTML = "";
+            snap.forEach(doc => {
+                const l = doc.data();
+                if(l.startDate === today || l.endDate === today) {
+                    list.innerHTML += `<div class="shift-badge"><b>${l.name}</b><span>${l.duration}</span></div>`;
+                }
+            });
+        });
+    }
+
+    function updateUINotifs(snap) {
+        const badge = document.getElementById("globalNotifBadge");
+        const list = document.getElementById("notifList");
+        
+        // Sabhi pending types ko merge karke filter karna
+        // Isse ensure hoga ki sirf valid aur pending records hi dikhen
+        const combined = [
+            ...activeNotifs.leaves, 
+            ...activeNotifs.late, 
+            ...activeNotifs.expenses
+        ].filter(item => item.status === "Pending" && (item.name || item.empName)); 
+
+        // Badge update
+        badge.innerText = combined.length;
+        badge.style.display = combined.length > 0 ? "block" : "none";
+
+        // Sound Alert logic
+        if (!firstLoadGlobal && !snap.metadata.hasPendingWrites && !snap.empty) {
+            document.getElementById("alertTone").play().catch(e => {});
+        }
+
+        // List update - Clear and Re-render
+        if (combined.length === 0) {
+            list.innerHTML = `<div style="padding:20px; text-align:center; font-size:11px; color:#94a3b8;">No pending alerts ✅</div>`;
+            return;
+        }
+
+        list.innerHTML = ""; // Pehle list ko poora khaali karo
+        combined.forEach(n => {
+            let target = 'home_page.html';
+            if(n.type === 'Leave') target = 'admin-leaves.html';
+            if(n.type === 'Expense') target = 'admin_expense_control.html';
+            
+            // Name handling for "undefined" fix
+            let displayName = n.name || n.empName || "Unknown Staff";
+            
+            list.innerHTML += `
+                <div class="notif-item" onclick="window.location.href='${target}'">
+                    <div class="dot"></div>
+                    <div>
+                        <div style="font-size:11px; font-weight:800; color:var(--dark);">${n.type}: ${displayName}</div>
+                        <div style="font-size:9px; color:#64748b;">Action Required</div>
+                    </div>
+                </div>`;
+        });
+    }
+
+    function renderLocalGrid() {
+        const grid = document.getElementById("requestGrid");
+        const empty = document.getElementById("emptyState");
+        grid.innerHTML = "";
+        if (activeNotifs.leaves.length > 0) {
+            empty.style.display = "none";
+            document.getElementById("pendingCount").innerText = activeNotifs.leaves.length + " PENDING";
+            activeNotifs.leaves.forEach(l => {
+                grid.innerHTML += `<div class="req-card">
+                    <div class="user-block"><div class="init">${l.name.charAt(0)}</div><div><b>${l.name}</b><br><small>ID: ${l.empId}</small></div></div>
+                    <div style="font-size:12px;"><span class="duration-tag">${l.duration}</span><p>Dates: ${l.startDate} to ${l.endDate}</p></div>
+                    <div class="action-flex">
+                        <button class="btn-act btn-app" onclick="processAction('${l.id}', '${l.empId}', ${l.days}, 'Approved')">Approve</button>
+                        <button class="btn-act btn-rej" onclick="processAction('${l.id}', '${l.empId}', 0, 'Rejected')">Reject</button>
+                    </div>
+                </div>`;
+            });
+        } else { empty.style.display = "block"; document.getElementById("pendingCount").innerText = "0 PENDING"; }
+    }
+
+    async function processAction(docId, empId, days, status) {
+        if(!confirm("Confirm Action?")) return;
+        await db.collection("emp_leaves").doc(docId).update({ status: status });
+        if(status === "Approved") {
+            const empRef = db.collection("employees").doc(empId);
+            const snap = await empRef.get();
+            if(snap.exists) {
+                const cur = parseFloat(snap.data().cl || 0);
+                await empRef.update({ cl: (cur - parseFloat(days)).toFixed(1) });
+            }
+        }
+    }
+
+    function initAdmin() {
+        setInterval(() => {
+            document.getElementById("liveClock").innerText = new Date().toLocaleTimeString();
+            let diff = Date.now() - loginTimestamp;
+            let h = Math.floor(diff / 3600000), m = Math.floor((diff % 3600000) / 60000), s = Math.floor((diff % 60000) / 1000);
+            document.getElementById("loginDuration").innerText = `LOGIN: ${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
+        }, 1000);
+        monitorGlobalRequests();
+        db.collection("admins").doc(adminID).onSnapshot(doc => {
+            if(doc.exists) {
+                const d = doc.data();
+                document.getElementById("navAvatar").src = document.getElementById("dropAvatar").src = d.photo || "https://cdn-icons-png.flaticon.com/512/3135/3135715.png";
+                document.getElementById("dropName").innerText = d.name || "Admin";
+            }
+        });
+    }
+</script>
+</body>
+</html>

@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Global Attendance Logs | Mercalix Main Admin</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+
+    <script>
+        function checkAdminAccess() {
+            const isLoggedIn = sessionStorage.getItem("isLoggedIn");
+            const role = sessionStorage.getItem("userRole");
+            if (!isLoggedIn || isLoggedIn !== "true" || role !== "super_admin") { 
+                window.location.href = "index.html"; 
+            }
+        }
+        checkAdminAccess();
+        function logout() { sessionStorage.clear(); window.location.href = "index.html"; }
+
+        function toggleDrop(btn) {
+            const dropdown = btn.nextElementSibling;
+            document.querySelectorAll('.dropdown-container').forEach(dd => { if(dd !== dropdown) dd.style.display = 'none'; });
+            dropdown.style.display = (dropdown.style.display === "block") ? "none" : "block";
+        }
+    </script>
+
+    <style>
+        :root { --primary: #ffb100; --dark: #1e293b; --success: #10b981; --danger: #ef4444; --warning: #f59e0b; --bg: #f1f5f9; --border: #e2e8f0; }
+        body { margin: 0; font-family: 'Inter', sans-serif; background: var(--bg); color: var(--dark); overflow-x: hidden; }
+        
+        .top-nav { width: 100%; padding: 0 20px; height: 70px; display: flex; justify-content: space-between; align-items: center; background: #fff; border-bottom: 3px solid var(--primary); position: sticky; top: 0; z-index: 1000; box-sizing: border-box; }
+        .logo-text { font-size: 18px; font-weight: 800; color: var(--dark); text-decoration: none; text-transform: uppercase; }
+        .logo-text span { color: var(--primary); }
+
+        .container { display: flex; flex: 1; min-height: calc(100vh - 70px); }
+        .sidebar { width: 250px; background: var(--dark); flex-shrink: 0; display: flex; flex-direction: column; }
+        .nav-links { display: flex; flex-direction: column; padding-top: 10px; flex-grow: 1; }
+        .menu-item, .dropdown-btn { padding: 15px 20px; color: #cbd5e1; font-weight: 600; font-size: 11px; text-transform: uppercase; cursor: pointer; display: flex; justify-content: space-between; border-left: 4px solid transparent; text-decoration: none; align-items: center; background: none; border: none; width: 100%; box-sizing: border-box; outline: none; }
+        .menu-item:hover, .menu-item.active, .dropdown-btn:hover { background: rgba(255,177,0,0.1); color: var(--primary); border-left-color: var(--primary); }
+        .dropdown-container { display: none; background: #111827; width: 100%; }
+        .dropdown-container a { padding: 12px 20px 12px 45px; color: #94a3b8; font-size: 10px; display: block; text-decoration: none; font-weight: 700; text-transform: uppercase; border-bottom: 1px solid rgba(255,255,255,0.02); }
+
+        .main { flex: 1; padding: 25px; box-sizing: border-box; }
+        
+        /* Dashboard Stats */
+        .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 25px; }
+        .stat-card { background: white; padding: 20px; border-radius: 12px; border: 1px solid var(--border); text-align: center; }
+        .stat-card h3 { margin: 0; font-size: 10px; color: #64748b; text-transform: uppercase; }
+        .stat-card p { margin: 8px 0 0 0; font-size: 24px; font-weight: 900; }
+
+        /* Controls */
+        .control-bar { background: white; padding: 20px; border-radius: 15px; border: 1px solid var(--border); display: flex; gap: 15px; margin-bottom: 25px; align-items: flex-end; }
+        .filter-group { display: flex; flex-direction: column; gap: 5px; flex: 1; }
+        .filter-group label { font-size: 10px; font-weight: 800; color: #64748b; text-transform: uppercase; }
+        .input-ctrl { padding: 10px; border-radius: 8px; border: 1.5px solid #ddd; font-size: 13px; outline: none; font-weight: 700; }
+
+        /* Table */
+        .table-card { background: white; border-radius: 15px; border: 1px solid var(--border); overflow: hidden; }
+        table { width: 100%; border-collapse: collapse; }
+        th { background: #f8fafc; padding: 15px; text-align: left; font-size: 10px; text-transform: uppercase; color: #64748b; border-bottom: 2px solid #eee; }
+        td { padding: 15px; border-bottom: 1px solid #f1f5f9; font-size: 13px; font-weight: 600; }
+
+        .tag { padding: 4px 8px; border-radius: 4px; font-size: 10px; font-weight: 800; text-transform: uppercase; }
+        .tag-in { background: #dcfce7; color: #166534; }
+        .tag-out { background: #fee2e2; color: #991b1b; }
+        .tag-late { background: #fef3c7; color: #92400e; border: 1px solid var(--warning); }
+    </style>
+</head>
+<body onload="initAdminLogs()">
+
+<nav class="top-nav">
+    <a href="home_page.html" class="logo-text">MERCALIX <span>GLOBAL ATTENDANCE</span></a>
+    <div id="liveClock" style="font-size: 12px; font-weight: 900; background: #334155; color: white; padding: 6px 15px; border-radius: 30px;">00:00:00</div>
+</nav>
+
+<div class="container">
+    <aside class="sidebar">
+        <div class="nav-links">
+            <a href="home_page.html" class="menu-item">📊 Global Dashboard</a>
+            <div class="dropdown-btn" onclick="toggleDrop(this)">👥 Workforce <span>▼</span></div>
+            <div class="dropdown-container">
+                <a href="add_emp.html">Enroll New Staff</a>
+                <a href="admin_kyc_verify.html">KYC Verification</a>
+                <a href="admin_staff_directory.html">Master Directory</a>
+            </div>
+            <a href="admin_global_attendance.html" class="menu-item active">📈 Global Attendance</a>
+            <a href="admin_performance_review.html" class="menu-item">🎯 KPI & Appraisal</a>
+            <a href="admin_salary_approvals.html" class="menu-item">💰 Salary Approvals</a>
+            <a href="admin_master_reports.html" class="menu-item">📑 Master Reports</a>
+        </div>
+        <div style="padding: 20px; border-top: 1px solid #334155; margin-top: auto;">
+            <a onclick="logout()" style="color:var(--primary); cursor:pointer; font-weight:800; font-size:11px; text-decoration:none;">🔓 SECURE LOGOUT</a>
+        </div>
+    </aside>
+
+    <main class="main">
+        <div class="stats-grid">
+            <div class="stat-card"><h3>Today's In-Punch</h3><p id="statIn" style="color:var(--success)">0</p></div>
+            <div class="stat-card"><h3>Late Arrivals</h3><p id="statLate" style="color:var(--danger)">0</p></div>
+            <div class="stat-card"><h3>Active Branches</h3><p id="statBranch">0</p></div>
+            <div class="stat-card"><h3>Avg. Login Time</h3><p id="statAvg">09:15 AM</p></div>
+        </div>
+
+        <div class="control-bar">
+            <div class="filter-group">
+                <label>Search Employee</label>
+                <input type="text" id="logSearch" class="input-ctrl" placeholder="Search Name or ID..." oninput="filterLogs()">
+            </div>
+            <div class="filter-group">
+                <label>Filter by Branch</label>
+                <select id="branchFilter" class="input-ctrl" onchange="filterLogs()">
+                    <option value="All">All Branches</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label>Filter by Date</label>
+                <input type="date" id="dateFilter" class="input-ctrl" onchange="filterLogs()">
+            </div>
+        </div>
+
+        <div class="table-card">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Timestamp</th>
+                        <th>Employee Details</th>
+                        <th>Branch / Dept</th>
+                        <th>Type</th>
+                        <th>Status</th>
+                        <th>Location/Dev</th>
+                    </tr>
+                </thead>
+                <tbody id="logBody">
+                    <tr><td colspan="6" align="center" style="padding:50px; color:#94a3b8;">Syncing global logs...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </main>
+</div>
+
+<script>
+   // Is block ko replace karein
+const firebaseConfig = {
+  apiKey: "AIzaSyCkBeHploRe3UHq6ndukFUtfYc8sCkfx9g",
+  authDomain: "hrmsmercalixportal.firebaseapp.com",
+  projectId: "hrmsmercalixportal",
+  storageBucket: "hrmsmercalixportal.firebasestorage.app",
+  messagingSenderId: "126979860674",
+  appId: "1:126979860674:web:f486ad4b470b59189c735b",
+  measurementId: "G-EM1HY6T4NF"
+};
+
+// Initialize Firebase (Compat Version)
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+    let allLogs = [];
+    const todayStr = new Date().toLocaleDateString('en-GB').replace(/\//g, '-');
+
+    function initAdminLogs() {
+        setInterval(() => { document.getElementById("liveClock").innerText = new Date().toLocaleTimeString(); }, 1000);
+        document.getElementById("dateFilter").valueAsDate = new Date();
+        loadBranches();
+        fetchGlobalLogs();
+    }
+
+    function loadBranches() {
+        db.collection("branches").onSnapshot(s => {
+            const filter = document.getElementById("branchFilter");
+            document.getElementById("statBranch").innerText = s.size;
+            s.forEach(doc => {
+                filter.innerHTML += `<option value="${doc.data().name}">${doc.data().name}</option>`;
+            });
+        });
+    }
+
+    function fetchGlobalLogs() {
+        db.collection("vc_logs").orderBy("timestamp", "desc").limit(200).onSnapshot(snap => {
+            allLogs = snap.docs.map(doc => ({id: doc.id, ...doc.data()}));
+            
+            // Calculate Today's Stats
+            const todayLogs = allLogs.filter(l => l.date === todayStr);
+            document.getElementById("statIn").innerText = todayLogs.filter(l => l.type === "IN").length;
+            document.getElementById("statLate").innerText = todayLogs.filter(l => l.late === true).length;
+            
+            renderLogs(allLogs);
+        });
+    }
+
+    function renderLogs(list) {
+        const tbody = document.getElementById("logBody");
+        tbody.innerHTML = list.length === 0 ? "<tr><td colspan='6' align='center'>No logs found.</td></tr>" : "";
+        
+        list.forEach(log => {
+            const isLate = log.late ? `<span class="tag tag-late">LATE</span>` : `<span class="tag tag-in">ON-TIME</span>`;
+            const typeTag = log.type === "IN" ? `<span class="tag tag-in">PUNCH IN</span>` : `<span class="tag tag-out">PUNCH OUT</span>`;
+            
+            tbody.innerHTML += `
+                <tr>
+                    <td><small>${log.date}</small><br><b>${log.time}</b></td>
+                    <td><b>${log.name}</b><br><small>ID: ${log.id}</small></td>
+                    <td><b>📍 ${log.branch || '---'}</b><br><small>${log.dept || '---'}</small></td>
+                    <td>${typeTag}</td>
+                    <td>${log.type === "IN" ? isLate : '---'}</td>
+                    <td><small style="font-size:9px; color:#94a3b8;">WEB-TERMINAL-01</small></td>
+                </tr>
+            `;
+        });
+    }
+
+    function filterLogs() {
+        const search = document.getElementById("logSearch").value.toLowerCase();
+        const branch = document.getElementById("branchFilter").value;
+        const dateInput = document.getElementById("dateFilter").value;
+        
+        // Convert input date (yyyy-mm-dd) to log format (dd-mm-yyyy)
+        let formattedDate = "";
+        if(dateInput) {
+            const [y, m, d] = dateInput.split("-");
+            formattedDate = `${d}-${m}-${y}`;
+        }
+
+        const filtered = allLogs.filter(log => {
+            const matchSearch = log.name.toLowerCase().includes(search) || log.id.toLowerCase().includes(search);
+            const matchBranch = branch === "All" || log.branch === branch;
+            const matchDate = !dateInput || log.date === formattedDate;
+            return matchSearch && matchBranch && matchDate;
+        });
+        
+        renderLogs(filtered);
+    }
+</script>
+</body>
+</html>

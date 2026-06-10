@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VizionCore AI | Real-Time Biometric Match</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
+        
+        :root {
+            --main-bg: #0f172a;
+            --card-bg: #1e293b;
+            --input-bg: #0f172a;
+            --border-color: #334155;
+            --accent-blue: #3b82f6;
+        }
+
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background-color: var(--main-bg) !important;
+            color: #e2e8f0;
+        }
+        .logo-wrapper { display: flex; align-items: center; justify-content: center; margin-right: 12px; }
+        .custom-logo { width: 300px; height: 100px; border-radius: 12px; border: 2px solid var(--accent-blue); box-shadow: 0 0 10px rgba(59, 130, 246, 0.3); object-fit: cover; transition: transform 0.3s ease; }
+        .custom-logo:hover { transform: scale(1.05); }
+
+        .scanner-line { height: 3px; background: #60a5fa; width: 100%; position: absolute; top: 0; box-shadow: 0 0 20px #3b82f6; animation: scan 2s infinite ease-in-out; z-index: 30; }
+        @keyframes scan { 0%, 100% { top: 10%; } 50% { top: 90%; } }
+
+        #video-feed { transform: scaleX(-1); border-radius: 1.5rem; transition: all 0.5s ease; }
+        .custom-scrollbar::-webkit-scrollbar { width: 5px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 10px; }
+
+        .bg-slate-900, .bg-slate-800\/30, .bg-slate-800\/50 { background-color: var(--card-bg) !important; }
+        .border-slate-800, .border-slate-700, .border-slate-700\/50 { border-color: var(--border-color) !important; }
+        input { background-color: var(--input-bg) !important; }
+        
+        .date-header { position: sticky; top: 0; background: var(--card-bg); z-index: 10; padding: 8px 0; border-bottom: 1px solid var(--border-color); margin-bottom: 10px; }
+    </style>
+</head>
+<body class="min-h-screen p-4 lg:p-10" onload="initModels()">
+
+    <header class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center mb-10 gap-4 border-b border-slate-800 pb-8">
+        <div class="flex items-center">
+            <div class="logo-wrapper"><img src="logo.png" alt="Logo" class="custom-logo"></div>
+            <div>
+                <h1 class="text-3xl font-black text-white tracking-tighter uppercase"></h1>
+                <p class="text-slate-500 text-sm mt-1 flex items-center gap-2">
+                    <span id="sys-pulse" class="w-2 h-2 bg-yellow-500 rounded-full animate-pulse"></span>
+                    System: <span id="sys-status" class="text-yellow-500 font-bold uppercase tracking-widest text-xs">Loading AI Models...</span>
+                </p>
+            </div>
+        </div>
+        <div class="bg-slate-800/50 px-6 py-3 rounded-2xl border border-slate-700 text-center">
+            <p id="live-clock" class="text-2xl font-mono text-blue-400 font-bold">00:00:00</p>
+            <p id="live-date" class="text-slate-500 text-[10px] uppercase tracking-[0.2em]">Loading Date...</p>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8">
+        <div class="lg:col-span-7 space-y-6">
+            <div class="relative bg-slate-900 rounded-[2rem] p-2 border-2 border-slate-800 shadow-2xl overflow-hidden aspect-video flex items-center justify-center">
+                <div id="scanner-line" class="scanner-line hidden"></div>
+                <div id="scan-overlay" class="absolute inset-0 z-20 pointer-events-none flex items-center justify-center">
+                    <div id="overlay-msg" class="px-8 py-3 rounded-2xl border hidden text-sm font-bold shadow-2xl backdrop-blur-md"></div>
+                </div>
+                <video id="video-feed" autoplay playsinline class="w-full h-full object-cover bg-black opacity-30"></video>
+                <canvas id="capture-canvas" width="640" height="480" class="hidden"></canvas>
+                <div id="setup-screen" class="absolute inset-0 flex flex-col items-center justify-center bg-slate-900/80 z-40 transition-all">
+                    <div id="ai-loader" class="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+                    <button id="cam-init-btn" disabled onclick="toggleCamera(true)" class="bg-slate-700 text-slate-400 px-8 py-3 rounded-xl font-black transition-all cursor-not-allowed">WAITING FOR AI...</button>
+                </div>
+            </div>
+            <div class="flex gap-4">
+                <button onclick="identifyUser('IN')" class="flex-1 bg-emerald-500 hover:bg-emerald-400 text-emerald-950 font-black py-5 rounded-2xl transition-all shadow-lg">PUNCH IN</button>
+                <button onclick="identifyUser('OUT')" class="flex-1 bg-rose-500 hover:bg-rose-400 text-rose-950 font-black py-5 rounded-2xl transition-all shadow-lg">PUNCH OUT</button>
+                <button onclick="toggleCamera(false)" id="off-btn" class="hidden bg-slate-800 p-5 rounded-2xl text-slate-400 hover:bg-rose-500 hover:text-white transition-all">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+        </div>
+
+        <div class="lg:col-span-5 space-y-6">
+            <div class="bg-slate-800/30 border border-slate-700/50 p-6 rounded-[2rem]">
+                <h3 class="text-white font-bold mb-4 text-lg">Enroll New Face</h3>
+                <div class="space-y-3">
+                    <input type="text" id="reg-name" placeholder="Full Name" class="w-full border border-slate-700 p-4 rounded-xl focus:border-blue-500 outline-none">
+                    <input type="text" id="reg-id" placeholder="Staff ID" class="w-full border border-slate-700 p-4 rounded-xl focus:border-blue-500 outline-none">
+                    <button onclick="registerEmployee()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 rounded-xl transition-all">SCAN & REGISTER</button>
+                    <p id="reg-msg" class="text-center text-xs mt-2 font-medium h-4"></p>
+                </div>
+            </div>
+            
+            <div class="bg-slate-800/30 border border-slate-700/50 p-6 rounded-[2rem] flex flex-col h-[450px]">
+                <h3 class="text-white font-bold text-lg mb-4">Daily Attendance History</h3>
+                <div id="log-list" class="space-y-6 overflow-y-auto custom-scrollbar flex-1 pr-2">
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        let employees = JSON.parse(localStorage.getItem('vc_biometric_data') || "[]");
+        let logs = JSON.parse(localStorage.getItem('vc_logs') || "[]");
+        let stream = null;
+        const video = document.getElementById('video-feed');
+        const canvas = document.getElementById('capture-canvas');
+        const ctx = canvas.getContext('2d');
+
+        async function initModels() {
+            const MODEL_URL = 'https://raw.githubusercontent.com/justadudewhohacks/face-api.js/master/weights';
+            await Promise.all([
+                faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
+                faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
+                faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)
+            ]);
+            document.getElementById('ai-loader').classList.add('hidden');
+            const btn = document.getElementById('cam-init-btn');
+            btn.innerText = "INITIALIZE CAMERA";
+            btn.classList.replace('bg-slate-700', 'bg-white');
+            btn.classList.replace('text-slate-400', 'text-slate-900');
+            btn.disabled = false;
+            btn.classList.remove('cursor-not-allowed');
+            updateStatus("AI Engine Ready", "text-blue-400", "bg-blue-400");
+            updateLogUI();
+            startClock();
+        }
+
+        async function toggleCamera(on) {
+            const setup = document.getElementById('setup-screen');
+            if (on) {
+                try {
+                    stream = await navigator.mediaDevices.getUserMedia({ video: {} });
+                    video.srcObject = stream;
+                    video.classList.remove('opacity-30');
+                    setup.classList.add('opacity-0', 'pointer-events-none');
+                    document.getElementById('off-btn').classList.remove('hidden');
+                    updateStatus("Scanning Active", "text-emerald-400", "bg-emerald-400");
+                } catch (e) { alert("Camera error."); }
+            } else {
+                if (stream) stream.getTracks().forEach(t => t.stop());
+                video.classList.add('opacity-30');
+                setup.classList.remove('opacity-0', 'pointer-events-none');
+                document.getElementById('off-btn').classList.add('hidden');
+                updateStatus("System Offline", "text-rose-400", "bg-rose-400");
+            }
+        }
+
+        async function registerEmployee() {
+            const name = document.getElementById('reg-name').value;
+            const id = document.getElementById('reg-id').value;
+            if (!name || !id || !stream) return alert("Fill data and turn on camera.");
+            showRegMsg("Scanning face features...", "text-blue-400");
+            const detection = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks().withFaceDescriptor();
+            if (!detection) return showRegMsg("Face not detected.", "text-rose-400");
+            employees.push({ name, id, descriptor: Array.from(detection.descriptor), photo: getSnapshot() });
+            localStorage.setItem('vc_biometric_data', JSON.stringify(employees));
+            document.getElementById('reg-name').value = ''; document.getElementById('reg-id').value = '';
+            showRegMsg("Biometrics Secured!", "text-emerald-400");
+        }
+
+        async function identifyUser(type) {
+            if (!stream) return;
+            const overlay = document.getElementById('overlay-msg');
+            const line = document.getElementById('scanner-line');
+            line.classList.remove('hidden');
+            overlay.innerText = "MATCHING...";
+            overlay.className = "bg-blue-600 text-white px-8 py-3 rounded-2xl border block";
+            overlay.classList.remove('hidden');
+            const detection = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks().withFaceDescriptor();
+            line.classList.add('hidden');
+            if (!detection) { showMatchResult("No Face Detected", "bg-rose-600"); return; }
+            let bestMatch = { name: "Unknown", distance: 1.0 };
+            employees.forEach(emp => {
+                const distance = faceapi.euclideanDistance(detection.descriptor, new Float32Array(emp.descriptor));
+                if (distance < 0.5 && distance < bestMatch.distance) { bestMatch = { ...emp, distance }; }
+            });
+            if (bestMatch.name === "Unknown") { showMatchResult("FACE NOT RECOGNIZED", "bg-rose-600"); }
+            else { saveLog(bestMatch, type, getSnapshot()); showMatchResult(`VERIFIED: ${bestMatch.name}`, "bg-emerald-600"); }
+        }
+
+        function getSnapshot() { ctx.drawImage(video, 0, 0, 640, 480); return canvas.toDataURL('image/jpeg', 0.5); }
+
+        function showMatchResult(txt, cls) {
+            const el = document.getElementById('overlay-msg');
+            el.innerText = txt; el.className = `${cls} text-white px-8 py-3 rounded-2xl border block`;
+            setTimeout(() => el.classList.add('hidden'), 3000);
+        }
+
+        function saveLog(user, type, photo) {
+            const today = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+            const timeNow = new Date().toLocaleTimeString();
+            
+            let existingLog = logs.find(l => l.id === user.id && l.date === today);
+
+            if (existingLog) {
+                // Initialize arrays if they don't exist
+                if (!Array.isArray(existingLog.punches)) existingLog.punches = [];
+                existingLog.punches.push({ type: type, time: timeNow });
+                existingLog.photo = photo; 
+            } else {
+                logs.unshift({ 
+                    name: user.name, 
+                    id: user.id, 
+                    photo: photo, 
+                    date: today,
+                    punches: [{ type: type, time: timeNow }]
+                });
+            }
+            localStorage.setItem('vc_logs', JSON.stringify(logs));
+            updateLogUI();
+        }
+
+        function updateLogUI() {
+            const container = document.getElementById('log-list');
+            if (logs.length === 0) { container.innerHTML = '<p class="text-slate-500 text-center text-sm">No history found</p>'; return; }
+
+            const grouped = logs.reduce((acc, log) => {
+                if (!acc[log.date]) acc[log.date] = [];
+                acc[log.date].push(log);
+                return acc;
+            }, {});
+
+            container.innerHTML = Object.keys(grouped).map(date => `
+                <div>
+                    <div class="date-header text-blue-400 font-bold text-xs uppercase tracking-widest">${date}</div>
+                    <div class="space-y-3">
+                        ${grouped[date].map((log, index) => {
+                            const uniqueIdx = `${date}-${index}`;
+                            // Generate HTML for all punches
+                            const punchesHTML = (log.punches || []).map(p => `
+                               <div class="flex justify-between items-center bg-slate-950/50 p-2 rounded-xl border border-slate-800">
+                                    <span class="text-[9px] font-bold ${p.type === 'IN' ? 'text-emerald-500' : 'text-rose-500'} uppercase">PUNCH ${p.type}</span>
+                                    <span class="text-white font-mono text-xs">${p.time}</span>
+                                </div>
+                            `).join('');
+
+                        return `
+                            <div class="bg-slate-900/50 rounded-2xl border border-slate-700/30 overflow-hidden">
+                                <div onclick="toggleLogDetails('${uniqueIdx}')" class="flex items-center gap-4 p-4 cursor-pointer hover:bg-slate-800/50 transition-all">
+                                    <img src="${log.photo}" class="w-10 h-10 rounded-full border border-slate-700 object-cover">
+                                         <div class="flex-1">
+                                        <h4 class="text-white text-sm font-bold">${log.name}</h4>
+                                        <p class="text-slate-500 text-[10px] uppercase tracking-wider">ID: ${log.id}</p>
+                                    </div>
+                                    <svg id="icon-${uniqueIdx}" class="w-4 h-4 text-slate-500 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                                </div>
+                                <div id="details-${uniqueIdx}" class="hidden px-4 pb-4 border-t border-slate-800/50 pt-3 bg-slate-900/30">
+                                    <div class="space-y-2">
+                                        ${punchesHTML || '<p class="text-slate-500 text-[9px] text-center">No punch data</p>'}
+                                    </div>
+                                </div>
+                            </div>`;
+                        }).join('')}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function toggleLogDetails(id) {
+            const details = document.getElementById(`details-${id}`);
+            const icon = document.getElementById(`icon-${id}`);
+            details.classList.toggle('hidden');
+            icon.style.transform = details.classList.contains('hidden') ? 'rotate(0deg)' : 'rotate(180deg)';
+        }
+
+        function updateStatus(txt, txtCol, bgCol) {
+            document.getElementById('sys-status').innerText = txt;
+            document.getElementById('sys-status').className = `${txtCol} font-bold uppercase tracking-widest text-xs`;
+            document.getElementById('sys-pulse').className = `w-2 h-2 ${bgCol} rounded-full animate-pulse`;
+        }
+
+        function showRegMsg(txt, cls) {
+            const el = document.getElementById('reg-msg');
+            el.innerText = txt; el.className = `text-center text-xs mt-2 font-medium ${cls}`;
+        }
+
+        function startClock() {
+            document.getElementById('live-date').innerText = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+            setInterval(() => document.getElementById('live-clock').innerText = new Date().toLocaleTimeString(), 1000);
+        }
+    </script>
+</body>
+</html>

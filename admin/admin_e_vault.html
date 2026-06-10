@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>E-Vault Master | Mercalix Enterprise</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+
+    <script>
+        function checkAdminAccess() {
+            const isLoggedIn = sessionStorage.getItem("isLoggedIn");
+            const role = sessionStorage.getItem("userRole");
+            if (!isLoggedIn || isLoggedIn !== "true" || role !== "super_admin") { 
+                window.location.href = "login.html"; 
+            }
+        }
+        checkAdminAccess();
+        function logout() { sessionStorage.clear(); window.location.href = "login.html"; }
+
+        function toggleDrop(btn) {
+            const dropdown = btn.nextElementSibling;
+            const allDropdowns = document.querySelectorAll('.dropdown-container');
+            allDropdowns.forEach(dd => { if(dd !== dropdown) dd.style.display = 'none'; });
+            dropdown.style.display = (dropdown.style.display === "block") ? "none" : "block";
+        }
+    </script>
+
+    <style>
+        :root { --primary: #ffb100; --dark: #1e293b; --success: #10b981; --bg: #f1f5f9; --border: #e2e8f0; }
+        body { margin: 0; font-family: 'Inter', sans-serif; background: var(--bg); color: var(--dark); overflow-x: hidden; }
+        
+        .top-nav { width: 100%; padding: 0 20px; height: 70px; display: flex; justify-content: space-between; align-items: center; background: #fff; border-bottom: 3px solid var(--primary); position: sticky; top: 0; z-index: 1000; box-sizing: border-box; }
+        .logo-text { font-size: 18px; font-weight: 800; color: var(--dark); text-decoration: none; text-transform: uppercase; }
+        .logo-text span { color: var(--primary); }
+
+        .container { display: flex; flex: 1; width: 100%; min-height: calc(100vh - 70px); }
+        .sidebar { width: 250px; background: var(--dark); flex-shrink: 0; display: flex; flex-direction: column; }
+        .nav-links { display: flex; flex-direction: column; padding-top: 10px; flex-grow: 1; }
+
+        .menu-item, .dropdown-btn { 
+            padding: 15px 20px; color: #cbd5e1; font-weight: 600; font-size: 11px; 
+            text-transform: uppercase; cursor: pointer; display: flex; justify-content: space-between; 
+            border-left: 4px solid transparent; text-decoration: none; align-items: center; 
+            background: none; border: none; width: 100%; box-sizing: border-box; outline: none;
+        }
+        .menu-item:hover, .menu-item.active, .dropdown-btn:hover { background: rgba(255,177,0,0.1); color: var(--primary); border-left-color: var(--primary); }
+        
+        .dropdown-container { display: none; background: #111827; width: 100%; }
+        .dropdown-container a { 
+            padding: 12px 20px 12px 45px; color: #94a3b8; font-size: 10px; display: block; 
+            text-decoration: none; font-weight: 700; text-transform: uppercase; border-bottom: 1px solid rgba(255,255,255,0.02);
+        }
+
+        .main { flex: 1; padding: 25px; box-sizing: border-box; }
+        
+        .search-panel { background: white; padding: 20px; border-radius: 15px; border: 1px solid var(--border); margin-bottom: 25px; display: flex; gap: 15px; align-items: center; }
+        .vault-input { flex: 1; padding: 12px; border-radius: 8px; border: 1px solid #ddd; outline: none; font-size: 13px; }
+        
+        .vault-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
+        .doc-card { background: white; border-radius: 15px; padding: 20px; border: 1px solid var(--border); position: relative; transition: 0.3s; }
+        .doc-card:hover { border-color: var(--primary); transform: translateY(-5px); }
+        .doc-icon { font-size: 30px; margin-bottom: 10px; }
+        .doc-card h4 { margin: 0; font-size: 14px; font-weight: 800; }
+        .doc-card p { font-size: 10px; color: #64748b; margin: 5px 0 15px 0; }
+        
+        .btn-view-doc { width: 100%; padding: 8px; background: var(--dark); color: var(--primary); border: 1.5px solid var(--primary); border-radius: 8px; font-weight: 800; font-size: 10px; cursor: pointer; text-transform: uppercase; }
+        
+        .branch-tag { position: absolute; top: 15px; right: 15px; font-size: 8px; font-weight: 900; background: #f1f5f9; padding: 3px 8px; border-radius: 4px; }
+    </style>
+</head>
+<body onload="initVault()">
+
+<nav class="top-nav">
+    <div style="display:flex; align-items:center; gap:12px;">
+        <span style="font-size: 18px; font-weight: 800;">MERCALIX <span>E-VAULT UNIT</span></span>
+    </div>
+    <div id="liveClock" style="font-size: 12px; font-weight: 900; background: #334155; color: white; padding: 6px 15px; border-radius: 30px;">00:00:00</div>
+</nav>
+
+<div class="container">
+    <aside class="sidebar">
+        <div class="nav-links">
+            <a href="home_page.html" class="menu-item">📊 Global Dashboard</a>
+            
+            <div class="dropdown-btn" onclick="toggleDrop(this)">🔐 System Access <span>▼</span></div>
+            <div class="dropdown-container">
+                <a href="admin_create_login.html">Create New Login</a>
+                <a href="admin_manage_roles.html">Manage Roles</a>
+            </div>
+
+            <div class="dropdown-btn" onclick="toggleDrop(this)">📍 Branch Control <span>▼</span></div>
+            <div class="dropdown-container">
+                <a href="admin_add_branch.html">Add New Branch</a>
+                <a href="admin_branch_analytics.html">Branch Analytics</a>
+            </div>
+
+            <div class="dropdown-btn" onclick="toggleDrop(this)">👥 Workforce <span>▼</span></div>
+            <div id="staffDrop" class="dropdown-container">
+                <a href="add_emp.html">Enroll New Staff</a>
+                <a href="admin_kyc_verify.html">KYC Verification</a>
+                <a href="admin_staff_directory.html">Master Directory</a>
+            </div>
+
+            <div class="dropdown-btn" onclick="toggleDrop(this)">💰 Enterprise Payroll <span>▼</span></div>
+            <div class="dropdown-container">
+                <a href="admin_salary_approvals.html">Salary Approvals</a>
+                <a href="admin_salary_register.html">Salary Register</a>
+            </div>
+
+            <a href="admin_announcements.html" class="menu-item">📢 Announcements</a>
+            <a href="admin_global_attendance.html" class="menu-item">📈 Global Attendance</a>
+            <a href="admin_master_reports.html" class="menu-item">📑 Master Reports</a>
+            <a href="admin_e_vault.html" class="menu-item active" style="color:var(--primary); border-left-color:var(--primary); background:rgba(255,177,0,0.1);">🔒 E-Vault Control</a>
+        </div>
+        
+        <div style="padding: 20px; border-top: 1px solid #334155; margin-top: auto;">
+            <a onclick="logout()" style="color:var(--primary); cursor:pointer; font-weight:800; font-size:11px; text-decoration:none;">🔓 SECURE LOGOUT</a>
+        </div>
+    </aside>
+
+    <main class="main">
+        <h2 style="margin:0; font-size: 24px; font-weight: 900;">Centralized Document Vault</h2>
+        <p style="font-size: 13px; color: #64748b;">Search and retrieve uploaded employee credentials across all branches.</p>
+
+        <div class="search-panel">
+            <input type="text" id="vaultSearch" class="vault-input" placeholder="Search by Employee Name or ID..." oninput="filterVault()">
+            <select id="branchVaultFilter" class="vault-input" style="flex:0.3" onchange="filterVault()">
+                <option value="All">All Branches</option>
+            </select>
+        </div>
+
+        <div id="vaultGrid" class="vault-grid">
+            </div>
+    </main>
+</div>
+
+<script>
+    // Is block ko replace karein
+const firebaseConfig = {
+  apiKey: "AIzaSyCkBeHploRe3UHq6ndukFUtfYc8sCkfx9g",
+  authDomain: "hrmsmercalixportal.firebaseapp.com",
+  projectId: "hrmsmercalixportal",
+  storageBucket: "hrmsmercalixportal.firebasestorage.app",
+  messagingSenderId: "126979860674",
+  appId: "1:126979860674:web:f486ad4b470b59189c735b",
+  measurementId: "G-EM1HY6T4NF"
+};
+
+// Initialize Firebase (Compat Version)
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+    let masterVaultData = [];
+
+    function initVault() {
+        setInterval(() => { document.getElementById("liveClock").innerText = new Date().toLocaleTimeString(); }, 1000);
+        
+        // Load Branches for Filter
+        db.collection("branches").onSnapshot(snap => {
+            const select = document.getElementById("branchVaultFilter");
+            snap.forEach(doc => { select.innerHTML += `<option value="${doc.data().name}">${doc.data().name}</option>`; });
+        });
+
+        // Fetch Employees who have uploaded something
+        db.collection("employees").onSnapshot(snap => {
+            masterVaultData = snap.docs.map(doc => doc.data());
+            renderVault(masterVaultData);
+        });
+    }
+
+    function renderVault(data) {
+        const grid = document.getElementById("vaultGrid");
+        grid.innerHTML = "";
+
+        data.forEach(emp => {
+            // Only show if at least one academic detail exists
+            grid.innerHTML += `
+                <div class="doc-card">
+                    <span class="branch-tag">📍 ${emp.branch}</span>
+                    <div class="doc-icon">📁</div>
+                    <h4>${emp.name}</h4>
+                    <p>Emp ID: ${emp.id} | ${emp.dept}</p>
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px;">
+                        <button class="btn-view-doc" onclick="alert('Viewing 10th for ${emp.name}')">10th</button>
+                        <button class="btn-view-doc" onclick="alert('Viewing 12th for ${emp.name}')">12th</button>
+                        <button class="btn-view-doc" onclick="alert('Viewing Degree for ${emp.name}')">DEGREE</button>
+                        <button class="btn-view-doc" onclick="alert('Viewing KYC for ${emp.name}')">ID PROOF</button>
+                    </div>
+                </div>
+            `;
+        });
+    }
+
+    function filterVault() {
+        const search = document.getElementById("vaultSearch").value.toLowerCase();
+        const branch = document.getElementById("branchVaultFilter").value;
+
+        const filtered = masterVaultData.filter(emp => {
+            const matchSearch = emp.name.toLowerCase().includes(search) || emp.id.toLowerCase().includes(search);
+            const matchBranch = (branch === "All" || emp.branch === branch);
+            return matchSearch && matchBranch;
+        });
+        renderVault(filtered);
+    }
+</script>
+</body>
+</html>

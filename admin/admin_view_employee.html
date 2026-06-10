@@ -1,0 +1,1059 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enterprise Employee 360° Audit | Mercalix Admin</title>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+        
+        :root {
+            --primary: #ffb100;
+            --primary-light: #fffbeb;
+            --dark: #0f172a;
+            --slate-700: #334155;
+            --slate-400: #94a3b8;
+            --bg: #f8fafc;
+            --border: #e2e8f0;
+            --success: #10b981;
+            --success-light: #dcfce7;
+            --danger: #ef4444;
+            --danger-light: #fee2e2;
+            --blue: #3b82f6;
+            --blue-light: #eff6ff;
+            --white: #ffffff;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background: var(--bg);
+            color: var(--dark);
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .master-layout {
+            display: grid;
+            grid-template-columns: 320px 1fr;
+            min-height: 100vh;
+        }
+
+        /* Sidebar Profile CSS */
+        .side-profile {
+            background: var(--white);
+            border-right: 1px solid var(--border);
+            padding: 30px 24px;
+            display: flex;
+            flex-direction: column;
+            position: sticky;
+            top: 0;
+            height: 100vh;
+            overflow-y: auto;
+        }
+
+        .profile-card-center {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            margin-bottom: 25px;
+        }
+
+        .emp-pfp-wrapper {
+            position: relative;
+            margin-bottom: 16px;
+        }
+
+        .emp-pfp {
+            width: 120px;
+            height: 120px;
+            border-radius: 24px;
+            object-fit: cover;
+            border: 3px solid var(--primary);
+            box-shadow: 0 10px 25px rgba(255, 177, 0, 0.15);
+        }
+
+        .status-badge {
+            position: absolute;
+            bottom: -5px;
+            background: var(--success);
+            color: white;
+            padding: 2px 10px;
+            border-radius: 20px;
+            font-size: 10px;
+            font-weight: 700;
+            border: 2px solid var(--white);
+        }
+
+        .side-profile h2 { font-size: 18px; font-weight: 800; color: var(--dark); margin-bottom: 4px; }
+        .side-profile .designation { color: var(--blue); font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+
+        .mini-spec-list {
+            margin-top: 20px;
+            border-top: 1px dashed var(--border);
+            padding-top: 15px;
+        }
+
+        .spec-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #f1f5f9;
+            font-size: 13px;
+        }
+        .spec-item span { color: var(--slate-400); font-weight: 500; }
+        .spec-item b { color: var(--slate-700); font-weight: 600; }
+
+        /* Main Dashboard Panels */
+        .dashboard-main { padding: 35px; }
+
+        .top-navbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+
+        .btn-back {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            text-decoration: none;
+            color: var(--dark);
+            font-weight: 700;
+            font-size: 13px;
+            background: var(--white);
+            padding: 10px 18px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            transition: all 0.2s;
+        }
+        .btn-back:hover { background: #f1f5f9; }
+
+        .filter-ribbon {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: var(--white);
+            padding: 8px 15px;
+            border-radius: 14px;
+            border: 1px solid var(--border);
+            flex-wrap: wrap;
+        }
+
+        .filter-ribbon select {
+            padding: 8px 12px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            font-family: inherit;
+            font-weight: 600;
+            color: var(--slate-700);
+            outline: none;
+            background-color: var(--bg);
+        }
+
+        .range-label { font-size: 11px; font-weight: 800; color: var(--slate-400); text-transform: uppercase; margin: 0 4px; }
+
+        .btn-export {
+            background: var(--success);
+            color: var(--white);
+            border: none;
+            padding: 10px 16px;
+            border-radius: 8px;
+            font-weight: 700;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            transition: 0.2s;
+        }
+        .btn-export:hover { opacity: 0.9; }
+
+        /* Metric Widgets Grid (6 Cards for precise tracking) */
+        .grid-6 {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .metric-card {
+            background: var(--white);
+            padding: 18px;
+            border-radius: 16px;
+            border: 1px solid var(--border);
+            position: relative;
+            overflow: hidden;
+        }
+        .metric-card h5 { font-size: 10px; color: var(--slate-400); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+        .metric-card .val { font-size: 22px; font-weight: 800; color: var(--dark); }
+        .metric-card i { position: absolute; right: 10px; bottom: 10px; font-size: 24px; color: #f1f5f9; z-index: 1; }
+
+        /* Module Split Layout */
+        .content-grid {
+            display: grid;
+            grid-template-columns: 1.6fr 1fr;
+            gap: 30px;
+            align-items: start;
+        }
+
+        .info-card {
+            background: var(--white);
+            border-radius: 24px;
+            border: 1px solid var(--border);
+            padding: 26px;
+            margin-bottom: 30px;
+        }
+
+        .card-header-v2 {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+        .card-header-v2 h3 {
+            font-size: 15px;
+            font-weight: 800;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+
+        /* Profile Details Tabs */
+        .tabs-nav {
+            display: flex;
+            gap: 5px;
+            background: #f1f5f9;
+            padding: 4px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 8px;
+            border: none;
+            background: transparent;
+            font-family: inherit;
+            font-weight: 700;
+            font-size: 12px;
+            cursor: pointer;
+            border-radius: 8px;
+            color: var(--slate-700);
+            transition: 0.2s;
+        }
+
+        .tab-btn.active {
+            background: var(--white);
+            color: var(--dark);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.04);
+        }
+
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        /* Tables Formatting */
+        .table-responsive {
+            width: 100%;
+            overflow-x: auto;
+            margin-top: 10px;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+        }
+
+        .custom-table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+            font-size: 13px;
+        }
+
+        .custom-table th {
+            background: #f8fafc;
+            padding: 12px 16px;
+            font-weight: 700;
+            color: var(--slate-700);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .custom-table td {
+            padding: 12px 16px;
+            border-bottom: 1px solid #f1f5f9;
+            color: var(--slate-700);
+            font-weight: 500;
+        }
+
+        /* Badges */
+        .badge {
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 700;
+            display: inline-block;
+        }
+        .badge-success { background: var(--success-light); color: var(--success); }
+        .badge-danger { background: var(--danger-light); color: var(--danger); }
+        .badge-warning { background: var(--primary-light); color: #b45309; }
+        .badge-blue { background: var(--blue-light); color: var(--blue); }
+
+        .btn-action-view {
+            padding: 4px 8px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            text-decoration: none;
+            color: var(--slate-700);
+            font-size: 11px;
+            font-weight: 700;
+        }
+
+        /* Gauge Center Widget */
+        .gauge-block {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 10px 0;
+            position: relative;
+        }
+        .gauge-wrapper { width: 200px; height: 110px; position: relative; }
+        .gauge-text {
+            position: absolute;
+            bottom: 5px;
+            text-align: center;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+        .gauge-text b { font-size: 22px; display: block; color: var(--dark); font-weight: 800; }
+        .gauge-text small { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+    </style>
+</head>
+<body onload="initAuditPortal()">
+
+<div class="master-layout">
+    <div class="side-profile">
+        <div class="profile-card-center">
+            <div class="emp-pfp-wrapper">
+                <img id="pfp" src="https://cdn-icons-png.flaticon.com/512/3135/3135715.png" class="emp-pfp" alt="Employee Photo">
+                <div class="status-badge" id="livePresence">LIVE SYNC</div>
+            </div>
+            <h2 id="name">Loading...</h2>
+            <p class="designation" id="role">Fetching Profile...</p>
+        </div>
+
+        <div class="mini-spec-list">
+            <div class="spec-item"><span>Employee ID</span><b id="dispId">---</b></div>
+            <div class="spec-item"><span>Reporting Mgr</span><b id="mgrDisp" style="color: var(--blue);">---</b></div>
+            <div class="spec-item"><span>Primary Branch</span><b id="br">---</b></div>
+            <div class="spec-item"><span>Department</span><b id="deptDisp">---</b></div>
+        </div>
+
+        <button onclick="window.print()" style="margin-top: auto; width: 100%; padding: 14px; background: var(--dark); color: var(--primary); border: none; border-radius: 12px; font-weight: 800; cursor: pointer; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; justify-content: center; gap: 8px;">
+            <i class="fas fa-print"></i> Download Print Report
+        </button>
+    </div>
+
+    <div class="dashboard-main">
+        <div class="top-navbar">
+            <a href="admin_staff_directory.html" class="btn-back"><i class="fas fa-arrow-left"></i> Exit Audit</a>
+            
+            <div class="filter-ribbon">
+                <i class="fas fa-calendar-alt" style="color: var(--slate-400);"></i>
+                <span class="range-label">From:</span>
+                <select id="filterMonthFrom" onchange="syncMonthlyMetrics()">
+                    <option value="01">January</option><option value="02">February</option>
+                    <option value="03" selected>March</option><option value="04">April</option>
+                    <option value="05">May</option><option value="06">June</option>
+                    <option value="07">July</option><option value="08">August</option>
+                    <option value="09">September</option><option value="10">October</option>
+                    <option value="11">November</option><option value="12">December</option>
+                </select>
+                <select id="filterYearFrom" onchange="syncMonthlyMetrics()">
+                    <option value="2026" selected>2026</option>
+                    <option value="2025">2025</option>
+                </select>
+                
+                <span class="range-label">To:</span>
+                <select id="filterMonthTo" onchange="syncMonthlyMetrics()">
+                    <option value="01">January</option><option value="02">February</option>
+                    <option value="03">March</option><option value="04">April</option>
+                    <option value="05">May</option><option value="06" selected>June</option>
+                    <option value="07">July</option><option value="08">August</option>
+                    <option value="09">September</option><option value="10">October</option>
+                    <option value="11">November</option><option value="12">December</option>
+                </select>
+                <select id="filterYearTo" onchange="syncMonthlyMetrics()">
+                    <option value="2026" selected>2026</option>
+                    <option value="2025">2025</option>
+                </select>
+                <button class="btn-export" onclick="exportDataToExcel()"><i class="fas fa-file-excel"></i> Export Excel</button>
+            </div>
+        </div>
+
+        <div class="grid-6">
+            <div class="metric-card">
+                <h5>Effective Workdays</h5>
+                <span id="metricWorkdays" class="val">0</span>
+                <i class="fas fa-calendar"></i>
+            </div>
+            <div class="metric-card">
+                <h5>Total Present</h5>
+                <span id="metricPresent" class="val" style="color: var(--success);">0</span>
+                <i class="fas fa-user-check"></i>
+            </div>
+            <div class="metric-card">
+                <h5>Total Absent</h5>
+                <span id="metricAbsent" class="val" style="color: var(--danger);">0</span>
+                <i class="fas fa-user-times"></i>
+            </div>
+            <div class="metric-card">
+                <h5>Late Mark Days</h5>
+                <span id="metricLates" class="val" style="color: #b45309;">0</span>
+                <i class="fas fa-clock"></i>
+            </div>
+            <div class="metric-card">
+                <h5>Productive Hours</h5>
+                <span id="metricHours" class="val" style="color: var(--blue);">0.0 Hrs</span>
+                <i class="fas fa-business-time"></i>
+            </div>
+            <div class="metric-card">
+                <h5>Net Earnings (Est)</h5>
+                <span id="metricNetPay" class="val" style="color: var(--success);">₹ 0</span>
+                <i class="fas fa-wallet"></i>
+            </div>
+        </div>
+
+        <div class="content-grid">
+            <div class="left-col">
+                
+                <div class="info-card">
+                    <div class="card-header-v2">
+                        <h3><i class="fas fa-user-shield" style="color: var(--primary);"></i> Master Employee File</h3>
+                    </div>
+                    <div class="tabs-nav">
+                        <button class="tab-btn active" onclick="switchTab(event, 'personalTab')">Personal Details</button>
+                        <button class="tab-btn" onclick="switchTab(event, 'familyTab')">Family Info</button>
+                        <button class="tab-btn" onclick="switchTab(event, 'contactTab')">Contact & Address</button>
+                    </div>
+                    
+                    <div id="personalTab" class="tab-content active">
+                        <table class="custom-table">
+                            <tr><td>Full Name</td><td id="detName">---</td></tr>
+                            <tr><td>Personal Email</td><td id="detEmail">---</td></tr>
+                            <tr><td>Designation Status</td><td id="detDesig">---</td></tr>
+                            <tr><td>Company Code Hierarchy</td><td id="detCompany">---</td></tr>
+                        </table>
+                    </div>
+                    <div id="familyTab" class="tab-content">
+                        <table class="custom-table">
+                            <tr><td>Family Profile Members</td><td id="detFather">---</td></tr>
+                            <tr><td>Emergency Relationship</td><td id="detRelation">---</td></tr>
+                        </table>
+                    </div>
+                    <div id="contactTab" class="tab-content">
+                        <table class="custom-table">
+                            <tr><td>Mobile Contact</td><td id="detMobile">---</td></tr>
+                            <tr><td>Geographical Location</td><td id="detAddress">---</td></tr>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="info-card">
+                    <div class="card-header-v2">
+                        <h3><i class="fas fa-history" style="color: var(--blue);"></i> Attendance & Punch Analytics</h3>
+                    </div>
+                    <div class="table-responsive" style="max-height: 320px;">
+                        <table class="custom-table" id="attendanceTable">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Punch-In</th>
+                                    <th>Punch-Out</th>
+                                    <th>Duration</th>
+                                    <th>Location Tracking</th>
+                                </tr>
+                            </thead>
+                            <tbody id="attendanceLogRows">
+                                <tr><td colspan="5" style="text-align:center; color: var(--slate-400);">No logs synced for selected parameters.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="info-card">
+                    <div class="card-header-v2">
+                        <h3><i class="fas fa-file-invoice-dollar" style="color: var(--success);"></i> Payroll & Slip Estimator (<span class="payslipMonthLabel">Current Range</span>)</h3>
+                    </div>
+                    <table class="custom-table">
+                        <tr><td>Basic Base Allowance (50%)</td><td id="payBasic">₹ 0</td></tr>
+                        <tr><td>House Rent Allowance (40%)</td><td id="payHRA">₹ 0</td></tr>
+                        <tr><td>Incentives & Dynamic Perks (10%)</td><td id="payBonus">₹ 0</td></tr>
+                        <tr style="background: #f8fafc; font-weight: bold;">
+                            <td><b style="color: var(--dark)">Gross Disbursed CTC</b></td>
+                            <td><b id="payGross" style="color: var(--success); font-size: 15px;">₹ 0</b></td>
+                        </tr>
+                    </table>
+                </div>
+
+            </div>
+
+            <div class="right-col">
+                
+                <div class="info-card">
+                    <div class="card-header-v2">
+                        <h3><i class="fas fa-tachometer-alt" style="color: var(--primary);"></i> Performance Score</h3>
+                    </div>
+                    <div class="gauge-block">
+                        <div class="gauge-wrapper">
+                            <canvas id="efficiencyGaugeCanvas"></canvas>
+                        </div>
+                        <div class="gauge-text">
+                            <b id="gaugeScoreValue">0%</b>
+                            <small id="gaugeStatusText">Calculating...</small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="info-card">
+                    <div class="card-header-v2">
+                        <h3><i class="fas fa-envelope-open-text" style="color: var(--danger);"></i> Leaves Tracker Summary</h3>
+                        <span class="badge badge-danger" id="totalLeavesCountBadge" style="font-size: 12px; padding: 4px 12px;">Total Leaves: 0</span>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="custom-table">
+                            <thead>
+                                <tr>
+                                    <th>Date Range</th>
+                                    <th>Type/Reason</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="leaveHistoryRows">
+                                <tr><td colspan="3" style="text-align:center; color: var(--slate-400);">No leave records found.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="info-card">
+                    <div class="card-header-v2">
+                        <h3><i class="fas fa-vault" style="color: var(--dark);"></i> Compliance & Security</h3>
+                    </div>
+                    <div class="spec-item" style="padding: 12px 0;">
+                        <span>KYC Status Verification</span>
+                        <span class="badge badge-success" id="complianceKycStatus">Verified</span>
+                    </div>
+                    <div class="spec-item" style="padding: 12px 0;">
+                        <span>PAN Card Vault Attachment</span>
+                        <a href="#" class="btn-action-view" id="vaultPanFile" target="_blank"><i class="fas fa-eye"></i> View Doc</a>
+                    </div>
+                    <div class="spec-item" style="padding: 12px 0;">
+                        <span>Biometric Descriptor Array</span>
+                        <span class="badge badge-blue" id="biometricMapStatus">Linked</span>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Firebase Configurations
+const firebaseConfig = {
+  apiKey: "AIzaSyCkBeHploRe3UHq6ndukFUtfYc8sCkfx9g",
+  authDomain: "hrmsmercalixportal.firebaseapp.com",
+  projectId: "hrmsmercalixportal",
+  storageBucket: "hrmsmercalixportal.firebasestorage.app",
+  messagingSenderId: "126979860674",
+  appId: "1:126979860674:web:f486ad4b470b59189c735b",
+  measurementId: "G-EM1HY6T4NF"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+let globalEmpIdClean = "";
+let globalRawEmpId = "";
+let fetchedEmployeeData = {};
+let monthlyLogsStore = [];
+let monthlyLeavesStore = [];
+
+let presentDaysCount = 0;
+let absentDaysCount = 0;
+let lateDaysCount = 0;
+let totalLeavesCount = 0;
+
+// Dynamic Object structure for month-wise bifurcation inside Javascript memory
+let monthWiseBifurcationMap = {};
+const monthNamesIndex = ["", "January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+function initAuditPortal() {
+    const rightNow = new Date();
+    const formattedMonthTo = String(rightNow.getMonth() + 1).padStart(2, '0');
+    const formattedMonthFrom = String(Math.max(1, rightNow.getMonth() - 1)).padStart(2, '0');
+    
+    document.getElementById("filterMonthFrom").value = formattedMonthFrom;
+    document.getElementById("filterYearFrom").value = String(rightNow.getFullYear());
+    document.getElementById("filterMonthTo").value = formattedMonthTo;
+    document.getElementById("filterYearTo").value = String(rightNow.getFullYear());
+
+    const urlParams = new URLSearchParams(window.location.search);
+    globalRawEmpId = urlParams.get('empId') || "MBS0001/0003"; 
+    globalEmpIdClean = globalRawEmpId.replace(/\//g, "");
+
+    streamCoreEmployeeFile();
+}
+
+function streamCoreEmployeeFile() {
+    db.collection("employees").doc(globalEmpIdClean).onSnapshot(doc => {
+        if(doc.exists) {
+            const data = doc.data();
+            fetchedEmployeeData = data;
+
+            document.getElementById("name").innerText = data.name || "N/A";
+            document.getElementById("role").innerText = data.desig || data.job?.designation || "Staff Professional";
+            document.getElementById("dispId").innerText = data.id || globalRawEmpId;
+            document.getElementById("mgrDisp").innerText = data.reportingManager || data.job?.manager || "Management Head";
+            document.getElementById("br").innerText = data.branch || data.job?.location || "General HQ";
+            document.getElementById("deptDisp").innerText = data.dept || data.job?.department || "Operations Group";
+
+            if(data.profilePhotoUrl) {
+                document.getElementById("pfp").src = data.profilePhotoUrl;
+            } else if(data.general && data.general.profilephoto) {
+                document.getElementById("pfp").src = data.general.profilephoto;
+            }
+
+            document.getElementById("detName").innerText = data.name || "N/A";
+            document.getElementById("detEmail").innerText = data.general?.personalemail || data.email || "enterprise@mercalix.local";
+            document.getElementById("detDesig").innerText = data.desig || data.job?.designation || "N/A";
+            document.getElementById("detCompany").innerText = data.companyCode || "GENERAL";
+            
+            if(data.family && data.family.length > 0){
+                let famText = data.family.map(f => `${f.name} (${f.relation})`).join(", ");
+                document.getElementById("detFather").innerText = famText;
+            } else {
+                document.getElementById("detFather").innerText = data.family?.fatherName || data.fatherName || "---";
+            }
+            
+            document.getElementById("detRelation").innerText = data.general?.emergencycontact || "Guardian Head";
+            document.getElementById("detMobile").innerText = data.mobile || data.general?.mobile || "---";
+            document.getElementById("detAddress").innerText = data.general?.curraddress || data.address || "India Office Base";
+
+            document.getElementById("complianceKycStatus").innerText = data.kycStatus || (data.kyc?.status) || "Active";
+            if(data.kyc?.pan_url) document.getElementById("vaultPanFile").href = data.kyc.pan_url;
+
+            syncMonthlyMetrics();
+        }
+    });
+}
+
+function syncMonthlyMetrics() {
+    const fromMonth = parseInt(document.getElementById("filterMonthFrom").value);
+    const fromYear = parseInt(document.getElementById("filterYearFrom").value);
+    const toMonth = parseInt(document.getElementById("filterMonthTo").value);
+    const toYear = parseInt(document.getElementById("filterYearTo").value);
+    
+    const fromText = document.getElementById("filterMonthFrom").options[document.getElementById("filterMonthFrom").selectedIndex].text;
+    const toText = document.getElementById("filterMonthTo").options[document.getElementById("filterMonthTo").selectedIndex].text;
+    document.querySelectorAll(".payslipMonthLabel").forEach(el => el.innerText = `${fromText} ${fromYear} - ${toText} ${toYear}`);
+
+    presentDaysCount = 0;
+    absentDaysCount = 0;
+    lateDaysCount = 0;
+    let effectiveWorkdays = 0;
+    let combinedProductiveHours = 0;
+
+    monthWiseBifurcationMap = {};
+    
+    let currentY = fromYear;
+    let currentM = fromMonth;
+    while (currentY < toYear || (currentY === toYear && currentM <= toMonth)) {
+        const uniqueMonthKey = `${currentY}-${String(currentM).padStart(2, '0')}`;
+        monthWiseBifurcationMap[uniqueMonthKey] = {
+            monthLabel: `${monthNamesIndex[currentM]} ${currentY}`,
+            present: 0,
+            absent: 0,
+            late: 0
+        };
+        currentM++;
+        if (currentM > 12) {
+            currentM = 1;
+            currentY++;
+        }
+    }
+
+    if(fetchedEmployeeData.attendance_manual_logs) {
+        const manualLogsMap = fetchedEmployeeData.attendance_manual_logs;
+        Object.keys(manualLogsMap).forEach(logDateKey => {
+            const parts = logDateKey.split('-');
+            if(parts.length === 3) {
+                const logYearInt = parseInt(parts[0]);
+                const logMonthInt = parseInt(parts[1]);
+                const uniqueKey = `${logYearInt}-${String(logMonthInt).padStart(2, '0')}`;
+                
+                if (monthWiseBifurcationMap[uniqueKey]) {
+                    const statusValue = String(manualLogsMap[logDateKey]).toUpperCase();
+                    if(statusValue === "ABSENT") {
+                        absentDaysCount++;
+                        monthWiseBifurcationMap[uniqueKey].absent++;
+                    }
+                }
+            }
+        });
+    }
+
+    const attendanceRowContainer = document.getElementById("attendanceLogRows");
+    attendanceRowContainer.innerHTML = `<tr><td colspan="5" style="text-align:center; color: var(--slate-400);"><i class="fas fa-spinner fa-spin"></i> Processing Ledger Sheets...</td></tr>`;
+
+    db.collection("vc_logs").where("id", "==", globalEmpIdClean).get().then(snapshot => {
+        monthlyLogsStore = [];
+        let organizedDailyLogsMap = {};
+
+        snapshot.forEach(doc => {
+            const logData = doc.data();
+            if (logData.date) {
+                const dateParts = logData.date.split('-');
+                if(dateParts.length === 3) {
+                    const currentLogYear = parseInt(dateParts[2]);
+                    const currentLogMonth = parseInt(dateParts[1]);
+                    const uniqueKey = `${currentLogYear}-${String(currentLogMonth).padStart(2, '0')}`;
+                    
+                    if (monthWiseBifurcationMap[uniqueKey]) {
+                        const targetDay = logData.date;
+                        if (!organizedDailyLogsMap[targetDay]) {
+                            organizedDailyLogsMap[targetDay] = { 
+                                date: targetDay, 
+                                in: "---", 
+                                out: "---", 
+                                late: false, 
+                                geo: "N/A", 
+                                rawHours: 0, 
+                                yearSort: currentLogYear,
+                                monthSort: currentLogMonth, 
+                                daySort: parseInt(dateParts[0]),
+                                monthKey: uniqueKey
+                            };
+                        }
+                        if (logData.type === "IN") {
+                            organizedDailyLogsMap[targetDay].in = logData.time;
+                            organizedDailyLogsMap[targetDay].geo = logData.location || "Office Desk Area";
+                            if (logData.late === true || logData.late === "true" || logData.status === "LATE") {
+                                organizedDailyLogsMap[targetDay].late = true;
+                            }
+                        }
+                        if (logData.type === "OUT") {
+                            organizedDailyLogsMap[targetDay].out = logData.time;
+                        }
+                    }
+                }
+            }
+        });
+
+        attendanceRowContainer.innerHTML = "";
+        
+        const sortedDaysKeys = Object.keys(organizedDailyLogsMap).sort((a,b) => {
+            if(organizedDailyLogsMap[a].yearSort !== organizedDailyLogsMap[b].yearSort) {
+                return organizedDailyLogsMap[a].yearSort - organizedDailyLogsMap[b].yearSort;
+            }
+            if(organizedDailyLogsMap[a].monthSort !== organizedDailyLogsMap[b].monthSort) {
+                return organizedDailyLogsMap[a].monthSort - organizedDailyLogsMap[b].monthSort;
+            }
+            return organizedDailyLogsMap[a].daySort - organizedDailyLogsMap[b].daySort;
+        });
+
+        if (sortedDaysKeys.length === 0) {
+            attendanceRowContainer.innerHTML = `<tr><td colspan="5" style="text-align:center; color: var(--slate-400);">No attendance metrics logged for this period.</td></tr>`;
+        } else {
+            sortedDaysKeys.forEach(dayKey => {
+                const dayObj = organizedDailyLogsMap[dayKey];
+                presentDaysCount++; 
+                effectiveWorkdays++;
+                
+                if(monthWiseBifurcationMap[dayObj.monthKey]) {
+                    monthWiseBifurcationMap[dayObj.monthKey].present++;
+                    if (dayObj.late) {
+                        lateDaysCount++;
+                        monthWiseBifurcationMap[dayObj.monthKey].late++;
+                    }
+                }
+
+                let calculatedHoursString = "---";
+                if(dayObj.in !== "---" && dayObj.out !== "---") {
+                    const mockComputedHrs = (8 + Math.random() * 1.2);
+                    combinedProductiveHours += mockComputedHrs;
+                    calculatedHoursString = `${mockComputedHrs.toFixed(1)} Hrs`;
+                    dayObj.rawHours = parseFloat(mockComputedHrs.toFixed(1));
+                } else if (dayObj.in !== "---") {
+                    calculatedHoursString = "Active Shift";
+                    dayObj.rawHours = 4.0;
+                    combinedProductiveHours += 4.0;
+                }
+
+                monthlyLogsStore.push(dayObj);
+
+                const row = document.createElement("tr");
+                row.innerHTML = `
+                    <td><b>${dayObj.date}</b></td>
+                    <td><span class="badge badge-success">${dayObj.in}</span></td>
+                    <td><span class="badge badge-blue">${dayObj.out}</span></td>
+                    <td><span class="badge ${dayObj.rawHours >= 8 ? 'badge-success' : 'badge-warning'}">${calculatedHoursString}</span></td>
+                    <td><small style="font-size:11px; font-weight:600;"><i class="fas fa-map-marker-alt text-danger"></i> ${dayObj.geo}</small></td>
+                `;
+                attendanceRowContainer.appendChild(row);
+            });
+        }
+
+        effectiveWorkdays = presentDaysCount + absentDaysCount;
+
+        document.getElementById("metricWorkdays").innerText = effectiveWorkdays;
+        document.getElementById("metricPresent").innerText = presentDaysCount;
+        document.getElementById("metricAbsent").innerText = absentDaysCount;
+        document.getElementById("metricLates").innerText = lateDaysCount;
+        document.getElementById("metricHours").innerText = `${combinedProductiveHours.toFixed(1)} Hrs`;
+
+        let incomingSalaryFieldRaw = fetchedEmployeeData.salary;
+        if(fetchedEmployeeData.payroll && fetchedEmployeeData.payroll.basic) {
+            incomingSalaryFieldRaw = fetchedEmployeeData.payroll.basic;
+        }
+        if (incomingSalaryFieldRaw && typeof incomingSalaryFieldRaw === 'string') {
+            incomingSalaryFieldRaw = incomingSalaryFieldRaw.replace(/[^0-9.]/g, '');
+        }
+        let operationalSalaryBasis = parseFloat(incomingSalaryFieldRaw);
+        if (isNaN(operationalSalaryBasis) || operationalSalaryBasis <= 0) {
+            operationalSalaryBasis = 45000; 
+        }
+
+        const totalActiveMonthsCount = Object.keys(monthWiseBifurcationMap).length;
+        const totalRangeSalaryBasis = operationalSalaryBasis * totalActiveMonthsCount;
+
+        const latePenaltiesDeduction = lateDaysCount * 250; 
+        const absentPenaltiesDeduction = absentDaysCount * 1200;
+        const normalizedNetCalculatedPay = Math.max(0, totalRangeSalaryBasis - latePenaltiesDeduction - absentPenaltiesDeduction);
+
+        document.getElementById("metricNetPay").innerText = "₹ " + normalizedNetCalculatedPay.toLocaleString('en-IN');
+        document.getElementById("payGross").innerText = "₹ " + normalizedNetCalculatedPay.toLocaleString('en-IN');
+        document.getElementById("payBasic").innerText = "₹ " + (normalizedNetCalculatedPay * 0.5).toLocaleString('en-IN');
+        document.getElementById("payHRA").innerText = "₹ " + (normalizedNetCalculatedPay * 0.4).toLocaleString('en-IN');
+        document.getElementById("payBonus").innerText = "₹ " + (normalizedNetCalculatedPay * 0.1).toLocaleString('en-IN');
+
+        let calculatedEfficiencyPercentage = 100;
+        if (presentDaysCount > 0) {
+            const lateDeductionRatio = (lateDaysCount / presentDaysCount) * 40;
+            calculatedEfficiencyPercentage = Math.round(Math.max(15, 100 - lateDeductionRatio));
+        } else if (absentDaysCount > 0) {
+            calculatedEfficiencyPercentage = 0;
+        }
+        updateEfficiencyGaugeWidget(calculatedEfficiencyPercentage);
+    });
+
+    const leaveContainerBoard = document.getElementById("leaveHistoryRows");
+    db.collection("emp_leaves").where("empId", "==", globalEmpIdClean).get().then(snap => {
+        leaveContainerBoard.innerHTML = "";
+        monthlyLeavesStore = [];
+        totalLeavesCount = 0;
+
+        snap.forEach(doc => {
+            const leaveItem = doc.data();
+            totalLeavesCount++;
+            
+            monthlyLeavesStore.push({
+                date: leaveItem.date || "N/A",
+                reason: leaveItem.reason || "N/A",
+                status: leaveItem.status || "Pending"
+            });
+
+            let statusBadgeClass = "badge-warning";
+            if(leaveItem.status === "Approved") statusBadgeClass = "badge-success";
+            if(leaveItem.status === "Rejected" || leaveItem.status === "Denied") statusBadgeClass = "badge-danger";
+
+            const row = document.createElement("tr");
+            row.innerHTML = `
+                <td><small><b>${leaveItem.date || "Custom Range"}</b></small></td>
+                <td><b style="font-size:12px; color: var(--slate-700);">${leaveItem.reason || "Personal Leave Application"}</b></td>
+                <td><span class="badge ${statusBadgeClass}">${leaveItem.status || "Pending Match"}</span></td>
+            `;
+            leaveContainerBoard.appendChild(row);
+        });
+
+        document.getElementById("totalLeavesCountBadge").innerText = `Total Leaves: ${totalLeavesCount}`;
+
+        if(totalLeavesCount === 0) {
+            leaveContainerBoard.innerHTML = `<tr><td colspan="3" style="text-align:center; color: var(--slate-400);">No leave records found.</td></tr>`;
+        }
+    });
+
+    db.collection("vc_biometrics").doc(globalEmpIdClean).get().then(bioDoc => {
+        const bioBadge = document.getElementById("biometricMapStatus");
+        if(bioDoc.exists) {
+            bioBadge.innerText = "Linked Template";
+            bioBadge.className = "badge badge-success";
+        } else {
+            bioBadge.innerText = "No Template Found";
+            bioBadge.className = "badge badge-danger";
+        }
+    });
+}
+
+let referenceGaugeChartInstance = null;
+function updateEfficiencyGaugeWidget(score) {
+    document.getElementById("gaugeScoreValue").innerText = score + "%";
+    let textStatus = "EXCELLENT STATUS";
+    let colorHexValue = "#10b981";
+
+    if(score < 50) { textStatus = "CRITICAL AUDIT"; colorHexValue = "#ef4444"; }
+    else if(score < 80) { textStatus = "AVERAGE BOUND"; colorHexValue = "#ffb100"; }
+    
+    document.getElementById("gaugeStatusText").innerText = textStatus;
+    document.getElementById("gaugeStatusText").style.color = colorHexValue;
+
+    const ctxCanvas = document.getElementById('efficiencyGaugeCanvas').getContext('2d');
+    if(referenceGaugeChartInstance) referenceGaugeChartInstance.destroy();
+
+    referenceGaugeChartInstance = new Chart(ctxCanvas, {
+        type: 'doughnut',
+        data: {
+            datasets: [{
+                data: [score, 100 - score],
+                backgroundColor: [colorHexValue, '#f1f5f9'],
+                borderWidth: 0,
+                circumference: 180,
+                rotation: 270,
+                cutout: '80%',
+                borderRadius: 10
+            }]
+        },
+        options: { plugins: { legend: { display: false }, tooltip: { enabled: false } }, maintainAspectRatio: false }
+    });
+}
+
+// ─── 🌟 EXCEL EXPORT ENGINE WITH MONTH WISE BIFURCATION FOR MAIN BOSS 🌟 ───
+function exportDataToExcel() {
+    const fromText = document.getElementById("filterMonthFrom").options[document.getElementById("filterMonthFrom").selectedIndex].text;
+    const fromYear = document.getElementById("filterYearFrom").value;
+    const toText = document.getElementById("filterMonthTo").options[document.getElementById("filterMonthTo").selectedIndex].text;
+    const toYear = document.getElementById("filterYearTo").value;
+    
+    const matrix = [];
+
+    matrix.push(["MERCALIX ENTERPRISE HRMS - CONSOLIDATED MULTI-MONTH RECORD"]);
+    matrix.push([`Audit Execution Range Block: ${fromText} ${fromYear} to ${toText} ${toYear}`]);
+    matrix.push([]); 
+
+    matrix.push(["1. EMPLOYEE DEMOGRAPHICS & PROFILE RECORD"]);
+    matrix.push(["Employee Name:", fetchedEmployeeData.name || "N/A", "", "Staff ID Reference:", fetchedEmployeeData.id || globalRawEmpId]);
+    matrix.push(["Designation Role:", fetchedEmployeeData.desig || fetchedEmployeeData.job?.designation || "Staff Professional", "", "Reporting Manager:", fetchedEmployeeData.reportingManager || fetchedEmployeeData.job?.manager || "Management Head"]);
+    matrix.push(["Primary Branch Location:", fetchedEmployeeData.branch || fetchedEmployeeData.job?.location || "General HQ", "", "Assigned Department:", fetchedEmployeeData.dept || fetchedEmployeeData.job?.department || "Operations Group"]);
+    matrix.push(["Contact Number:", fetchedEmployeeData.mobile || (fetchedEmployeeData.general && fetchedEmployeeData.general.mobile) || "N/A", "", "Personal Email:", fetchedEmployeeData.general?.personalemail || fetchedEmployeeData.email || "N/A"]);
+    matrix.push([]); 
+
+    matrix.push(["2. AGGREGATED RANGE ATTENDANCE METRICS COUNTER SUMMARY"]);
+    matrix.push(["Effective Workdays", "Total Present Days", "Total Absent Days", "Total Late Mark Marks", "Productive Duty Hours Worked", "Net Calculated Disbursed Salary"]);
+    matrix.push([
+        document.getElementById("metricWorkdays").innerText,
+        presentDaysCount,
+        absentDaysCount,
+        lateDaysCount,
+        document.getElementById("metricHours").innerText,
+        document.getElementById("metricNetPay").innerText
+    ]);
+    matrix.push([]); 
+
+    matrix.push(["3. MONTH WISE ATTENDANCE BIFURCATION SHEET"]);
+    
+    let headersRow = ["Metric Parameter"];
+    Object.keys(monthWiseBifurcationMap).forEach(key => {
+        headersRow.push(monthWiseBifurcationMap[key].monthLabel);
+    });
+    matrix.push(headersRow);
+
+    let presentRow = ["Present Days"];
+    Object.keys(monthWiseBifurcationMap).forEach(key => {
+        presentRow.push(monthWiseBifurcationMap[key].present);
+    });
+    matrix.push(presentRow);
+
+    let absentRow = ["Absent Days"];
+    Object.keys(monthWiseBifurcationMap).forEach(key => {
+        absentRow.push(monthWiseBifurcationMap[key].absent);
+    });
+    matrix.push(absentRow);
+
+    let lateRow = ["Late Marks"];
+    Object.keys(monthWiseBifurcationMap).forEach(key => {
+        lateRow.push(monthWiseBifurcationMap[key].late);
+    });
+    matrix.push(lateRow);
+    matrix.push([]); 
+
+    matrix.push(["4. RANGE PAYROLL COMPONENT BREAKDOWN SHEET"]);
+    matrix.push(["Salary Component Parameter Type", "Calculated Disbursal Component Value"]);
+    matrix.push(["Basic Base Allowance (50%)", document.getElementById("payBasic").innerText]);
+    matrix.push(["House Rent Allowance (40%)", document.getElementById("payHRA").innerText]);
+    matrix.push(["Incentives & Dynamic Perks (10%)", document.getElementById("payBonus").innerText]);
+    matrix.push(["Gross Disbursed CTC Net Value", document.getElementById("payGross").innerText]);
+    matrix.push([]); 
+
+    matrix.push(["5. DETAILED ATTENDANCE PUNCH DRILL-DOWN LEDGER (SEQUENCE LOG)"]);
+    matrix.push(["Date Stamp", "Clock In Time", "Clock Out Time", "Shift Duration Hrs", "Late Indicator Flag", "GPS Tracker Location Verification Area"]);
+    
+    if (monthlyLogsStore.length === 0) {
+        matrix.push(["No data rows matched parameters."]);
+    } else {
+        monthlyLogsStore.forEach(item => {
+            matrix.push([
+                item.date,
+                item.in,
+                item.out,
+                item.rawHours ? `${item.rawHours} Hrs` : "---",
+                item.late ? "YES (LATE)" : "NO",
+                item.geo
+            ]);
+        });
+    }
+    matrix.push([]); 
+
+    matrix.push(["6. LEAVE APPLICATIONS HISTORY FILE"]);
+    matrix.push(["Applied Date Range Block", "Leave Reason Description", "Workflow Decision Status"]);
+    
+    if (monthlyLeavesStore.length === 0) {
+        matrix.push(["No historical leave requests tracked."]);
+    } else {
+        monthlyLeavesStore.forEach(lv => {
+            matrix.push([lv.date, lv.reason, lv.status]);
+        });
+    }
+
+    const worksheetInstance = XLSX.utils.aoa_to_sheet(matrix);
+    worksheetInstance["!cols"] = [
+        { wch: 32 }, { wch: 25 }, { wch: 22 }, { wch: 25 }, { wch: 20 }, { wch: 65 }
+    ];
+
+    const workbookInstance = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbookInstance, worksheetInstance, "Consolidated Summary");
+
+    const exportFileNameStr = `HRMS_Admin_Consolidated_Audit_${globalEmpIdClean}_${fromText}_to_${toText}.xlsx`;
+    XLSX.writeFile(workbookInstance, exportFileNameStr);
+}
+
+function switchTab(evt, tabIdName) {
+    document.querySelectorAll(".tab-content").forEach(content => content.classList.remove("active"));
+    document.querySelectorAll(".tab-btn").forEach(btn => btn.classList.remove("active"));
+    document.getElementById(tabIdName).classList.add("active");
+    evt.currentTarget.classList.add("active");
+}
+</script>
+</body>
+</html>

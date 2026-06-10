@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Employee Payslip | Mercalix OS</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap');
+        
+        :root {
+            --primary: #00d4ff;
+            --dark: #002b3d;
+            --bg: #f3f7f9;
+            --border: #e2e8f0;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background: var(--bg);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .payslip-container {
+            background: white;
+            width: 850px;
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 3px solid var(--primary);
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+        }
+
+        .header h2 {
+            margin: 0;
+            color: var(--dark);
+            text-transform: uppercase;
+            font-weight: 800;
+        }
+
+        .ps-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+            margin-bottom: 20px;
+            color: #333;
+        }
+
+        .ps-table td, .ps-table th {
+            border: 1px solid #ccc;
+            padding: 10px;
+        }
+
+        .ps-bg {
+            background: #f8fafc;
+            font-weight: 800;
+            width: 25%;
+        }
+
+        .ps-total {
+            background: #e2e8f0;
+            font-weight: 800;
+        }
+
+        .net-salary-row {
+            background: var(--dark);
+            color: white;
+            font-size: 16px;
+        }
+
+        .btn-print {
+            background: var(--dark);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: 0.3s;
+        }
+
+        .btn-print:hover {
+            opacity: 0.9;
+        }
+
+        @media print {
+            body { background: white; padding: 0; }
+            .payslip-container { box-shadow: none; width: 100%; }
+            .btn-print { display: none; }
+        }
+    </style>
+</head>
+<body onload="loadPayslipData()">
+
+<div class="payslip-container">
+    <div class="header">
+        <div>
+            <h2>Mercalix OS</h2>
+            <p style="margin: 5px 0; font-size: 12px; color: #64748b;">Cumulative Payslip for <span id="psMonth">APRIL 2026</span></p>
+        </div>
+        <button class="btn-print" onclick="window.print()">
+            <i class="fas fa-print"></i> Print Payslip
+        </button>
+    </div>
+
+    <div id="payslipContent">
+        <table class="ps-table">
+            <tr>
+                <td class="ps-bg">Employee Code</td><td id="psId">Loading...</td>
+                <td class="ps-bg">Employee Name</td><td id="psName">Loading...</td>
+            </tr>
+            <tr>
+                <td class="ps-bg">Department</td><td>IT Department</td>
+                <td class="ps-bg">Sub Department</td><td>Development</td>
+            </tr>
+            <tr>
+                <td class="ps-bg">Bank Name</td><td>State Bank of India</td>
+                <td class="ps-bg">Account Number</td><td>XXXXXXXX4321</td>
+            </tr>
+            <tr>
+                <td class="ps-bg">PAN Number</td><td>ABCDE1234F</td>
+                <td class="ps-bg">Date of Joining</td><td>01/01/2024</td>
+            </tr>
+            <tr>
+                <td class="ps-bg">PF Number</td><td>MH/PUN/00000</td>
+                <td class="ps-bg">UAN Number</td><td>100XXXXXXXXX</td>
+            </tr>
+        </table>
+
+        <p style="font-size:11px; font-weight: 700; margin: 15px 0 5px 0; color: #64748b;">SALARY DETAILS (Amount in ₹)</p>
+        
+        <table class="ps-table">
+            <tr class="ps-bg">
+                <td colspan="4">Attendance Summary</td>
+            </tr>
+            <tr>
+                <td>Days in Month</td><td>30</td>
+                <td>Days Worked</td><td>30</td>
+            </tr>
+            <tr>
+                <td>Leaves Taken</td><td>0</td>
+                <td>LWP (Leave Without Pay)</td><td>0</td>
+            </tr>
+        </table>
+
+        <table class="ps-table">
+            <tr class="ps-bg">
+                <td colspan="2">EARNINGS</td>
+                <td colspan="2">DEDUCTIONS</td>
+            </tr>
+            <tr>
+                <td>Basic Salary</td><td>₹ 0.00</td>
+                <td>Professional Tax</td><td>₹ 0.00</td>
+            </tr>
+            <tr>
+                <td>HRA (House Rent Allowance)</td><td>₹ 0.00</td>
+                <td>Provident Fund</td><td>₹ 0.00</td>
+            </tr>
+            <tr>
+                <td>Special Allowance</td><td>₹ 0.00</td>
+                <td>Salary Advance Recovery</td><td>₹ 0.00</td>
+            </tr>
+            <tr>
+                <td>Incentives</td><td>₹ 0.00</td>
+                <td>Other Deductions</td><td>₹ 0.00</td>
+            </tr>
+            <tr class="ps-total">
+                <td>GROSS EARNINGS</td><td>₹ 0.00</td>
+                <td>TOTAL DEDUCTIONS</td><td>₹ 0.00</td>
+            </tr>
+            <tr class="net-salary-row">
+                <td colspan="2" style="text-align: right;"><strong>NET SALARY PAYABLE</strong></td>
+                <td colspan="2"><strong>₹ 0.00</strong></td>
+            </tr>
+        </table>
+
+        <div style="margin-top: 50px; display: flex; justify-content: space-between;">
+            <div style="text-align: center; border-top: 1px solid #333; width: 150px; padding-top: 5px; font-size: 12px;">Employee Signature</div>
+            <div style="text-align: center; border-top: 1px solid #333; width: 150px; padding-top: 5px; font-size: 12px;">Director Signature</div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Is block ko replace karein
+const firebaseConfig = {
+  apiKey: "AIzaSyCkBeHploRe3UHq6ndukFUtfYc8sCkfx9g",
+  authDomain: "hrmsmercalixportal.firebaseapp.com",
+  projectId: "hrmsmercalixportal",
+  storageBucket: "hrmsmercalixportal.firebasestorage.app",
+  messagingSenderId: "126979860674",
+  appId: "1:126979860674:web:f486ad4b470b59189c735b",
+  measurementId: "G-EM1HY6T4NF"
+};
+
+// Initialize Firebase (Compat Version)
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+    function loadPayslipData() {
+        const empId = sessionStorage.getItem("empId");
+        
+        if (!empId) {
+            alert("No session found. Please login.");
+            window.location.href = "login.html";
+            return;
+        }
+
+        // Fetch Employee Name and ID from Firestore
+        db.collection("employees").doc(empId).get().then((doc) => {
+            if (doc.exists) {
+                const data = doc.data();
+                document.getElementById("psName").innerText = data.name;
+                document.getElementById("psId").innerText = data.id || empId;
+            } else {
+                console.log("No such employee document!");
+            }
+        }).catch((error) => {
+            console.log("Error getting document:", error);
+        });
+
+        // Current Month update
+        const date = new Date();
+        const monthNames = ["JANUARY", "FEBRUARY", "MARCH", "APRIL", "MAY", "JUNE",
+                            "JULY", "AUGUST", "SEPTEMBER", "OCTOBER", "NOVEMBER", "DECEMBER"];
+        document.getElementById("psMonth").innerText = `${monthNames[date.getMonth()]} ${date.getFullYear()}`;
+    }
+</script>
+
+</body>
+</html>

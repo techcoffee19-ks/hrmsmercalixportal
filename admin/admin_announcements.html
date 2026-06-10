@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Handbook Management | Mercalix Terminal</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-storage-compat.js"></script>
+
+    <style>
+        :root { --primary: #ffb100; --dark: #1e293b; --bg: #f4f7fa; --border: #e2e8f0; --success: #10b981; --danger: #ef4444; }
+        
+        body, html { margin: 0; padding: 0; height: 100%; width: 100%; font-family: 'Plus Jakarta Sans', sans-serif; background: var(--bg); color: var(--dark); overflow: hidden; }
+        
+        .top-nav { width: 100%; height: 70px; display: flex; justify-content: space-between; align-items: center; background: white; border-bottom: 3px solid var(--primary); padding: 0 30px; box-sizing: border-box; position: sticky; top: 0; z-index: 100; }
+        .logo-text { font-size: 20px; font-weight: 800; text-decoration: none; color: var(--dark); text-transform: uppercase; }
+        .logo-text span { color: var(--primary); }
+
+        .container { display: flex; height: calc(100vh - 70px); width: 100%; }
+        
+        /* Sidebar Styling */
+        .sidebar { width: 260px; background: var(--dark); flex-shrink: 0; display: flex; flex-direction: column; overflow-y: auto; }
+        .menu-item, .dropdown-btn { 
+            width: 100%; padding: 18px 25px; color: #cbd5e1; font-weight: 600; font-size: 11px; 
+            display: flex; justify-content: space-between; align-items: center; cursor: pointer; 
+            background: none; border: none; text-transform: uppercase; text-decoration: none; box-sizing: border-box;
+            border-left: 4px solid transparent; transition: 0.3s;
+        }
+        .menu-item:hover, .active-link { background: rgba(255,177,0,0.1); color: var(--primary); border-left-color: var(--primary); }
+        .dropdown-container { display: none; background-color: #111827; }
+        .dropdown-container a { padding: 12px 50px; color: #94a3b8; font-size: 10px; display: block; text-decoration: none; font-weight: 700; text-transform: uppercase; }
+
+        /* Main Content Fit to Page */
+        .main { flex: 1; padding: 40px; box-sizing: border-box; overflow-y: auto; display: flex; flex-direction: column; gap: 30px; }
+        
+        .form-card { background: white; padding: 35px; border-radius: 24px; border: 1px solid var(--border); box-shadow: 0 10px 30px rgba(0,0,0,0.05); border-top: 6px solid var(--primary); }
+        .form-header { margin-bottom: 25px; border-bottom: 2px solid #f1f5f9; padding-bottom: 15px; display: flex; align-items: center; gap: 10px; }
+        .form-header h2 { margin: 0; font-size: 18px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.5px; }
+
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 25px; }
+        .form-group { display: flex; flex-direction: column; gap: 8px; margin-bottom: 15px; }
+        .form-group label { font-size: 11px; font-weight: 800; color: #64748b; text-transform: uppercase; }
+        
+        .form-ctrl { padding: 14px 18px; border-radius: 12px; border: 1.5px solid #e2e8f0; outline: none; font-family: inherit; font-size: 14px; transition: 0.3s; background: #fbfcfd; }
+        .form-ctrl:focus { border-color: var(--primary); background: #fff; box-shadow: 0 0 0 4px rgba(255, 177, 0, 0.1); }
+        
+        .file-upload-box { 
+            border: 2px dashed #cbd5e1; border-radius: 15px; padding: 20px; text-align: center; 
+            cursor: pointer; transition: 0.3s; background: #f8fafc; margin-top: 10px;
+        }
+        .file-upload-box:hover { border-color: var(--primary); background: #fffbeb; }
+
+        .btn-post { 
+            background: var(--dark); color: var(--primary); border: 2px solid var(--primary); 
+            padding: 16px; border-radius: 14px; font-weight: 900; cursor: pointer; 
+            text-transform: uppercase; width: 100%; transition: 0.3s; letter-spacing: 1px; margin-top: 15px;
+        }
+        .btn-post:hover { background: var(--primary); color: #000; transform: translateY(-3px); box-shadow: 0 10px 20px rgba(255, 177, 0, 0.2); }
+        
+        .history-card { background: white; border-radius: 24px; border: 1px solid var(--border); overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.02); flex: 1; }
+        .history-header { padding: 25px; background: #fff; border-bottom: 2px solid var(--primary); font-weight: 900; font-size: 13px; text-transform: uppercase; color: var(--dark); }
+        
+        table { width: 100%; border-collapse: collapse; }
+        th { background: #f8fafc; padding: 20px; text-align: left; font-size: 11px; text-transform: uppercase; color: #64748b; border-bottom: 1px solid #eee; }
+        td { padding: 20px; font-size: 14px; border-bottom: 1px solid #f1f5f9; font-weight: 600; }
+
+        .badge-active { background: #dcfce7; color: #15803d; padding: 6px 15px; border-radius: 30px; font-size: 10px; font-weight: 800; }
+        
+        .action-btn { background: none; border: none; cursor: pointer; font-size: 18px; margin-right: 12px; transition: 0.2s; }
+        .action-btn:hover { transform: scale(1.2); }
+    </style>
+</head>
+<body onload="initHandbook()">
+
+<nav class="top-nav">
+    <a href="home_page.html" class="logo-text">MERCALIX <span>TERMINAL</span></a>
+    <div id="liveClock" style="font-size: 12px; font-weight: 900; background: #334155; color: white; padding: 8px 20px; border-radius: 30px;">00:00:00</div>
+</nav>
+
+<div class="container">
+    <aside class="sidebar">
+        <div class="nav-links">
+            <a href="home_page.html" class="menu-item">📊 Global Dashboard</a>
+            <div class="dropdown-btn" onclick="toggleDrop(this)">🔐 System Access <span>▼</span></div>
+            <div class="dropdown-container">
+                <a href="admin_create_login.html">Create New Login</a>
+                <a href="admin_manage_roles.html">Manage Roles</a>
+            </div>
+            <div class="dropdown-btn" onclick="toggleDrop(this)">📍 Branch Control <span>▼</span></div>
+            <div class="dropdown-container">
+                <a href="admin_add_branch.html">Add New Branch</a>
+                <a href="admin_branch_analytics.html">Branch Analytics</a>
+            </div>
+            <div class="dropdown-btn" onclick="toggleDrop(this)">👥 Workforce <span>▼</span></div>
+            <div class="dropdown-container">
+                <a href="add_emp.html">Enroll New Staff</a>
+                <a href="admin_kyc_verify.html">KYC Verification</a>
+                <a href="admin_staff_directory.html">Master Directory</a>
+            </div>
+            <a href="admin_announcements.html" class="menu-item active-link">📜 Staff Handbook</a>
+            <a href="attendance-log.html" class="menu-item">📈 Global Attendance</a>
+            <a href="admin_master_reports.html" class="menu-item">📑 Master Reports</a>
+            <a href="admin_support_desk.html" class="menu-item">Ticket Support</a>
+            <a href="admin_performance_review.html" class="menu-item">📈 Staff Audit</a>
+        </div>
+    </aside>
+
+    <main class="main">
+        <div class="form-card">
+            <div class="form-header"><h2>📜 Publish Staff Handbook & Policies</h2></div>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Manual / Policy Title</label>
+                    <input type="text" id="manualTitle" class="form-ctrl" placeholder="e.g. Code of Conduct 2026">
+                </div>
+                <div class="form-group">
+                    <label>Version Number</label>
+                    <input type="text" id="manualVersion" class="form-ctrl" placeholder="e.g. v1.2">
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label>Upload PDF Document</label>
+                <div class="file-upload-box" onclick="document.getElementById('pdfInput').click()">
+                    <span id="fileNameDisplay">📂 Click to select PDF file</span>
+                    <input type="file" id="pdfInput" hidden accept="application/pdf" onchange="displayFileName()">
+                </div>
+            </div>
+            
+            <button class="btn-post" id="uploadBtn" onclick="handleUpload()">SYNC TO STAFF PROFILES 🔑</button>
+        </div>
+
+        <div class="history-card">
+            <div class="history-header">Live Handbook Directory</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Published Date</th>
+                        <th>Status</th>
+                        <th>Title</th>
+                        <th>Version</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody id="manualTableBody"></tbody>
+            </table>
+        </div>
+    </main>
+</div>
+
+<script>
+    // Is block ko replace karein
+const firebaseConfig = {
+  apiKey: "AIzaSyCkBeHploRe3UHq6ndukFUtfYc8sCkfx9g",
+  authDomain: "hrmsmercalixportal.firebaseapp.com",
+  projectId: "hrmsmercalixportal",
+  storageBucket: "hrmsmercalixportal.firebasestorage.app",
+  messagingSenderId: "126979860674",
+  appId: "1:126979860674:web:f486ad4b470b59189c735b",
+  measurementId: "G-EM1HY6T4NF"
+};
+
+// Initialize Firebase (Compat Version)
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+    function initHandbook() {
+        setInterval(() => { document.getElementById("liveClock").innerText = new Date().toLocaleTimeString(); }, 1000);
+        fetchManualHistory();
+    }
+
+    function toggleDrop(btn) {
+        const next = btn.nextElementSibling;
+        next.style.display = next.style.display === "block" ? "none" : "block";
+    }
+
+    function displayFileName() {
+        const input = document.getElementById('pdfInput');
+        document.getElementById('fileNameDisplay').innerText = input.files[0] ? `✅ Selected: ${input.files[0].name}` : "📂 Click to select PDF file";
+    }
+
+    async function handleUpload() {
+        const title = document.getElementById("manualTitle").value.trim();
+        const version = document.getElementById("manualVersion").value.trim();
+        const file = document.getElementById("pdfInput").files[0];
+
+        if(!title || !file) return alert("⚠️ Please provide a Title and Select a PDF file!");
+
+        const btn = document.getElementById("uploadBtn");
+        btn.disabled = true; btn.innerText = "UPLOADING TO CLOUD...";
+
+        try {
+            // 1. Upload to Firebase Storage
+            const storageRef = storage.ref(`handbooks/${Date.now()}_${file.name}`);
+            const snapshot = await storageRef.put(file);
+            const downloadURL = await snapshot.ref.getDownloadURL();
+
+            // 2. Save Link to Firestore
+            await db.collection("manuals_and_policies").add({
+                title: title,
+                url: downloadURL,
+                version: version || "1.0",
+                date: new Date().toLocaleDateString('en-GB'),
+                timestamp: Date.now()
+            });
+
+            alert("✅ Manual Published Successfully!");
+            location.reload();
+        } catch (e) {
+            alert("Upload Error: " + e.message);
+        } finally {
+            btn.disabled = false; btn.innerText = "SYNC TO STAFF PROFILES 🔑";
+        }
+    }
+
+    function fetchManualHistory() {
+        db.collection("manuals_and_policies").orderBy("timestamp", "desc").onSnapshot(snap => {
+            const body = document.getElementById("manualTableBody");
+            body.innerHTML = snap.empty ? "<tr><td colspan='5' style='text-align:center'>No documents.</td></tr>" : "";
+            snap.forEach(doc => {
+                const d = doc.data();
+                body.innerHTML += `<tr>
+                    <td>${d.date}</td>
+                    <td><span class="badge-active">ACTIVE</span></td>
+                    <td>${d.title}</td>
+                    <td><b>${d.version}</b></td>
+                    <td>
+                        <button class="action-btn" onclick="window.open('${d.url}')" title="Preview">👁️</button>
+                        <button class="action-btn" onclick="deleteManual('${doc.id}')" title="Delete">🗑️</button>
+                    </td>
+                </tr>`;
+            });
+        });
+    }
+
+    async function deleteManual(id) {
+        if(confirm("⚠️ Permanently delete this manual?")) {
+            await db.collection("manuals_and_policies").doc(id).delete();
+        }
+    }
+</script>
+</body>
+</html>

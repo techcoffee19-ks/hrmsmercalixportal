@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Workforce Directory | Mercalix Enterprise</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        :root { --primary: #ffb100; --dark: #1e293b; --success: #10b981; --danger: #ef4444; --warning: #f59e0b; --info: #3b82f6; --bg: #f1f5f9; --border: #e2e8f0; }
+        * { box-sizing: border-box; }
+        body, html { margin: 0; padding: 0; height: 100%; font-family: 'Inter', sans-serif; background: var(--bg); color: var(--dark); overflow-x: hidden; }
+        
+        .top-nav { width: 100%; padding: 0 20px; height: 70px; display: flex; justify-content: space-between; align-items: center; background: #ffffff; border-bottom: 3px solid var(--primary); position: sticky; top: 0; z-index: 1000; }
+        .logo-text { font-size: 18px; font-weight: 800; color: var(--dark); text-decoration: none; }
+        .logo-text span { color: var(--primary); }
+
+        .container { display: flex; min-height: calc(100vh - 70px); width: 100vw; }
+        .sidebar { width: 260px; background: var(--dark); flex-shrink: 0; display: flex; flex-direction: column; height: calc(100vh - 70px); position: sticky; top: 70px; overflow-y: auto; }
+        .nav-links { display: flex; flex-direction: column; padding-top: 10px; flex-grow: 1; }
+        
+        .nav-item, .dropdown-btn { width: 100%; padding: 15px 20px; text-decoration: none; color: #cbd5e1; font-weight: 600; font-size: 11px; display: flex; justify-content: space-between; align-items: center; border-left: 4px solid transparent; transition: 0.3s; cursor: pointer; background: none; border: none; outline: none; text-transform: uppercase; text-align: left; }
+        .nav-item:hover, .dropdown-btn:hover { background: rgba(255,177,0,0.1); color: var(--primary); border-left-color: var(--primary); }
+        .dropdown-container { display: none; background-color: #111827; }
+        .dropdown-container a { padding: 12px 20px 12px 45px; text-decoration: none; color: #94a3b8; font-size: 10px; display: block; font-weight: 700; text-transform: uppercase; border-bottom: 1px solid rgba(255,255,255,0.02); }
+
+        .main { flex: 1; padding: 25px; box-sizing: border-box; overflow-x: hidden; }
+        .directory-header { background: white; padding: 20px; border-radius: 12px; border: 1.5px solid var(--border); margin-bottom: 20px; }
+        .search-filters { display: flex; gap: 15px; margin-bottom: 15px; flex-wrap: wrap; align-items: center; }
+        .inp { padding: 12px; border-radius: 8px; border: 1.5px solid var(--border); font-size: 13px; font-weight: 600; outline: none; background: #f8fafc; }
+        .search-box { flex: 1; min-width: 250px; }
+
+        .alphabet-bar { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 10px; border-top: 1px solid #eee; padding-top: 15px; }
+        .alpha-btn { width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; background: #fff; border: 1px solid #ddd; border-radius: 4px; font-size: 11px; font-weight: 800; cursor: pointer; transition: 0.2s; }
+        .alpha-btn:hover, .alpha-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
+
+        .directory-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 20px; }
+        .emp-card { background: white; border-radius: 10px; padding: 20px; border: 1.5px solid #e2e8f0; text-align: center; cursor: pointer; transition: 0.3s; position: relative; }
+        .emp-card:hover { transform: translateY(-5px); border-color: var(--primary); box-shadow: 0 10px 20px rgba(0,0,0,0.05); }
+        
+        .profile-wrapper { width: 80px; height: 80px; border-radius: 50%; margin: 0 auto 15px; display: flex; align-items: center; justify-content: center; font-size: 26px; font-weight: 900; color: white; background: var(--dark); border: 3px solid #f1f5f9; overflow: hidden; }
+        .profile-wrapper img { width: 100%; height: 100%; object-fit: cover; }
+        
+        .emp-name-tag { font-size: 14px; font-weight: 800; margin: 0; color: var(--dark); }
+        .emp-info-tag { font-size: 10px; font-weight: 700; color: #64748b; text-transform: uppercase; margin: 4px 0; }
+        .status-dot { position: absolute; top: 12px; right: 12px; width: 10px; height: 10px; border-radius: 50%; }
+        .badge-role { font-size: 10px; font-weight: 800; background: #eff6ff; color: var(--info); padding: 4px 12px; border-radius: 20px; text-transform: uppercase; border: 1px solid #dbeafe; }
+    </style>
+</head>
+<body onload="initAttendanceHub()">
+
+<div class="wrapper">
+    <nav class="top-nav">
+        <div class="logo-container"><a href="#" class="logo-text">MERCALIX <span>ENTERPRISE</span></a></div>
+        <div style="display:flex; align-items:center; gap:20px;">
+            <span class="badge-role">HR ACCESS MANAGER</span>
+            <div id="liveClock" style="font-size: 13px; font-weight: 800;">00:00:00</div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <aside class="sidebar">
+            <div class="nav-links">
+                <a href="branch_dashboard.html" class="nav-item">🏠 Dashboard</a>
+                
+                <button class="dropdown-btn" onclick="toggleSidebarDropdown(this)">👥 Employee Management <span>▼</span></button>
+                <div class="dropdown-container" style="display:block;">
+                    <a href="javascript:void(0)" onclick="validateAccess('workforce', 'add_emp.html')">➕ Add New Staff</a>
+                    <a href="javascript:void(0)" onclick="validateAccess('workforce', 'bulk_import.html')">📁 Bulk Import (Excel)</a>
+                    <a href="javascript:void(0)" onclick="validateAccess('workforce', 'employee-report.html')">🔍 Employee Directory</a>
+                    <a href="javascript:void(0)" onclick="validateAccess('workforce', 'e_vault.html')">🔒 E-Vault Documents</a>
+                    <a href="javascript:void(0)" onclick="validateAccess('workforce', 'lifecycle.html')">🔄 Employee Lifecycle</a>
+                    <a href="javascript:void(0)" onclick="validateAccess('workforce', 'assets.html')">💻 Asset Tracking</a>
+                    <a href="hr_staff_directory.html" style="color:var(--primary);">📁 Workforce Directory</a>
+                </div>
+
+                <button class="dropdown-btn" onclick="toggleSidebarDropdown(this)">🕒 Attendance & Leaves <span>▼</span></button>
+                <div class="dropdown-container">
+                    <a href="javascript:void(0)" onclick="validateAccess('attendance', 'attendance-log.html')">📅 Daily Logs</a>
+                    <a href="javascript:void(0)" onclick="validateAccess('attendance', 'monthly-attendance.html')">📊 Monthly Report</a>
+                </div>
+
+                <button class="dropdown-btn" onclick="toggleSidebarDropdown(this)">💸 Payroll Engine <span>▼</span></button>
+                <div class="dropdown-container">
+                    <a href="javascript:void(0)" onclick="validateAccess('payroll', 'run-payroll.html')">🚀 Process Salary</a>
+                    <a href="javascript:void(0)" onclick="validateAccess('payroll', 'advance-requests.html')">💰 Advance Salary</a>
+                    <a href="javascript:void(0)" onclick="validateAccess('payroll', 'salary-slip.html')">📄 Generate Payslips</a>
+                    <a href="javascript:void(0)" onclick="validateAccess('payroll', 'export-attendance.html')">📄 Employee Data</a>
+                </div>
+
+                <a onclick="logout()" style="margin-top:auto; color:var(--danger); font-weight:900; font-size:11px; padding:20px; display:block; border-top: 1px solid #334155; cursor:pointer;">🔓 SECURE LOGOUT</a>
+            </div>
+        </aside>
+
+        <main class="main">
+            <div class="directory-header">
+                <div class="search-filters">
+                    <input type="text" id="staffSearch" class="inp search-box" placeholder="🔍 Search by Name, Dept, or ID..." oninput="filterStaff()">
+                    <select id="branchFilter" onchange="filterStaff()" class="inp" style="width: 180px;"><option value="All">🌐 All Branches</option></select>
+                    <select id="deptFilter" onchange="filterStaff()" class="inp" style="width: 180px;"><option value="All">🏢 All Depts</option></select>
+                </div>
+                <div class="alphabet-bar" id="alphaBar">
+                    <button class="alpha-btn active" onclick="filterAlpha('ALL', this)">ALL</button>
+                </div>
+            </div>
+            <div class="directory-grid" id="staffGrid"></div>
+        </main>
+    </div>
+</div>
+
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyCkBeHploRe3UHq6ndukFUtfYc8sCkfx9g",
+  authDomain: "hrmsmercalixportal.firebaseapp.com",
+  projectId: "hrmsmercalixportal",
+  storageBucket: "hrmsmercalixportal.firebasestorage.app",
+  messagingSenderId: "126979860674",
+  appId: "1:126979860674:web:f486ad4b470b59189c735b",
+  measurementId: "G-EM1HY6T4NF"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+// Fetch routing credentials rules configurations
+const userRole = sessionStorage.getItem("userRole");
+const loginName = sessionStorage.getItem("adminName"); 
+const adminCompanyCode = sessionStorage.getItem("companyCode") || ""; 
+const userPermissionsRaw = sessionStorage.getItem("userPermissions");
+const rolePermissions = userPermissionsRaw ? JSON.parse(userPermissionsRaw) : {};
+
+let masterList = [];
+
+function toggleSidebarDropdown(btn) {
+    const container = btn.nextElementSibling;
+    if(container) {
+        const isVisible = (container.style.display === "block");
+        document.querySelectorAll('.dropdown-container').forEach(el => el.style.display = 'none');
+        if (!isVisible) container.style.display = "block";
+    }
+}
+
+function validateAccess(moduleId, targetPage) {
+    if (userRole === "super_admin" || userRole === "Main Admin" || userRole === "Main Admin (Boss)") { 
+        window.location.href = targetPage; 
+        return; 
+    }
+    if (rolePermissions[moduleId]?.view) { window.location.href = targetPage; } 
+    else { alert("⚠️ ACCESS DENIED\nMain Admin ne aapko is page ka access nahi diya hai."); }
+}
+
+function initAttendanceHub() {
+    setInterval(() => { 
+        const clockEl = document.getElementById("liveClock");
+        if(clockEl) clockEl.innerText = new Date().toLocaleTimeString(); 
+    }, 1000);
+
+    generateAlpha();
+    syncBranches();
+    syncDepts();
+    loadStaff();
+}
+
+function generateAlpha() {
+    const bar = document.getElementById("alphaBar");
+    for(let i=65; i<=90; i++){
+        const char = String.fromCharCode(i);
+        bar.innerHTML += `<button class="alpha-btn" onclick="filterAlpha('${char}', this)">${char}</button>`;
+    }
+}
+
+function syncBranches() {
+    const sel = document.getElementById("branchFilter");
+    db.collection("branches").onSnapshot(s => {
+        sel.innerHTML = '<option value="All">🌐 All Branches</option>';
+        s.forEach(doc => sel.innerHTML += `<option value="${doc.data().name}">${doc.data().name}</option>`);
+    });
+}
+
+function syncDepts() {
+    const sel = document.getElementById("deptFilter");
+    db.collection("org_structure").onSnapshot(s => {
+        sel.innerHTML = '<option value="All">🏢 All Depts</option>';
+        s.forEach(doc => sel.innerHTML += `<option value="${doc.data().name}">${doc.data().name}</option>`);
+    });
+}
+
+// REAL DATA CALL FROM FIRESTORE snapshot ENGINE
+function loadStaff() {
+    db.collection("employees").onSnapshot(snap => {
+        masterList = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        renderCards(masterList);
+    });
+}
+
+function getInitials(name) {
+    if(!name) return "MX";
+    let parts = name.trim().split(" ");
+    return parts.length > 1 ? (parts[0][0] + parts[parts.length-1][0]).toUpperCase() : parts[0][0].toUpperCase();
+}
+
+function renderCards(list) {
+    const grid = document.getElementById("staffGrid");
+    grid.innerHTML = list.length === 0 ? `<div style="grid-column:1/-1; text-align:center; padding:50px; color:#94a3b8;">No employees found.</div>` : "";
+    list.forEach(emp => {
+        const initials = getInitials(emp.name);
+        const photoUrl = emp.kyc?.passport_photo_url || emp.profilePhotoUrl || emp.general?.profilephoto;
+        const photo = photoUrl ? `<img src="${photoUrl}">` : initials;
+        const statusColor = emp.status === 'Active' ? 'var(--success)' : 'var(--danger)';
+
+        grid.innerHTML += `
+            <div class="emp-card" onclick="openProfile('${emp.id}')">
+                <div class="status-dot" style="background:${statusColor}"></div>
+                <div class="profile-wrapper">${photo}</div>
+                <p class="emp-name-tag">${emp.name}</p>
+                <p class="emp-info-tag">${emp.designation || 'Staff'}</p>
+                <p style="font-size:10px; color:var(--primary); font-weight:800;">${emp.id}</p>
+                <p style="font-size:9px; color:#94a3b8; margin-top:5px;">📍 ${emp.branch || 'N/A'} | ${emp.dept || 'General'}</p>
+            </div>`;
+    });
+}
+
+function filterStaff() {
+    const search = document.getElementById("staffSearch").value.toLowerCase();
+    const branch = document.getElementById("branchFilter").value;
+    const dept = document.getElementById("deptFilter").value;
+    const filtered = masterList.filter(e => 
+        (e.name.toLowerCase().includes(search) || e.id.toLowerCase().includes(search) || (e.dept && e.dept.toLowerCase().includes(search))) &&
+        (branch === "All" || e.branch === branch) &&
+        (dept === "All" || e.dept === dept)
+    );
+    renderCards(filtered);
+}
+
+function filterAlpha(char, btn) {
+    document.querySelectorAll('.alpha-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    if(char === 'ALL') return renderCards(masterList);
+    const filtered = masterList.filter(e => e.name.toUpperCase().startsWith(char));
+    renderCards(filtered);
+}
+
+function openProfile(id) {
+    window.location.href = `hr_view_employee.html?empId=${id}&role=hr`;
+}
+</script>
+</body>
+</html>

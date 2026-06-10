@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Payslip | Mercalix Business Solution Pvt Ltd</title>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #ffffff;
+            margin: 0;
+            padding: 0;
+            color: #000000;
+            -webkit-print-color-adjust: exact;
+        }
+
+        /* Control Panel Menu (Hidden during direct PDF Print) */
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 20px;
+            background: #f8fafc;
+            border-bottom: 2px solid #e2e8f0;
+            box-sizing: border-box;
+        }
+        .no-print { display: flex; align-items: center; gap: 12px; }
+        .back-btn {
+            text-decoration: none; color: #64748b; font-weight: 700; font-size: 11px;
+            display: inline-flex; align-items: center; gap: 6px; border: 1px solid #e2e8f0;
+            padding: 8px 14px; border-radius: 4px; background: #fff; text-transform: uppercase;
+        }
+        
+        .slip-month-select {
+            padding: 7px 12px; font-size: 11px; font-weight: 700; border-radius: 4px; 
+            border: 1px solid #cbd5e1; background-color: #ffffff; color: #000; 
+            outline: none; cursor: pointer; text-transform: uppercase;
+        }
+        .slip-month-select:focus { border-color: #ffb100; }
+
+        .btn-print {
+            background: #1e293b; color: #ffb100; padding: 8px 16px; border: 1px solid #ffb100;
+            cursor: pointer; font-weight: 800; border-radius: 4px; font-size: 11px; text-transform: uppercase;
+        }
+
+        /* SOLID GOLD PRINTABLE LAYER CORNER FRAME */
+        .outer-document-frame {
+            border: 16px solid #ffb100 !important; 
+            box-sizing: border-box;
+            min-height: 100vh;
+            background: #ffffff;
+            padding: 30px 25px;
+        }
+
+        .payslip-container {
+            width: 100%;
+            max-width: 680px;
+            margin: 0 auto;
+            background: #ffffff;
+            box-sizing: border-box;
+        }
+
+        .brand-section {
+            display: flex;
+            align-items: center;
+            margin-bottom: 12px;
+            padding-left: 5px;
+        }
+        .brand-logo-img { height: 50px; margin-right: 12px; object-fit: contain; }
+        .brand-headline-block { display: flex; flex-direction: column; }
+        .brand-headline-block h2 { margin: 0; font-size: 24px; font-weight: 800; letter-spacing: 0.5px; color: #1e3a8a; }
+        .brand-headline-block p { margin: 0; font-size: 10px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.3px; }
+
+        .divider-line { border-bottom: 1px solid #000000 !important; margin-bottom: 15px; width: 100%; }
+
+        .slip-title-container { text-align: center; margin-bottom: 15px; }
+        .slip-title-container h3 { margin: 0; font-size: 15px; font-weight: 700; color: #000000; }
+        .slip-title-container p { margin: 2px 0 0 0; font-size: 13px; font-weight: 700; text-decoration: underline; color: #000000; text-transform: uppercase; }
+
+        .meta-info-table { width: 100%; border-collapse: collapse; margin-bottom: 15px; table-layout: fixed; }
+        .meta-info-table td { border: 1px solid #000000 !important; padding: 5px 10px; font-size: 11.5px; vertical-align: top; width: 50%; color: #000000; line-height: 1.4; }
+        .meta-info-table td div { display: flex; margin-bottom: 3px; }
+        .meta-info-table td div span { font-weight: 700; width: 150px; flex-shrink: 0; }
+        .meta-info-table td div b { font-weight: 500; }
+
+        .financial-ledger-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; table-layout: fixed; }
+        .financial-ledger-table th { border: 1px solid #000000 !important; padding: 4px 8px; font-size: 11px; font-weight: 700; text-transform: uppercase; text-align: left; background: #ffffff; color: #000000; }
+        .financial-ledger-table td { border: 1px solid #000000 !important; padding: 5px 8px; font-size: 11px; font-weight: 500; color: #000000; }
+        
+        .col-component { width: 45%; text-align: left; }
+        .col-val { width: 15%; text-align: right; font-weight: 700; }
+        .border-double-thick { font-weight: 700 !important; }
+
+        .net-payable-summary-panel { margin-bottom: 20px; padding-left: 55px; line-height: 1.5; }
+        .net-payable-headline { font-size: 12px; font-weight: 500; color: #000000; }
+        .net-payable-headline b { font-size: 12.5px; font-weight: 700; }
+        .words-amt-string { font-size: 11.5px; font-weight: 500; color: #000000; font-style: italic; margin-top: 2px; }
+
+        .bonus-tds-block { width: 100%; border-collapse: collapse; margin-bottom: 12px; table-layout: fixed; }
+        .bonus-tds-block td { border: 1px solid #000000 !important; padding: 4px 10px; font-size: 11.5px; font-weight: 700; color: #000000; }
+
+        .system-footer-declaration-note { text-align: center; font-size: 10.5px; font-weight: 500; color: #000000; margin-bottom: 35px; }
+
+        .contact-footer-base { display: flex; flex-direction: column; align-items: center; gap: 5px; font-size: 10.5px; font-weight: 500; color: #000000; border-top: 1px dashed #cbd5e1; padding-top: 12px; }
+        .contact-row-links { display: flex; justify-content: center; gap: 20px; width: 100%; }
+        .contact-item { display: flex; align-items: center; gap: 5px; }
+
+        @media print {
+            .no-print { display: none; }
+            body { padding: 0; background: #fff; }
+            .outer-document-frame { border: 16px solid #ffb100 !important; padding: 25px 20px; }
+            .payslip-container { width: 100%; max-width: 100%; padding: 0; }
+        }
+    </style>
+</head>
+<body onload="initPayslipModule()">
+
+    <div class="page-header no-print">
+        <div style="font-weight: 800; font-size: 13px; color: #1e293b; letter-spacing: 0.5px;">MERCALIX SYSTEM TERMINAL</div>
+        <div class="no-print">
+            <a href="employee-dashboard.html" class="back-btn"><i class="fas fa-arrow-left"></i> Back to Overview</a>
+            <select id="payslipMonthYearSelect" class="slip-month-select" onchange="handlePayslipMonthChange()"></select>
+            <button class="btn-print" onclick="window.print()"><i class="fas fa-print"></i> Download Payslip (PDF)</button>
+        </div>
+    </div>
+
+    <div class="outer-document-frame">
+        <div class="payslip-container">
+            
+            <div class="brand-section">
+                <img src="https://www.mercalix.co.in/MERCALIX/img/logo/logo.png" alt="Mercalix Logo" class="brand-logo-img">
+                <div class="brand-headline-block">
+                    <h2>MERCALIX</h2>
+                    <p>Solutions Beyond Limits</p>
+                </div>
+            </div>
+
+            <div class="divider-line"></div>
+
+            <div class="slip-title-container">
+                <h3>Mercalix Business Solution Pvt Ltd</h3>
+                <p id="lblTrackingPeriodHeader">Payslip for the Month of May-2026</p>
+            </div>
+
+            <table class="meta-info-table">
+                <tr>
+                    <td>
+                        <div><span>Name:</span><b id="lblEmpName">Syncing profile...</b></div>
+                        <div><span>Joining Date:</span><b id="lblJoinDate">--</b></div>
+                        <div><span>Designation:</span><b id="lblDesignation">--</b></div>
+                        <div><span>Department:</span><b id="lblDepartment">--</b></div>
+                        <div><span>Location:</span><b id="lblLocation">--</b></div>
+                        <div><span>EMP EFFECTIVE WORKDAYS:</span><b id="lblEffectiveWorkdays" style="color: #16a34a; font-weight: 800;">0</b></div>
+                        <div><span>LOP:</span><b id="lblLopCount" style="color: #dc2626; font-weight: 800;">0 Days</b></div>
+                    </td>
+                    <td>
+                        <div><span>Employee Id:</span><b id="lblCustomId">--</b></div>
+                        <div><span>Bank Name:</span><b id="lblBankName">--</b></div>
+                        <div><span>Bank Account No:</span><b id="lblBankAccNumber">--</b></div>
+                        <div><span>Pan No:</span><b id="lblPanNumber">--</b></div>
+                        <div><span>PF UAN:</span><b id="lblPfUanToken">--</b></div>
+                    </td>
+                </tr>
+            </table>
+
+            <table class="financial-ledger-table">
+                <thead>
+                    <tr>
+                        <th class="col-component">Earnings</th>
+                        <th class="col-val" style="text-align: right;">Master</th>
+                        <th class="col-val" style="text-align: right;">Actual</th>
+                        <th class="col-component" style="padding-left: 10px;">Deductions</th>
+                        <th class="col-val" style="text-align: right; width: 18%;">Actual</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>BASIC</td>
+                        <td class="col-val" id="mBasic">0</td>
+                        <td class="col-val" id="aBasic">0</td>
+                        <td style="padding-left: 10px;">EMPLOYEE CONTRIBUTION (PF)</td>
+                        <td class="col-val" id="dPf">0</td>
+                    </tr>
+                    <tr>
+                        <td>HRA</td>
+                        <td class="col-val" id="mHra">0</td>
+                        <td class="col-val" id="aHra">0</td>
+                        <td style="padding-left: 10px;">PROF TAX</td>
+                        <td class="col-val" id="dPt">0</td>
+                    </tr>
+                    <tr>
+                        <td>SPECIAL ALLOWANCE</td>
+                        <td class="col-val" id="mSpecial">0</td>
+                        <td class="col-val" id="aSpecial">0</td>
+                        <td style="padding-left: 10px;">STAFF MEDICAL</td>
+                        <td class="col-val" id="dMedical">0</td>
+                    </tr>
+                    <tr>
+                        <td class="border-double-thick">Total Earnings:INR.</td>
+                        <td class="col-val border-double-thick" id="mGross">0</td>
+                        <td class="col-val border-double-thick" id="aGross">0</td>
+                        <td class="border-double-thick" style="padding-left: 10px;">Total Deductions:INR.</td>
+                        <td class="col-val border-double-thick" id="aDeductions">0</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="net-payable-summary-panel">
+                <div class="net-payable-headline">Net Pay for the month: /- <b id="lblNetPayDisbursed">0.00</b></div>
+                <div class="words-amt-string" id="lblAmountInWords">(Rupees In Words)</div>
+            </div>
+
+            <table class="bonus-tds-block">
+                <tr>
+                    <td style="width: 27%;">BONUS TDS:</td>
+                    <td style="text-align: center; width: 73%;" id="lblBonusTds">0</td>
+                </tr>
+            </table>
+
+            <div class="system-footer-declaration-note">
+                This is system generated payslip and does not require a signature.
+            </div>
+
+            <footer class="contact-footer-base">
+                <div class="contact-row-links">
+                    <div class="contact-item"><i class="fas fa-phone-alt"></i> +91 72639 99399</div>
+                    <div class="contact-item"><i class="fas fa-envelope"></i> info@mercalix.in</div>
+                    <div class="contact-item"><i class="fas fa-globe"></i> www.mercalix.co.in</div>
+                </div>
+                <div style="margin-top: 3px; font-size: 9.5px; color: #000000;">
+                    📍 2201, Parinee I, Off Veera Desai Road, Andheri (W), Mumbai - 400053
+                </div>
+            </footer>
+
+        </div>
+    </div>
+
+    <script>
+        const firebaseConfig = {
+          apiKey: "AIzaSyCkBeHploRe3UHq6ndukFUtfYc8sCkfx9g",
+          authDomain: "hrmsmercalixportal.firebaseapp.com",
+          projectId: "hrmsmercalixportal",
+          storageBucket: "hrmsmercalixportal.firebasestorage.app",
+          messagingSenderId: "126979860674",
+          appId: "1:126979860674:web:f486ad4b470b59189c735b",
+          measurementId: "G-EM1HY6T4NF"
+        };
+
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
+        const db = firebase.firestore();
+        
+        const currentSessionIdKey = sessionStorage.getItem("empId") || sessionStorage.getItem("employeeDocId") || "MBS0001_1199";
+
+        function initPayslipModule() {
+            buildHeaderDropdownTimeline();
+            setTimeout(() => {
+                handlePayslipMonthChange();
+            }, 100);
+        }
+
+        function buildHeaderDropdownTimeline() {
+            const dropdown = document.getElementById("payslipMonthYearSelect");
+            dropdown.innerHTML = "";
+            const monthsNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+            const currentSysDate = new Date();
+            const currentYear = currentSysDate.getFullYear();
+            
+            for (let y = currentYear; y >= 2025; y--) {
+                let startMonth = (y === currentYear) ? currentSysDate.getMonth() : 11;
+                for (let m = startMonth; m >= 0; m--) {
+                    const padMonth = String(m + 1).padStart(2, '0');
+                    const valueStr = `${padMonth}-${y}`;
+                    const textStr = `${monthsNames[m]} ${y}`;
+                    
+                    const opt = document.createElement("option");
+                    opt.value = valueStr;
+                    opt.innerText = textStr;
+                    
+                    if (y === 2026 && padMonth === "05") {
+                        opt.selected = true;
+                    }
+                    dropdown.appendChild(opt);
+                }
+            }
+        }
+
+        function handlePayslipMonthChange() {
+            const dropdown = document.getElementById("payslipMonthYearSelect");
+            let dropdownValue = dropdown.value;
+            if(!dropdownValue) {
+                dropdownValue = "05-2026";
+            }
+            
+            const [monthStr, yearStr] = dropdownValue.split('-');
+            const monthsNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+            const fullMonthName = monthsNames[parseInt(monthStr) - 1];
+            
+            document.getElementById("lblTrackingPeriodHeader").innerText = `Payslip for the Month of ${fullMonthName}-${yearStr}`;
+
+            loadRealTimePayslipEngine(yearStr, monthStr);
+        }
+
+        function sanitizeValue(val) {
+            if (val === undefined || val === null) return 0;
+            if (typeof val === "string") {
+                val = val.replace(/[^0-9.]/g, "");
+            }
+            return parseFloat(val) || 0;
+        }
+
+        async function loadRealTimePayslipEngine(yearStr, monthStr) {
+            const stringFormattedPeriod = `${monthStr}-${yearStr}`;
+
+            db.collection("employees").get().then(async snap => {
+                let matchedEmpDoc = null;
+                const cleanInId = currentSessionIdKey.replace(/[^A-Za-z0-9]/g, '').toLowerCase();
+
+                snap.forEach(doc => {
+                    const d = doc.data();
+                    const dCleanId = (d.id || "").replace(/[^A-Za-z0-9]/g, '').toLowerCase();
+                    const docCleanId = doc.id.replace(/[^A-Za-z0-9]/g, '').toLowerCase();
+                    
+                    if (doc.id === currentSessionIdKey || d.id === currentSessionIdKey || docCleanId === cleanInId || dCleanId === cleanInId) {
+                        matchedEmpDoc = doc;
+                    }
+                });
+
+                if(matchedEmpDoc) {
+                    const empData = matchedEmpDoc.data();
+                    const customId = empData.id || matchedEmpDoc.id;
+                    const cleanId = customId.replace(/[^A-Za-z0-9]/g, '');
+
+                    document.getElementById("lblEmpName").innerText = empData.name || "N/A";
+                    document.getElementById("lblCustomId").innerText = customId;
+                    document.getElementById("lblJoinDate").innerText = empData.doj || "--"; 
+                    document.getElementById("lblDesignation").innerText = empData.desig || "--";
+                    document.getElementById("lblDepartment").innerText = empData.dept || "Operations";
+                    document.getElementById("lblLocation").innerText = empData.branch || "PUNE HINJEWADI";
+                    
+                    document.getElementById("lblBankName").innerText = empData.payroll?.bankname || "--";
+                    document.getElementById("lblBankAccNumber").innerText = empData.payroll?.accnumber || "--";
+                    document.getElementById("lblPanNumber").innerText = empData.payroll?.pan || "--";
+                    document.getElementById("lblPfUanToken").innerText = empData.payroll?.uan || "--";
+
+                    // ========================================================
+                    // 🧠 DISPATCH LAYER HOOK: READ FROM PROCESSED PAYROLL
+                    // ========================================================
+                    let processedLogData = null;
+                    try {
+                        const payrollSnap = await db.collection("processed_payroll").get();
+                        payrollSnap.forEach(pDoc => {
+                            const pLog = pDoc.data();
+                            const pLogClean = (pLog.empId || "").replace(/[^A-Za-z0-9]/g, '');
+                            if ((pLogClean === cleanId || pDoc.id.includes(cleanId)) && pLog.period === stringFormattedPeriod) {
+                                processedLogData = pLog;
+                            }
+                        });
+                    } catch (err) { console.log("Bypass dynamic snapshot query lookup:", err); }
+
+                    let finalEffectiveWorkdays = 0;
+                    let finalDerivedLopAbsents = 0;
+                    let mBasicSalary = 0, aBasicSalary = 0;
+                    let mHraSalary = 0, aHraSalary = 0;
+                    let mSpecialAllowance = 0, aSpecialAllowance = 0;
+                    let mGrossTotal = 0, aGrossTotal = 0;
+                    let dPfContribution = 0, dProfessionalTax = 0, dMedicalDeductions = 0, totalDeductionsSum = 0;
+                    let netPayableSalaryAmount = 0;
+
+                    if (processedLogData) {
+                        // Load configurations computed inside run-payroll
+                        finalEffectiveWorkdays = processedLogData.effectiveWorkdays !== undefined ? processedLogData.effectiveWorkdays : 0;
+                        
+                        // FIX: Checking absolute value of lopDays parameter recorded
+                        finalDerivedLopAbsents = processedLogData.lopDays !== undefined ? processedLogData.lopDays : 0;
+
+                        mBasicSalary = sanitizeValue(processedLogData.masterBasic);
+                        aBasicSalary = sanitizeValue(processedLogData.actualBasic);
+                        mHraSalary = sanitizeValue(processedLogData.masterHra);
+                        aHraSalary = sanitizeValue(processedLogData.actualHra);
+                        mSpecialAllowance = sanitizeValue(processedLogData.masterSpecial);
+                        aSpecialAllowance = sanitizeValue(processedLogData.actualSpecial);
+                        
+                        mGrossTotal = mBasicSalary + mHraSalary + mSpecialAllowance;
+                        aGrossTotal = sanitizeValue(processedLogData.actualGross);
+
+                        dPfContribution = sanitizeValue(processedLogData.deductionPf);
+                        dProfessionalTax = sanitizeValue(processedLogData.deductionPt);
+                        dMedicalDeductions = sanitizeValue(processedLogData.deductionMedical);
+                        totalDeductionsSum = sanitizeValue(processedLogData.totalDeductions);
+                        netPayableSalaryAmount = sanitizeValue(processedLogData.netPayable);
+
+                    } else {
+                        // LIVE RUN TIME CONVERSION FALLBACK MATRIX
+                        const totalDaysInMonth = new Date(parseInt(yearStr), parseInt(monthStr), 0).getDate();
+                        
+                        let lopCount = empData.attendanceIndicators?.lopLeaves !== undefined ? sanitizeValue(empData.attendanceIndicators.lopLeaves) : 0;
+                        let customTotalDays = empData.attendanceIndicators?.monthTotalDays !== undefined ? sanitizeValue(empData.attendanceIndicators.monthTotalDays) : totalDaysInMonth;
+                        
+                        finalEffectiveWorkdays = Math.max(0, customTotalDays - lopCount);
+                        finalDerivedLopAbsents = lopCount;
+
+                        let baselineDecidedCTC = sanitizeValue(empData.salary?.basic !== undefined ? empData.salary.basic : empData.salary) || 25000;
+                        dPfContribution = empData.payroll?.pf !== undefined ? sanitizeValue(empData.payroll.pf) : 1800;
+                        dProfessionalTax = empData.payroll?.pt !== undefined ? sanitizeValue(empData.payroll.pt) : 200;
+                        dMedicalDeductions = empData.payroll?.medical !== undefined ? sanitizeValue(empData.payroll.medical) : 0;
+
+                        mBasicSalary = Math.round(baselineDecidedCTC * 0.50);
+                        mHraSalary = Math.round(mBasicSalary * 0.50);
+                        mSpecialAllowance = mHraSalary;
+                        mGrossTotal = mBasicSalary + mHraSalary + mSpecialAllowance;
+
+                        const attendanceRatio = customTotalDays > 0 ? (finalEffectiveWorkdays / customTotalDays) : 0;
+                        aGrossTotal = Math.round(baselineDecidedCTC * attendanceRatio);
+                        aBasicSalary = Math.round(mBasicSalary * attendanceRatio);
+                        aHraSalary = Math.round(mHraSalary * attendanceRatio);
+                        aSpecialAllowance = aGrossTotal - (aBasicSalary + aHraSalary);
+
+                        totalDeductionsSum = dPfContribution + dProfessionalTax + dMedicalDeductions;
+                        netPayableSalaryAmount = Math.max(0, aGrossTotal - totalDeductionsSum);
+                    }
+
+                    // Render DOM elements
+                    document.getElementById("lblEffectiveWorkdays").innerText = finalEffectiveWorkdays + " Days";
+                    document.getElementById("lblLopCount").innerText = finalDerivedLopAbsents + " Days";
+
+                    document.getElementById("mBasic").innerText = mBasicSalary.toLocaleString('en-IN');
+                    document.getElementById("aBasic").innerText = aBasicSalary.toLocaleString('en-IN');
+                    document.getElementById("mHra").innerText = mHraSalary.toLocaleString('en-IN');
+                    document.getElementById("aHra").innerText = aHraSalary.toLocaleString('en-IN');
+                    document.getElementById("mSpecial").innerText = mSpecialAllowance.toLocaleString('en-IN');
+                    document.getElementById("aSpecial").innerText = aSpecialAllowance.toLocaleString('en-IN');
+                    document.getElementById("mGross").innerText = mGrossTotal.toLocaleString('en-IN');
+                    document.getElementById("aGross").innerText = aGrossTotal.toLocaleString('en-IN');
+                    
+                    document.getElementById("dPf").innerText = dPfContribution.toLocaleString('en-IN');
+                    document.getElementById("dPt").innerText = dProfessionalTax.toLocaleString('en-IN');
+                    document.getElementById("dMedical").innerText = dMedicalDeductions.toLocaleString('en-IN');
+                    document.getElementById("aDeductions").innerText = totalDeductionsSum.toLocaleString('en-IN');
+                    
+                    document.getElementById("lblBonusTds").innerText = sanitizeValue(processedLogData ? processedLogData.bonusTds : empData.payroll?.bonusTds).toLocaleString('en-IN');
+                    
+                    document.getElementById("lblNetPayDisbursed").innerText = "Rs. " + netPayableSalaryAmount.toLocaleString('en-IN') + " /-";
+                    document.getElementById("lblAmountInWords").innerText = "(Rupees " + convertNumberToEnglishWords(netPayableSalaryAmount) + " Only)";
+                }
+            });
+        }
+
+        function convertNumberToEnglishWords(num) {
+            if (num === 0) return "Zero";
+            const units = ["", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen", "Seventeen", "Eighteen", "Nineteen"];
+            const tens = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"];
+            
+            function chunkTranslate(n) {
+                let str = "";
+                if (n >= 100) {
+                    str += units[Math.floor(n / 100)] + " Hundred ";
+                    n %= 100;
+                }
+                if (n >= 20) {
+                    str += tens[Math.floor(n / 10)] + " ";
+                    if (n % 10 > 0) str += units[n % 10] + " ";
+                } else if (n > 0) {
+                    str += units[n] + " ";
+                }
+                return str;
+            }
+
+            let wordStr = "";
+            if (Math.floor(num / 10000000) > 0) {
+                wordStr += chunkTranslate(Math.floor(num / 10000000)) + "Crore ";
+                num %= 10000000;
+            }
+            if (Math.floor(num / 100000) > 0) {
+                wordStr += chunkTranslate(Math.floor(num / 100000)) + "Lakh ";
+                num %= 100000;
+            }
+            if (Math.floor(num / 1000) > 0) {
+                wordStr += chunkTranslate(Math.floor(num / 1000)) + "Thousand ";
+                num %= 1000;
+            }
+            if (Math.floor(num) > 0) {
+                wordStr += chunkTranslate(Math.floor(num));
+            }
+            return wordStr.trim();
+        }
+    </script>
+</body>
+</html>

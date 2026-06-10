@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Support Desk | Mercalix Admin</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+
+    <script>
+        const loginTimestamp = Date.now();
+        function checkAdminAccess() {
+            const isLoggedIn = sessionStorage.getItem("isLoggedIn");
+            if (!isLoggedIn || isLoggedIn !== "true") { window.location.href = "login.html"; }
+        }
+        checkAdminAccess();
+
+        function logout() { sessionStorage.clear(); window.location.href = "login.html"; }
+
+        // Sidebar Dropdown Logic (Carbon Copy)
+        function toggleDrop(btn) {
+            const dropdown = btn.nextElementSibling;
+            document.querySelectorAll('.dropdown-container').forEach(dd => { if(dd !== dropdown) dd.style.display = 'none'; });
+            dropdown.style.display = (dropdown.style.display === "block") ? "none" : "block";
+        }
+    </script>
+
+    <style>
+        :root { --primary: #ffb100; --dark: #1e293b; --bg: #f1f5f9; --border: #e2e8f0; --success: #10b981; --danger: #ef4444; --warning: #f59e0b; }
+        body { margin: 0; font-family: 'Inter', sans-serif; background: var(--bg); color: var(--dark); overflow-x: hidden; min-height: 100vh; display: flex; flex-direction: column; }
+        
+        .top-nav { width: 100%; padding: 0 20px; height: 70px; display: flex; justify-content: space-between; align-items: center; background: #fff; border-bottom: 3px solid var(--primary); position: sticky; top: 0; z-index: 1000; box-sizing: border-box; }
+        .logo-text { font-size: 18px; font-weight: 800; color: var(--dark); text-decoration: none; text-transform: uppercase; }
+        .logo-text span { color: var(--primary); }
+
+        .container { display: flex; flex: 1; width: 100%; }
+        
+        /* SIDEBAR STYLES (Carbon Copy) */
+        .sidebar { width: 250px; background: var(--dark); flex-shrink: 0; display: flex; flex-direction: column; }
+        .nav-links { display: flex; flex-direction: column; padding-top: 10px; flex-grow: 1; }
+        .menu-item, .dropdown-btn { padding: 15px 20px; color: #cbd5e1; font-weight: 600; font-size: 11px; text-transform: uppercase; cursor: pointer; display: flex; justify-content: space-between; border-left: 4px solid transparent; text-decoration: none; align-items: center; background: none; border: none; width: 100%; box-sizing: border-box; outline: none; }
+        .menu-item:hover, .menu-item.active, .dropdown-btn:hover { background: rgba(255,177,0,0.1); color: var(--primary); border-left-color: var(--primary); }
+        .dropdown-container { display: none; background: #111827; width: 100%; }
+        .dropdown-container a { padding: 12px 20px 12px 45px; color: #94a3b8; font-size: 10px; display: block; text-decoration: none; font-weight: 700; text-transform: uppercase; border-bottom: 1px solid rgba(255,255,255,0.02); }
+
+        .main { flex: 1; padding: 25px; box-sizing: border-box; }
+        
+        /* Support Ticket UI */
+        .ticket-card { background: white; border-radius: 15px; border: 1px solid var(--border); padding: 20px; margin-bottom: 15px; position: relative; border-left: 5px solid var(--warning); box-shadow: 0 4px 6px rgba(0,0,0,0.02); transition: 0.3s; }
+        .ticket-id { font-size: 10px; font-weight: 900; color: #64748b; text-transform: uppercase; }
+        .ticket-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
+        .ticket-status { padding: 4px 12px; border-radius: 20px; font-size: 9px; font-weight: 800; text-transform: uppercase; }
+        .open { background: #fee2e2; color: #ef4444; border: 1px solid #fecaca; }
+        .resolved { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+
+        .reply-box { margin-top: 15px; display: none; border-top: 1px solid #eee; padding-top: 15px; }
+        .reply-input { width: 100%; padding: 12px; border-radius: 10px; border: 1.5px solid #eee; outline: none; font-size: 13px; margin-bottom: 10px; box-sizing: border-box; }
+        .reply-input:focus { border-color: var(--primary); }
+        
+        .btn-solve { background: var(--dark); color: var(--primary); border: 1.5px solid var(--primary); padding: 10px 20px; border-radius: 8px; font-weight: 800; font-size: 11px; cursor: pointer; text-transform: uppercase; transition: 0.3s; }
+        .btn-solve:hover { background: var(--primary); color: #000; }
+        
+        .admin-reply-area { background: #f8fafc; padding: 12px; border-radius: 10px; border-left: 4px solid var(--success); margin-top: 10px; }
+    </style>
+</head>
+<body onload="initSupport()">
+
+<nav class="top-nav">
+    <div style="display:flex; align-items:center; gap:12px;">
+        <span class="logo-text">MERCALIX <span>SUPPORT DESK</span></span>
+    </div>
+    <div style="display:flex; align-items:center; gap:20px;">
+        <div style="text-align: right;">
+            <div id="liveClock" style="font-size: 12px; font-weight: 900; color: var(--dark);">00:00:00</div>
+            <div id="loginDuration" style="font-size: 9px; color: var(--primary); font-weight: 800; text-transform: uppercase;">LOGIN: 00:00:00</div>
+        </div>
+        <div style="width:40px; height:40px; border-radius:50%; background:var(--dark); color:var(--primary); display:flex; align-items:center; justify-content:center; font-weight:900; border:2px solid var(--primary);">S</div>
+    </div>
+</nav>
+
+<div class="container">
+    <aside class="sidebar">
+        <div class="nav-links">
+            <a href="home_page.html" class="menu-item">📊 Global Dashboard</a>
+            
+            <div class="dropdown-btn" onclick="toggleDrop(this)">🔐 System Access <span>▼</span></div>
+            <div class="dropdown-container">
+                <a href="admin_create_login.html">Create New Login</a>
+                <a href="admin_manage_roles.html">Manage Roles</a>
+            </div>
+
+            <div class="dropdown-btn" onclick="toggleDrop(this)">📍 Branch Control <span>▼</span></div>
+            <div class="dropdown-container">
+                <a href="admin_add_branch.html">Add New Branch</a>
+                <a href="admin_branch_analytics.html">Branch Analytics</a>
+            </div>
+
+            <div class="dropdown-btn" onclick="toggleDrop(this)">👥 Workforce <span>▼</span></div>
+            <div class="dropdown-container">
+                <a href="add_emp.html">Enroll New Staff</a>
+                <a href="admin_kyc_verify.html">KYC Verification</a>
+                <a href="admin_staff_directory.html">Master Directory</a>
+            </div>
+
+            <div class="dropdown-btn" onclick="toggleDrop(this)">💰 Enterprise Payroll <span>▼</span></div>
+            <div class="dropdown-container">
+                <a href="admin_salary_approvals.html">Salary Approvals</a>
+                <a href="admin_salary_register.html">Salary Register</a>
+            </div>
+
+            <a href="admin_announcements.html" class="menu-item">📢 Announcements</a>
+            <a href="attendance-log.html" class="menu-item">📈 Global Attendance</a>
+            <a href="admin_master_reports.html" class="menu-item">📑 Master Reports</a>
+            <a href="admin_support_desk.html" class="menu-item active">🎫 Support Desk</a>
+                        <a href="admin_performance_review.html" class="menu-item">📈 Staff Audit</a>
+
+        </div>
+        <div style="padding: 20px; border-top: 1px solid #334155; margin-top: auto;">
+            <a onclick="logout()" style="color:var(--primary); cursor:pointer; font-weight:800; font-size:11px; text-decoration:none;">🔓 SECURE LOGOUT</a>
+        </div>
+    </aside>
+
+    <main class="main">
+        <h2 style="margin:0; font-size: 24px; font-weight: 900;">Branch Queries & Helpdesk</h2>
+        <p style="font-size: 13px; color: #64748b; margin-bottom: 25px;">Provide resolutions to technical or operational tickets raised by branches.</p>
+
+        <div id="ticketContainer">
+            </div>
+    </main>
+</div>
+
+<script>
+   // Is block ko replace karein
+const firebaseConfig = {
+  apiKey: "AIzaSyCkBeHploRe3UHq6ndukFUtfYc8sCkfx9g",
+  authDomain: "hrmsmercalixportal.firebaseapp.com",
+  projectId: "hrmsmercalixportal",
+  storageBucket: "hrmsmercalixportal.firebasestorage.app",
+  messagingSenderId: "126979860674",
+  appId: "1:126979860674:web:f486ad4b470b59189c735b",
+  measurementId: "G-EM1HY6T4NF"
+};
+
+// Initialize Firebase (Compat Version)
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+    function initSupport() {
+        setInterval(updateClock, 1000);
+        loadTickets();
+    }
+
+    function updateClock() {
+        document.getElementById("liveClock").innerText = new Date().toLocaleTimeString();
+        let diff = Date.now() - loginTimestamp;
+        let h = Math.floor(diff / 3600000);
+        let m = Math.floor((diff % 3600000) / 60000);
+        let s = Math.floor((diff % 60000) / 1000);
+        document.getElementById("loginDuration").innerText = `LOGIN: ${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
+    }
+
+    function loadTickets() {
+        db.collection("support_tickets").orderBy("timestamp", "desc").onSnapshot(snap => {
+            const container = document.getElementById("ticketContainer");
+            container.innerHTML = "";
+            
+            if(snap.empty) {
+                container.innerHTML = "<div style='text-align:center; padding:100px; color:#94a3b8;'><b>NO ACTIVE TICKETS</b><p>All branch queries are settled.</p></div>";
+                return;
+            }
+
+            snap.forEach(doc => {
+                const t = doc.data();
+                const isResolved = t.status === 'Resolved';
+                
+                container.innerHTML += `
+                    <div class="ticket-card" style="border-left-color: ${isResolved ? '#10b981' : '#f59e0b'}">
+                        <div class="ticket-header">
+                            <div>
+                                <span class="ticket-id">#${doc.id.substring(0,8).toUpperCase()}</span>
+                                <h3 style="margin:5px 0; font-size:16px;">${t.subject}</h3>
+                                <p style="font-size:11px; margin:0; color:#64748b;"><b>FROM:</b> ${t.branch} (${t.senderName})</p>
+                            </div>
+                            <span class="ticket-status ${t.status.toLowerCase()}">${t.status}</span>
+                        </div>
+                        <p style="font-size:13px; color:#475569; background:#f8fafc; padding:12px; border-radius:10px; line-height:1.5;">
+                            <i style="color:#94a3b8">Message:</i><br><b>"${t.message}"</b>
+                        </p>
+                        
+                        ${!isResolved ? `
+                            <button class="btn-solve" onclick="toggleReply('${doc.id}')">PROVIDE RESOLUTION</button>
+                            <div id="reply-${doc.id}" class="reply-box">
+                                <textarea id="msg-${doc.id}" class="reply-input" placeholder="Type your answer or solution for the branch manager..."></textarea>
+                                <button class="btn-solve" style="background:var(--success); color:white; border:none;" onclick="solveTicket('${doc.id}')">SUBMIT & CLOSE TICKET</button>
+                            </div>
+                        ` : `
+                            <div class="admin-reply-area">
+                                <small style="font-weight:800; color:var(--success); display:block; margin-bottom:5px;">OFFICIAL RESOLUTION:</small>
+                                <p style="font-size:12px; margin:0; font-weight:600;">${t.adminReply}</p>
+                                <small style="font-size:9px; color:#94a3b8; display:block; margin-top:8px;">Resolved at: ${t.resolvedAt}</small>
+                            </div>
+                        `}
+                    </div>
+                `;
+            });
+        });
+    }
+
+    function toggleReply(id) {
+        const box = document.getElementById(`reply-${id}`);
+        box.style.display = box.style.display === "block" ? "none" : "block";
+    }
+
+    async function solveTicket(id) {
+        const reply = document.getElementById(`msg-${id}`).value;
+        if(!reply) return alert("Please type a resolution message first.");
+        
+        try {
+            await db.collection("support_tickets").doc(id).update({
+                status: "Resolved",
+                adminReply: reply,
+                resolvedAt: new Date().toLocaleString('en-GB')
+            });
+            alert("Resolution Sent Successfully!");
+        } catch(e) {
+            alert("Error: " + e.message);
+        }
+    }
+</script>
+</body>
+</html>

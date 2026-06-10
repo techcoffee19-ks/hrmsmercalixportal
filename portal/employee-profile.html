@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Employee Profile | Mercalix OS</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-storage-compat.js"></script> 
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap');
+        :root {
+            --primary: #00d4ff; --dark: #001e2b; --bg: #f4f7fa;
+            --white: #ffffff; --border: #e2e8f0; --text-main: #1e293b;
+            --text-sub: #64748b; --success: #10b981; --danger: #ef4444;
+            --warning: #f59e0b;
+        }
+
+        body, html { font-family: 'Plus Jakarta Sans', sans-serif; background: var(--bg); margin: 0; padding: 0; height: 100%; width: 100%; overflow-x: hidden; }
+        .p-container { width: 100%; min-height: 100vh; display: flex; flex-direction: column; padding: 25px; box-sizing: border-box; }
+
+        .p-header { background: var(--white); padding: 35px; border-radius: 24px; border: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; box-shadow: 0 10px 30px rgba(0,0,0,0.04); width: 100%; box-sizing: border-box; }
+        .avatar-section { position: relative; width: 110px; height: 110px; }
+        .p-avatar { width: 100%; height: 100%; border-radius: 20px; object-fit: cover; border: 4px solid var(--primary); background: #f8fafc; padding: 3px; }
+        .header-meta h2 { margin: 0; font-size: 28px; font-weight: 800; color: var(--dark); letter-spacing: -0.5px; }
+        
+        .status-badge { font-size: 10px; font-weight: 900; padding: 6px 15px; border-radius: 30px; text-transform: uppercase; margin-bottom: 10px; display: inline-block; }
+        .badge-unverified { background: #fee2e2; color: var(--danger); }
+        .badge-verified { background: #dcfce7; color: var(--success); }
+
+        .progress-bar { width: 280px; height: 8px; background: #edf2f7; border-radius: 10px; margin-top: 10px; overflow: hidden; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, var(--primary), var(--success)); width: 0%; transition: 1.5s ease; }
+
+        .tab-menu { display: flex; gap: 8px; margin-bottom: 25px; background: white; padding: 10px; border-radius: 18px; border: 1px solid var(--border); overflow-x: auto; }
+        .tab-btn { flex: 1; padding: 12px; background: none; border: none; font-size: 11px; font-weight: 800; color: var(--text-sub); cursor: pointer; border-radius: 12px; transition: 0.3s; text-align: center; white-space: nowrap; }
+        .tab-btn:hover { background: #f8fafc; color: var(--dark); }
+        .tab-btn.active { background: var(--dark); color: var(--primary); box-shadow: 0 8px 20px rgba(0,0,0,0.15); }
+
+        .content-card { background: var(--white); border-radius: 24px; border: 1px solid var(--border); padding: 40px; display: none; width: 100%; box-sizing: border-box; }
+        .content-card.active { display: block; animation: slideIn 0.4s ease-out; }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+
+        .section-title { font-size: 18px; font-weight: 800; margin-bottom: 30px; color: var(--dark); display: flex; align-items: center; gap: 12px; }
+        .section-title::before { content: ""; width: 6px; height: 22px; background: var(--primary); border-radius: 10px; display: block; }
+
+        .form-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 25px; margin-bottom: 35px; }
+        .form-group label { display: block; font-size: 10px; font-weight: 800; color: var(--text-sub); text-transform: uppercase; margin-bottom: 8px; }
+        .form-group input, .form-group select { width: 100%; padding: 14px 18px; border: 1.5px solid var(--border); border-radius: 14px; font-size: 13px; font-weight: 600; color: var(--text-main); outline: none; box-sizing: border-box; background: #fafafa; transition: 0.3s; }
+        .form-group input:focus { border-color: var(--primary); background: #fff; }
+        .form-group input[readonly] { background: #f1f5f9; color: #94a3b8; border-color: transparent; cursor: not-allowed; }
+
+        .data-list { width: 100%; border-collapse: collapse; }
+        .data-list th { text-align: left; font-size: 11px; color: var(--text-sub); padding: 18px; border-bottom: 2px solid var(--bg); text-transform: uppercase; font-weight: 800; white-space: nowrap; }
+        .data-list td { padding: 18px; font-size: 13px; font-weight: 600; border-bottom: 1px solid var(--bg); vertical-align: top; }
+
+        .btn-edit { background: var(--primary); color: var(--dark); border: none; padding: 12px 30px; border-radius: 12px; font-weight: 800; cursor: pointer; font-size: 12px; }
+        .handbook-item { background: #f8fafc; border: 1px solid var(--border); padding: 20px; border-radius: 15px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        
+        .family-row { display: grid; grid-template-columns: 2fr 1.5fr 1.5fr 50px; gap: 15px; margin-bottom: 12px; align-items: end; background: #f8fafc; padding: 15px; border-radius: 16px; border: 1px solid var(--border); }
+        .btn-add-member { background: var(--dark); color: var(--primary); border: none; padding: 12px 20px; border-radius: 12px; font-weight: 800; cursor: pointer; font-size: 11px; margin-top: 10px; margin-bottom: 30px; }
+
+        /* Custom Asset Display Style Tags */
+        .asset-tag-pill { background: #e0f2fe; color: #0369a1; padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 700; display: inline-block; }
+        .asset-status-pill { padding: 4px 10px; border-radius: 6px; font-size: 10px; font-weight: 800; text-transform: uppercase; }
+        .pill-issued { background: #fff7ed; color: #f59e0b; }
+        .pill-returned { background: #dcfce7; color: #10b981; }
+        .asset-detail-block { font-size: 12px; color: #475569; margin-top: 4px; line-height: 1.4; background: #f8fafc; padding: 8px 12px; border-radius: 8px; border: 1px solid #f1f5f9; }
+    </style>
+</head>
+<body onload="initProfilePage()">
+
+<div class="p-container">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; padding: 0 10px;">
+        <a href="employee-dashboard.html" style="text-decoration:none; color:var(--text-sub); font-weight:800; font-size:12px;">← BACK TO HUB</a>
+        <div id="kycStatusBadge" class="status-badge badge-unverified">UNVERIFIED ACCOUNT</div>
+    </div>
+
+    <div class="p-header">
+        <div style="display:flex; gap:35px; align-items:center;">
+            <div class="avatar-section"><img id="pAvatar" src="https://cdn-icons-png.flaticon.com/512/3135/3135715.png" class="p-avatar"></div>
+            <div class="header-meta">
+                <h2 id="pName">...</h2>
+                <p id="pDesigTag">Staff | Loading...</p>
+                <div style="margin-top:15px;">
+                    <span id="pCompTxt" style="font-weight:800; font-size:10px; color:var(--primary);">0% COMPLETE</span>
+                    <div class="progress-bar"><div id="pProgressFill" class="progress-fill"></div></div>
+                </div>
+            </div>
+        </div>
+        <div style="display:flex; gap:12px;">
+            <button class="btn-edit" id="editBtn" onclick="toggleEdit()">EDIT PROFILE</button>
+        </div>
+    </div>
+
+    <div class="tab-menu">
+        <button class="tab-btn active" data-panel="panelGeneral">GENERAL INFO</button>
+        <button class="tab-btn" data-panel="panelJob">JOB DETAILS</button>
+        <button class="tab-btn" data-panel="panelPayroll">PAYROLL & BANK</button>
+        <button class="tab-btn" data-panel="panelKYC">KYC VAULT</button>
+        <button class="tab-btn" data-panel="panelHandbook">📜 STAFF HANDBOOK</button>
+        <button class="tab-btn" data-panel="panelAttendance">ATTENDANCE</button>
+        <button class="tab-btn" data-panel="panelAssets">ASSETS</button>
+    </div>
+
+    <div class="content-card active" id="panelGeneral">
+        <div class="section-title">Personal Identity</div>
+        <div class="form-grid">
+            <div class="form-group"><label>Full Name</label><input type="text" id="gen_fullname" readonly></div>
+            <div class="form-group"><label>DOB</label><input type="date" id="gen_dob" readonly></div>
+            <div class="form-group"><label>Gender</label><select id="gen_gender" disabled><option>Male</option><option>Female</option><option>Other</option></select></div>
+            <div class="form-group"><label>Blood Group</label><input type="text" id="gen_blood" placeholder="e.g. O+" readonly></div>
+            <div class="form-group"><label>Personal Email</label><input type="email" id="gen_email" readonly></div>
+            <div class="form-group"><label>Mobile Number</label><input type="tel" id="gen_mobile" readonly></div>
+            <div class="form-group"><label>Emergency Contact</label><input type="tel" id="gen_emergency" readonly></div>
+            <div class="form-group"><label>Marital Status</label><select id="gen_marital" disabled><option>Single</option><option>Married</option><option>Divorced</option></select></div>
+        </div>
+        
+        <div class="section-title">Address Information</div>
+        <div class="form-grid">
+            <div class="form-group" style="grid-column: span 2;"><label>Current Address</label><input type="text" id="gen_curr_address" readonly></div>
+            <div class="form-group" style="grid-column: span 2;"><label>Permanent Address</label><input type="text" id="gen_perm_address" readonly></div>
+        </div>
+
+        <div class="section-title">Family Details</div>
+        <div id="familyContainer"></div>
+        <button type="button" class="btn-add-member" id="btnAddMember" style="display:none;" onclick="addFamilyRow()">+ ADD FAMILY MEMBER</button>
+    </div>
+
+    <div class="content-card" id="panelJob">
+        <div class="section-title">Employment Records 🔒</div>
+        <div class="form-grid">
+            <div class="form-group"><label>Employee ID</label><input type="text" id="job_empid" readonly></div>
+            <div class="form-group"><label>Designation</label><input type="text" id="job_designation" readonly></div>
+            <div class="form-group"><label>Department</label><input type="text" id="job_department" readonly></div>
+            <div class="form-group"><label>Employment Type</label><input type="text" id="job_type" placeholder="Full-Time" readonly></div>
+            <div class="form-group"><label>Reporting Manager</label><input type="text" id="job_manager" readonly></div>
+            <div class="form-group"><label>Work Location</label><input type="text" id="job_location" readonly></div>
+            <div class="form-group"><label>Joining Date</label><input type="date" id="job_joinDate" readonly></div>
+            <div class="form-group"><label>Probation Status</label><input type="text" id="job_probation" placeholder="Completed" readonly></div>
+        </div>
+    </div>
+
+    <div class="content-card" id="panelPayroll">
+        <div class="section-title">Compensation Summary 🔒</div>
+        <div class="form-grid">
+            <div class="form-group"><label>Fixed Monthly Basic</label><input type="text" id="pay_basic" readonly></div>
+            <div class="form-group"><label>Annual CTC</label><input type="text" id="pay_ctc" readonly></div>
+            <div class="form-group"><label>PF / UAN Number</label><input type="text" id="pay_pf" readonly></div>
+            <div class="form-group"><label>Income Tax (PAN)</label><input type="text" id="pay_pan_locked" readonly></div>
+        </div>
+        <div class="section-title" style="margin-top:30px;">Bank Account Details (Salary Credit)</div>
+        <div class="form-grid">
+            <div class="form-group"><label>Bank Name</label><input type="text" id="pay_bank" readonly></div>
+            <div class="form-group"><label>Account Number</label><input type="text" id="pay_acc" readonly></div>
+            <div class="form-group"><label>IFSC Code</label><input type="text" id="pay_ifsc" readonly></div>
+            <div class="form-group"><label>Account Type</label><input type="text" id="pay_type" placeholder="Savings" readonly></div>
+        </div>
+    </div>
+
+    <div class="content-card" id="panelKYC">
+        <div class="section-title">KYC Document Repository</div>
+        <div class="form-grid" style="grid-template-columns: 1fr 1fr;">
+            <div class="form-group"><label>Aadhar Card Copy</label><input type="file" onchange="uploadDoc('aadhar', this)"></div>
+            <div class="form-group"><label>PAN Card Copy</label><input type="file" onchange="uploadDoc('pan', this)"></div>
+            <div class="form-group"><label>Address Proof</label><input type="file" onchange="uploadDoc('address', this)"></div>
+            <div class="form-group"><label>Degree / Certificates</label><input type="file" onchange="uploadDoc('education', this)"></div>
+            <div class="form-group"><label>Cancel Check</label><input type="file" onchange="uploadDoc('Check', this)"></div>
+        </div>
+    </div>
+
+    <div class="content-card" id="panelHandbook">
+        <div class="section-title">Organizational Policies</div>
+        <div id="handbookList"></div>
+    </div>
+
+    <div class="content-card" id="panelAttendance">
+        <div class="section-title">Attendance & Leave Audit</div>
+        <table class="data-list">
+            <thead><tr><th>Month</th><th>Present Days</th><th>Leaves Taken</th><th>Status</th></tr></thead>
+            <tbody id="leaveBody"></tbody>
+        </table>
+    </div>
+
+    <div class="content-card" id="panelAssets">
+        <div class="section-title">Hardware & IT Inventory</div>
+        <div style="overflow-x: auto; width: 100%;">
+            <table class="data-list">
+                <thead>
+                    <tr>
+                        <th>Asset Type</th>
+                        <th>Identifier / Serial No</th>
+                        <th>Technical Specifications & Custom Parameters</th>
+                        <th>Allocation Date</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody id="assetBody"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+const firebaseConfig = {
+    apiKey: "AIzaSyCkBeHploRe3UHq6ndukFUtfYc8sCkfx9g",
+    authDomain: "hrmsmercalixportal.firebaseapp.com",
+    projectId: "hrmsmercalixportal",
+    storageBucket: "hrmsmercalixportal.firebasestorage.app",
+    messagingSenderId: "126979860674",
+    appId: "1:126979860674:web:f486ad4b470b59189c735b",
+    measurementId: "G-EM1HY6T4NF"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+const storage = firebase.storage();
+const empId = sessionStorage.getItem("empId");
+
+function initProfilePage() {
+    if(!empId) { window.location.href="login.html"; return; }
+    setupTabs();
+    loadData();
+    loadHandbook();
+    syncLiveAssets();
+}
+
+function setupTabs() {
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.tab-btn, .content-card').forEach(el => el.classList.remove('active'));
+            btn.classList.add('active');
+            document.getElementById(btn.dataset.panel).classList.add('active');
+        });
+    });
+}
+
+function addFamilyRow(data = { name: '', relation: '', contact: '' }) {
+    const container = document.getElementById("familyContainer");
+    const isEditMode = document.getElementById("editBtn").innerText === "SAVE CHANGES";
+    
+    const div = document.createElement("div");
+    div.className = "family-row";
+    div.innerHTML = `
+        <div class="form-group"><label>Full Name</label><input type="text" class="fam-name" value="${data.name || ''}" ${isEditMode ? '' : 'readonly'}></div>
+        <div class="form-group"><label>Relation</label><input type="text" class="fam-rel" value="${data.relation || ''}" ${isEditMode ? '' : 'readonly'}></div>
+        <div class="form-group"><label>Contact</label><input type="tel" class="fam-contact" value="${data.contact || ''}" ${isEditMode ? '' : 'readonly'}></div>
+        ${isEditMode ? `<button type="button" style="background:#fee2e2; color:#ef4444; border:none; height:45px; width:45px; border-radius:12px; cursor:pointer;" onclick="this.parentElement.remove()">×</button>` : '<div></div>'}
+    `;
+    container.appendChild(div);
+}
+
+function loadData() {
+    db.collection("employees").doc(empId).onSnapshot(doc => {
+        if(doc.exists) {
+            const d = doc.data();
+            document.getElementById("pName").innerText = d.name || "Employee";
+            document.getElementById("pDesigTag").innerText = `${d.desig || d.job?.designation || 'Specialist'} | ${d.dept || d.job?.department || 'Operations'}`;
+            if(d.profilePhotoUrl) document.getElementById("pAvatar").src = d.profilePhotoUrl;
+            
+            setV("gen_fullname", d.name);
+            setV("gen_dob", d.general?.dob || d.fullDob || d.dob);
+            setV("gen_gender", d.general?.gender);
+            setV("gen_blood", d.general?.bloodGroup);
+            setV("gen_email", d.general?.personalemail);
+            setV("gen_mobile", d.mobile);
+            setV("gen_emergency", d.general?.emergencycontact);
+            setV("gen_marital", d.general?.maritalStatus);
+            setV("gen_curr_address", d.general?.curraddress);
+            setV("gen_perm_address", d.general?.permaddress);
+
+            setV("job_empid", d.id);
+            setV("job_designation", d.desig || d.job?.designation);
+            setV("job_department", d.dept || d.job?.department);
+            setV("job_type", d.job?.type);
+            setV("job_manager", d.reportingManager || d.job?.manager);
+            setV("job_location", d.branch || d.job?.location);
+            setV("job_joinDate", d.doj || d.job?.joinDate);
+            setV("job_probation", d.job?.probation);
+
+            let extractedBasicSalaryString = "";
+            if (d.salary !== undefined && d.salary !== null) {
+                extractedBasicSalaryString = typeof d.salary === "object" ? (d.salary.basic || d.payroll?.basic || "") : d.salary;
+            } else {
+                extractedBasicSalaryString = d.payroll?.basic || "";
+            }
+            document.getElementById("pay_basic").value = extractedBasicSalaryString;
+            
+            setV("pay_ctc", d.payroll?.ctc);
+            setV("pay_pf", d.payroll?.uan || d.payroll?.pfNumber);
+            setV("pay_pan_locked", d.payroll?.pan);
+            setV("pay_bank", d.payroll?.bankname);
+            setV("pay_acc", d.payroll?.accnumber);
+            setV("pay_ifsc", d.payroll?.ifsc);
+            setV("pay_type", d.payroll?.accountType);
+
+            const fContainer = document.getElementById("familyContainer");
+            fContainer.innerHTML = "";
+            if (d.family && d.family.length > 0) {
+                d.family.forEach(m => addFamilyRow(m));
+            }
+
+            if(d.kycStatus === "Verified" || d.kyc?.status === "Verified") {
+                const b = document.getElementById("kycStatusBadge");
+                b.innerText = "VERIFIED ACCOUNT"; b.className = "status-badge badge-verified";
+            }
+            calcProgress(d);
+        }
+    });
+}
+
+// 🔄 UPDATED REAL-TIME SYNCHRONIZATION LOGIC WITH DYNAMIC SPECIFICATIONS DISPLAY
+function syncLiveAssets() {
+    if (!empId) return;
+    const tbody = document.getElementById("assetBody");
+    if (!tbody) return;
+
+    db.collection("assets")
+      .where("assignedTo", "==", empId)
+      .onSnapshot(snap => {
+          if (snap.empty) {
+              tbody.innerHTML = `<tr><td colspan="5" align="center" style="padding:35px; color:#94a3b8;">No hardware assets assigned to this profile.</td></tr>`;
+              return;
+          }
+          let html = "";
+          snap.forEach(doc => {
+              const asset = doc.data();
+              let specHtml = "";
+
+              // Dynamic Custom Configurations Checker Logic
+              if(asset.name === "Mobile") {
+                  specHtml = `
+                    <div class="asset-detail-block">
+                        <b>Model:</b> ${asset.modelNo || 'N/A'}<br>
+                        <b>Mobile No:</b> ${asset.mobileNo || 'N/A'}<br>
+                        <b>SIM 1 IMEI:</b> ${asset.imei1 || 'N/A'}<br>
+                        <b>SIM 2 IMEI:</b> ${asset.imei2 || 'N/A'}<br>
+                        <b>Device Status:</b> ${asset.deviceStatus || 'N/A'}<br>
+                        <b>Remarks:</b> ${asset.remark || '--'}
+                    </div>`;
+              } else if(asset.name === "Laptop") {
+                  specHtml = `
+                    <div class="asset-detail-block">
+                        <b>Model:</b> ${asset.modelNo || 'N/A'}<br>
+                        <b>Processor:</b> ${asset.processor || 'N/A'}<br>
+                        <b>Device ID:</b> ${asset.deviceId || 'N/A'}<br>
+                        <b>RAM:</b> ${asset.ram || 'N/A'}<br>
+                        <b>Storage:</b> ${asset.storage || 'N/A'}<br>
+                        <b>System Type:</b> ${asset.systemType || 'N/A'}
+                    </div>`;
+              } else {
+                  specHtml = `<div class="asset-detail-block" style="color: #64748b;">Standard allocation metadata criteria parameters apply.</div>`;
+              }
+
+              const statusClass = (asset.status === 'Issued') ? 'pill-issued' : 'pill-returned';
+
+              html += `
+                <tr>
+                    <td><b style="color: var(--dark); font-size:14px;">${asset.name || asset.assetName || 'Other'}</b></td>
+                    <td><span class="asset-tag-pill">${asset.serial || asset.tagId || asset.assetTag || 'N/A'}</span></td>
+                    <td>${specHtml}</td>
+                    <td><span style="color:#475569; font-size:12px;">${asset.issueDate || asset.assignedDate || '--'}</span></td>
+                    <td><span class="asset-status-pill ${statusClass}">${asset.status || 'Issued'}</span></td>
+                </tr>`;
+          });
+          tbody.innerHTML = html;
+      }, error => {
+          console.error("Asset matrix sync failed: ", error);
+      });
+}
+
+function toggleEdit() {
+    const btn = document.getElementById("editBtn");
+    const addBtn = document.getElementById("btnAddMember");
+    const allInputs = document.querySelectorAll('.content-card input:not(#job_empid), .content-card select');
+
+    if(btn.innerText === "EDIT PROFILE") {
+        allInputs.forEach(i => { 
+            i.removeAttribute('readonly'); 
+            i.disabled = false; 
+            i.style.background = "#fff";
+            i.style.border = "1.5px solid var(--primary)";
+        });
+        addBtn.style.display = "block";
+        document.querySelectorAll(".family-row input").forEach(fi => { fi.removeAttribute('readonly'); });
+        btn.innerText = "SAVE CHANGES"; btn.style.background = "var(--success)";
+    } else { 
+        save(); 
+    }
+}
+
+async function save() {
+    const btn = document.getElementById("editBtn");
+    btn.disabled = true;
+    btn.innerText = "SAVING...";
+
+    const familyData = [];
+    document.querySelectorAll(".family-row").forEach(row => {
+        const name = row.querySelector(".fam-name").value;
+        const relation = row.querySelector(".fam-rel").value;
+        const contact = row.querySelector(".fam-contact").value;
+        if(name.trim() !== "") familyData.push({ name, relation, contact });
+    });
+
+    const finalBasicInputVal = document.getElementById("pay_basic").value;
+
+    const data = {
+        "name": document.getElementById("gen_fullname").value,
+        "mobile": document.getElementById("gen_mobile").value,
+        "general.dob": document.getElementById("gen_dob").value,
+        "general.gender": document.getElementById("gen_gender").value,
+        "general.bloodGroup": document.getElementById("gen_blood").value,
+        "general.personalemail": document.getElementById("gen_email").value, 
+        "general.emergencycontact": document.getElementById("gen_emergency").value, 
+        "general.curraddress": document.getElementById("gen_curr_address").value, 
+        "general.permaddress": document.getElementById("gen_perm_address").value,
+        "general.maritalStatus": document.getElementById("gen_marital").value,
+        "family": familyData,
+        "job.designation": document.getElementById("job_designation").value,
+        "job.department": document.getElementById("job_department").value,
+        "job.type": document.getElementById("job_type").value,
+        "job.manager": document.getElementById("job_manager").value,
+        "job.location": document.getElementById("job_location").value,
+        "job.joinDate": document.getElementById("job_joinDate").value,
+        "job.probation": document.getElementById("job_probation").value,
+        
+        "salary": parseFloat(finalBasicInputVal) || 0,
+        "salary.basic": parseFloat(finalBasicInputVal) || 0,
+        "payroll.basic": finalBasicInputVal,
+        
+        "payroll.ctc": document.getElementById("pay_ctc").value,
+        "payroll.uan": document.getElementById("pay_pf").value,
+        "payroll.pan": document.getElementById("pay_pan_locked").value,
+        "payroll.bankname": document.getElementById("pay_bank").value,
+        "payroll.accnumber": document.getElementById("pay_acc").value,
+        "payroll.ifsc": document.getElementById("pay_ifsc").value,
+        "payroll.accountType": document.getElementById("pay_type").value,
+        "lastUpdated": Date.now()
+    };
+
+    try {
+        await db.collection("employees").doc(empId).update(data);
+        alert("Success! Profile and Family info updated.");
+        location.reload();
+    } catch (e) {
+        alert("Update failed: " + e.message);
+        btn.disabled = false;
+        btn.innerText = "SAVE CHANGES";
+    }
+}
+
+function calcProgress(d) {
+    const fields = [
+        d.name, 
+        d.general?.dob || d.fullDob || d.dob, 
+        d.general?.gender, 
+        d.general?.personalemail, 
+        d.mobile,
+        d.general?.emergencycontact,
+        d.general?.curraddress,
+        d.payroll?.bankname,
+        d.payroll?.accnumber,
+        d.payroll?.ifsc,
+        d.payroll?.pan
+    ];
+
+    const docs = [
+        d.kyc?.aadhar_url,
+        d.kyc?.pan_url,
+        d.kyc?.address_url,
+        d.kyc?.education_url,
+        d.kyc?.Check_url
+    ];
+
+    const filledFields = fields.filter(f => f && f !== "").length;
+    const filledDocs = docs.filter(doc => doc && doc !== "").length;
+
+    const totalItems = fields.length + docs.length;
+    const totalFilled = filledFields + filledDocs;
+
+    const percentage = Math.round((totalFilled / totalItems) * 100);
+
+    const progressFill = document.getElementById("pProgressFill");
+    const progressText = document.getElementById("pCompTxt");
+    
+    if(progressFill && progressText) {
+        progressFill.style.width = percentage + "%";
+        progressText.innerText = `${percentage}% COMPLETE`;
+        if(percentage === 100) {
+            progressFill.style.background = "var(--success)";
+        }
+    }
+}
+
+async function uploadDoc(type, input) {
+    const file = input.files[0]; if(!file) return;
+    const storageRef = storage.ref(`employees/${empId}/vault/${type}_${Date.now()}`);
+    try {
+        const snapshot = await storageRef.put(file);
+        const url = await snapshot.ref.getDownloadURL();
+        let updateObj = {};
+        updateObj[`kyc.${type}_url`] = url;
+        await db.collection("employees").doc(empId).update(updateObj);
+        alert("Uploaded!");
+    } catch (e) { alert("Failed"); }
+}
+
+function loadHandbook() {
+    db.collection("manuals_and_policies").onSnapshot(snap => {
+        const list = document.getElementById("handbookList");
+        list.innerHTML = "";
+        snap.forEach(doc => {
+            const m = doc.data();
+            list.innerHTML += `<div class="handbook-item"><div><b>${m.title}</b></div><button onclick="window.open('${m.url}')" class="btn-edit">DOWNLOAD</button></div>`;
+        });
+    });
+}
+
+function setV(id, v) { if(v && document.getElementById(id)) document.getElementById(id).value = v; }
+</script>
+</body>
+</html>

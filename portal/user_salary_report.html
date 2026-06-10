@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>My Salary Details | Mercalix System</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+
+    <style>
+        :root { 
+            --primary-neon: #00d4ff; 
+            --dark-blue: #002d40; 
+            --main-bg: #f0faff; 
+            --green: #27ae60; 
+            --red: #e74c3c; 
+            --border-color: #d1f3fa;
+        }
+        body, html { margin: 0; padding: 0; height: 100%; font-family: 'Inter', 'Segoe UI', sans-serif; background: var(--main-bg); color: var(--dark-blue); overflow-x: hidden; }
+        .wrapper { display: flex; flex-direction: column; min-height: 100vh; }
+        
+        .top-nav { width: 100%; padding: 0 50px; height: 70px; display: flex; justify-content: space-between; align-items: center; background: #222; border-bottom: 4px solid var(--primary-neon); position: sticky; top: 0; z-index: 1000; box-sizing: border-box; }
+        .logo-container { display: flex; align-items: center; gap: 15px; }
+        .company-logo { height: 45px; border-radius: 5px; }
+        .logo-text { font-size: 24px; font-weight: 800; color: white; text-decoration: none; }
+        .logo-text span { color: var(--primary-neon); }
+        
+        .container { display: flex; flex: 1; flex-direction: row; }
+        .sidebar { width: 250px; background: var(--dark-blue); display: flex; flex-direction: column; box-shadow: 4px 0 10px rgba(0,0,0,0.1); flex-shrink: 0; }
+        .nav-links { display: flex; flex-direction: column; padding-top: 10px; flex-grow: 1; }
+        .sidebar a { padding: 15px 20px; text-decoration: none; color: #cbd5e1; font-weight: 500; font-size: 14px; border-left: 4px solid transparent; transition: 0.3s; cursor: pointer; }
+        .sidebar a:hover, .sidebar a.active { background: rgba(0, 212, 255, 0.1); color: var(--primary-neon); border-left-color: var(--primary-neon); }
+        .sidebar-footer { padding: 15px 0; border-top: 1px solid rgba(255,255,255,0.1); background: var(--dark-blue); display: flex; flex-direction: column; }
+        .btn-logout { color: #ff6b6b !important; font-weight: 800 !important; font-size: 14px !important; text-decoration: none; padding: 15px 20px; display: block; cursor: pointer; }
+
+        .main { flex: 1; padding: 25px; width: 100%; box-sizing: border-box; }
+        .info-card { background: white; padding: 20px; border-radius: 12px; border-left: 6px solid var(--primary-neon); margin-bottom: 25px; box-shadow: 0 4px 6px rgba(0,0,0,0.02); }
+        .info-card p { margin: 0; font-weight: 700; color: #007791; font-size: 14px; }
+
+        .table-container { background: white; border-radius: 16px; border: 1.5px solid var(--border-color); overflow: hidden; box-shadow: 0 10px 25px rgba(0,0,0,0.02); }
+        table { width: 100%; border-collapse: collapse; }
+        th { background: #f8fafc; padding: 15px; text-align: center; font-size: 12px; color: var(--dark-blue); text-transform: uppercase; font-weight: 800; border-bottom: 2px solid #f1f5f9; }
+        td { padding: 18px 15px; border-bottom: 1px solid #f1f5f9; font-size: 14px; text-align: center; font-weight: 500; }
+        
+        .net-amount { color: var(--green); font-weight: 800; font-size: 16px; }
+        .status-paid { background: #f0fdf4; color: var(--green); padding: 5px 12px; border-radius: 20px; font-size: 11px; font-weight: 800; }
+        .btn-view { background: var(--dark-blue); color: white; border: none; padding: 8px 18px; border-radius: 8px; cursor: pointer; font-size: 12px; font-weight: 600; transition: 0.2s; }
+        .btn-view:hover { background: #000; transform: scale(1.05); }
+
+        .footer { background: #222; color: #999; text-align: center; padding: 15px; font-size: 12px; margin-top: auto; border-top: 1px solid #333; }
+
+        /* 🖨️ PRINT SLIP STYLES */
+        #print-area { display: none; }
+        @media print {
+            body * { visibility: hidden; }
+            #print-area, #print-area * { visibility: visible; }
+            #print-area { display: block !important; position: absolute; left: 0; top: 0; width: 100%; }
+            .slip-box { border: 2px solid #000; padding: 40px; margin: 20px; color: #000; background: #fff; font-family: 'Segoe UI', sans-serif; }
+            .slip-header { text-align: center; border-bottom: 3px solid var(--primary-neon); padding-bottom: 15px; margin-bottom: 30px; }
+            .slip-row { display: flex; justify-content: space-between; border-bottom: 1px solid #eee; padding: 10px 0; font-size: 16px; }
+            .total-banner { margin-top: 40px; padding: 20px; background: #f8f9fa; border: 2px solid #000; text-align: right; font-size: 22px; font-weight: 800; }
+        }
+    </style>
+</head>
+<body onload="initUserSalary()">
+
+<div class="wrapper">
+    <nav class="top-nav">
+        <div class="logo-container">
+            <img src="https://api.pay2india.com/uploads/files/setting/logo1765020086879.jpeg" alt="Logo" class="company-logo">
+            <a href="#" class="logo-text">MERCALIX <span>SYSTEM</span></a>
+        </div>
+        <div style="font-size: 11px; font-weight: 800; color: var(--primary-neon); background: rgba(0, 212, 255, 0.1); padding: 5px 12px; border-radius: 20px;">
+            SECURE FINANCIAL ACCESS
+        </div>
+    </nav>
+    
+    <div class="container">
+        <aside class="sidebar">
+            <div class="nav-links">
+                <a href="employee-dashboard.html">👤 MY ACCOUNT</a>
+                <a href="employee-dashboard.html">⏰ LATE ARRIVAL REQ</a>
+                <a href="leave.html">📝 LEAVE APPLY</a>
+                <a href="user_attendance-log.html">📅 ATTENDANCE REPORT</a>
+                <a href="user_salary_report.html" class="active">💰 MY SALARY SLIPS</a>
+            </div>
+            <div class="sidebar-footer">
+                <a onclick="logoutEmp()" class="btn-logout">🔓 SECURE LOGOUT</a>
+            </div>
+        </aside>
+
+        <main class="main">
+            <div class="info-card">
+                <p>💡 Office Rule: 11:30 AM Entry Threshold | Final Salary includes Late Mark Adjustments (3 Lates = 0.5 Day Cut).</p>
+            </div>
+
+            <div class="table-container">
+                <div style="overflow-x: auto;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Pay Period</th>
+                                <th>Attendance Summary</th>
+                                <th>Net Amount</th>
+                                <th>Status</th>
+                                <th>E-Receipt</th>
+                            </tr>
+                        </thead>
+                        <tbody id="salaryTableBody">
+                            <tr><td colspan="5" style="text-align: center; padding: 60px; color:#94a3b8;">Connecting to Payroll Cloud... 🚀</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+    <footer class="footer">&copy; 2026 @ Mercalix AI | Secure Financial Stream</footer>
+</div>
+
+<div id="print-area">
+    <div class="slip-box">
+        <div class="slip-header">
+            <h1 style="margin:0; color: #002d40;">MERCALIX SYSTEM</h1>
+            <p style="margin:5px 0; font-weight: bold; color: #666;">OFFICIAL SALARY DISBURSEMENT SLIP</p>
+        </div>
+        
+        <div class="slip-row"><span>Employee Name:</span> <b id="p-name">---</b></div>
+        <div class="slip-row"><span>Staff Identity ID:</span> <b id="p-id">---</b></div>
+        <div class="slip-row"><span>Payment Period:</span> <b id="p-period">---</b></div>
+        <div class="slip-row"><span>Verified Working Days:</span> <b id="p-days">0</b></div>
+        
+        <div style="margin-top: 30px; border: 1px solid #eee; padding: 15px; border-radius: 8px;">
+            <p style="margin:0 0 10px 0;"><b>Payroll Adjustments:</b></p>
+            <div class="slip-row" style="border:none; font-size: 14px;"><span>Office Login Rule:</span> <span>11:30 AM Compliance</span></div>
+            <div class="slip-row" style="border:none; font-size: 14px;"><span>Late Mark Penalty:</span> <span>Applied (3 Lates = 0.5 Day)</span></div>
+            <div class="slip-row" style="border:none; font-size: 14px;"><span>Cloud Verification:</span> <span style="color:green;">Verified ✅</span></div>
+        </div>
+
+        <div class="total-banner">
+            TOTAL NET DISBURSED: ₹ <span id="p-net">0.00</span>
+        </div>
+        
+        <div style="margin-top: 60px; text-align: center; font-size: 11px; color: #888; border-top: 1px solid #ddd; padding-top: 15px;">
+            This is a system-generated secure document. Security Hash: <span id="p-hash"></span>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Is block ko replace karein
+const firebaseConfig = {
+  apiKey: "AIzaSyCkBeHploRe3UHq6ndukFUtfYc8sCkfx9g",
+  authDomain: "hrmsmercalixportal.firebaseapp.com",
+  projectId: "hrmsmercalixportal",
+  storageBucket: "hrmsmercalixportal.firebasestorage.app",
+  messagingSenderId: "126979860674",
+  appId: "1:126979860674:web:f486ad4b470b59189c735b",
+  measurementId: "G-EM1HY6T4NF"
+};
+
+// Initialize Firebase (Compat Version)
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+
+    let myHistory = [];
+
+    function initUserSalary() {
+        const empId = sessionStorage.getItem("empId");
+        if (!empId) { window.location.href = "login.html"; return; }
+
+        db.collection("salary_history")
+          .where("empId", "==", empId)
+          .orderBy("timestamp", "desc")
+          .onSnapshot((snapshot) => {
+              myHistory = snapshot.docs.map(doc => doc.data());
+              renderTable();
+          });
+    }
+
+    function renderTable() {
+        const tbody = document.getElementById("salaryTableBody");
+        if (myHistory.length === 0) {
+            tbody.innerHTML = "<tr><td colspan='5' style='padding:50px; color:#94a3b8;'>No salary records found for your ID.</td></tr>";
+            return;
+        }
+
+        tbody.innerHTML = myHistory.map((s, index) => `
+            <tr>
+                <td><b>${s.month} ${s.year}</b></td>
+                <td>${s.presentDays || '0'} Verified Days</td>
+                <td class="net-amount">₹ ${parseFloat(s.total).toLocaleString('en-IN')}</td>
+                <td><span class="status-paid">DISBURSED ✅</span></td>
+                <td><button class="btn-view" onclick="prepareSlip(${index})">PRINT SLIP</button></td>
+            </tr>
+        `).join('');
+    }
+
+    function prepareSlip(index) {
+        const data = myHistory[index];
+        document.getElementById("p-name").innerText = data.name;
+        document.getElementById("p-id").innerText = data.empId;
+        document.getElementById("p-period").innerText = `${data.month} ${data.year}`;
+        document.getElementById("p-days").innerText = data.presentDays || "0";
+        document.getElementById("p-net").innerText = parseFloat(data.total).toLocaleString('en-IN');
+        document.getElementById("p-hash").innerText = Math.random().toString(36).substring(2, 12).toUpperCase();
+
+        window.print();
+    }
+
+    function logoutEmp() { sessionStorage.clear(); window.location.href = "login.html"; }
+</script>
+</body>
+</html>

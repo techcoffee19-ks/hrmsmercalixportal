@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advance Salary | Request & History</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+</head>
+<body class="bg-gray-50 min-h-screen p-4 md:p-8">
+          <button onclick="location.href='employee-dashboard.html'" class="flex items-center gap-1 text-slate-600 hover:text-blue-600 transition font-bold text-sm">
+                <i class="fas fa-arrow-left"></i> BACK TO DASHBOARD
+            </button>
+    <div class="max-w-7xl mx-auto">
+        <div class="flex flex-col lg:flex-row gap-8 items-start">
+        
+            <div class="w-full lg:w-5/12 bg-white rounded-xl shadow-lg overflow-hidden border border-gray-100 sticky top-8">
+                <div class="bg-slate-800 p-5 text-white text-center">
+                    <h2 class="text-xl font-bold tracking-wide">Advance Salary Request</h2>
+                    <p class="text-slate-400 text-xs mt-1">Fill details to apply for advance</p>
+                </div>
+
+                <form id="salaryForm" onsubmit="saveToFirebase(event)" class="p-6 space-y-5">
+                    <div class="grid grid-cols-1 gap-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-700 mb-1">Employee ID</label>
+                            <input type="text" id="empId" placeholder="e.g. EMP1024" required
+                                   class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-700 mb-1">Employee Name</label>
+                            <input type="text" id="empName" placeholder="Full Name" required
+                                   class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-700 mb-1">Amount (₹)</label>
+                            <input type="number" id="amount" placeholder="₹" required
+                                   class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-700 mb-1">Repayment</label>
+                            <select id="months" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                                <option value="1">1 Month</option>
+                                <option value="2">2 Months</option>
+                                <option value="3">3 Months</option>
+                                <option value="6">6 Months</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-700 mb-1">Reason</label>
+                        <textarea id="reason" rows="2" placeholder="Brief reason..." required
+                                  class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"></textarea>
+                    </div>
+
+                    <div class="pt-2">
+                        <button type="submit" class="w-full py-3 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 shadow-md transition duration-200 uppercase text-xs tracking-widest">
+                            Submit Request
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <div class="w-full lg:w-7/12 bg-white rounded-xl shadow-lg overflow-hidden border border-gray-100">
+                <div class="bg-gray-50 p-5 border-b border-gray-200 flex justify-between items-center">
+                    <h3 class="text-sm font-bold text-gray-700 uppercase tracking-wider">
+                        <i class="fas fa-list-ul mr-2 text-blue-500"></i>Request History
+                    </h3>
+                    <span class="text-[10px] bg-blue-100 text-blue-600 px-2 py-1 rounded font-bold">LIVE UPDATES</span>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-slate-50 border-b border-gray-200">
+                                <th class="p-4 text-[10px] font-extrabold text-gray-500 uppercase">Applied Date</th>
+                                <th class="p-4 text-[10px] font-extrabold text-gray-500 uppercase">Amount</th>
+                                <th class="p-4 text-[10px] font-extrabold text-gray-500 uppercase text-center">Status</th>
+                                <th class="p-4 text-[10px] font-extrabold text-gray-500 uppercase">Remarks</th>
+                            </tr>
+                        </thead>
+                        <tbody id="historyBody" class="text-sm">
+                            <tr>
+                                <td colspan="4" class="p-10 text-center text-gray-400">
+                                    <i class="fas fa-spinner fa-spin mr-2"></i>Loading History...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+<script>
+// Firebase Config
+const firebaseConfig = {
+    apiKey: "AIzaSyCkBeHploRe3UHq6ndukFUtfYc8sCkfx9g",
+    authDomain: "hrmsmercalixportal.firebaseapp.com",
+    projectId: "hrmsmercalixportal",
+    storageBucket: "hrmsmercalixportal.firebasestorage.app",
+    messagingSenderId: "126979860674",
+    appId: "1:126979860674:web:f486ad4b470b59189c735b"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+// Function to save request
+async function saveToFirebase(e) {
+    e.preventDefault();
+    
+    const requestData = {
+        empId: document.getElementById('empId').value,
+        empName: document.getElementById('empName').value,
+        amount: document.getElementById('amount').value,
+        month: document.getElementById('months').value,
+        reason: document.getElementById('reason').value,
+        status: "Pending",
+        date: firebase.firestore.FieldValue.serverTimestamp(),
+        appliedDateString: new Date().toLocaleDateString('en-GB'), // Saved for history display
+        companyCode: sessionStorage.getItem("companyCode") || "DEFAULT_CODE" 
+    };
+
+    try {
+        await db.collection("advance_requests").add(requestData);
+        alert("Request Sent Successfully! ✅");
+        document.getElementById('salaryForm').reset();
+    } catch (error) {
+        alert("Error: " + error.message);
+    }
+}
+
+// Function to load history
+function loadHistory() {
+    db.collection("advance_requests").orderBy("date", "desc").onSnapshot((querySnapshot) => {
+        const historyBody = document.getElementById('historyBody');
+        let html = "";
+
+        if (querySnapshot.empty) {
+            html = `<tr><td colspan="4" class="p-10 text-center text-gray-400 font-medium">No records found.</td></tr>`;
+        } else {
+            querySnapshot.forEach((doc) => {
+                const data = doc.data();
+                
+                // Status Styling
+                let statusStyle = "bg-amber-100 text-amber-700 border border-amber-200";
+                if(data.status === "Approved") statusStyle = "bg-emerald-100 text-emerald-700 border border-emerald-200";
+                if(data.status === "Rejected") statusStyle = "bg-rose-100 text-rose-700 border border-rose-200";
+
+                // Date Formatting
+                const displayDate = data.appliedDateString || (data.date ? data.date.toDate().toLocaleDateString('en-GB') : '-');
+
+                html += `
+                    <tr class="border-b border-gray-50 hover:bg-blue-50/30 transition duration-150">
+                        <td class="p-4 text-xs text-gray-500 font-medium">${displayDate}</td>
+                        <td class="p-4 font-bold text-gray-800">₹${parseInt(data.amount).toLocaleString()}</td>
+                        <td class="p-4 text-center">
+                            <span class="px-2.5 py-1 rounded text-[9px] font-black uppercase tracking-tighter ${statusStyle}">
+                                ${data.status}
+                            </span>
+                        </td>
+                        <td class="p-4 text-[11px] text-gray-400 italic truncate max-w-[150px]" title="${data.rejectReason || '-'}">
+                            ${data.rejectReason || '-'}
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+        historyBody.innerHTML = html;
+    });
+}
+
+loadHistory();
+</script>
+</body>
+</html>

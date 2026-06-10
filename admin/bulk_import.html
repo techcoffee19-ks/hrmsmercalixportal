@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Bulk Import | Mercalix System</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+    <script>
+        const loginTimestamp = Date.now();
+        const userRole = sessionStorage.getItem("userRole");
+        const userBranch = sessionStorage.getItem("userBranch");
+        const userPermissionsRaw = sessionStorage.getItem("userPermissions");
+        const rolePermissions = userPermissionsRaw ? JSON.parse(userPermissionsRaw) : {};
+
+        function checkAdminAccess() {
+            const isLoggedIn = sessionStorage.getItem("isLoggedIn");
+            if (!isLoggedIn || isLoggedIn !== "true") { 
+                window.location.href = "index.html"; 
+            }
+        }
+        checkAdminAccess();
+        
+        function logout() { sessionStorage.clear(); window.location.href = "index.html"; }
+
+        function toggleSidebarDropdown(btn) {
+            const container = btn.nextElementSibling;
+            const isVisible = (container.style.display === "block");
+            document.querySelectorAll('.dropdown-container').forEach(el => el.style.display = 'none');
+            if (!isVisible) container.style.display = "block";
+        }
+
+        function validateAccess(moduleId, targetPage) {
+            if (userRole === "super_admin" || userRole === "Main Admin" || userRole === "Main Admin (Boss)") { 
+                window.location.href = targetPage; 
+                return; 
+            }
+            if (rolePermissions && rolePermissions[moduleId] && rolePermissions[moduleId].view === true) {
+                window.location.href = targetPage;
+            } else { 
+                alert("⚠️ ACCESS DENIED\nMain Admin ne aapko is page ka access nahi diya hai."); 
+            }
+        }
+    </script>
+
+    <style>
+        :root { --primary: #ffb100; --dark: #1e293b; --success: #10b981; --danger: #ef4444; --warning: #f59e0b; --info: #3b82f6; --bg: #f1f5f9; --border: #e2e8f0; }
+        body { margin: 0; font-family: 'Inter', sans-serif; background: var(--bg); color: var(--dark); overflow-x: hidden; }
+        
+        .top-nav { width: 100%; padding: 0 20px; height: 70px; display: flex; justify-content: space-between; align-items: center; background: #ffffff; border-bottom: 3px solid var(--primary); position: sticky; top: 0; z-index: 1000; box-sizing: border-box; }
+        .logo-text { font-size: 18px; font-weight: 800; text-decoration: none; color: var(--dark); text-transform: uppercase; }
+        .logo-text span { color: var(--primary); }
+
+        .container { display: flex; min-height: calc(100vh - 70px); }
+        .sidebar { width: 260px; background: var(--dark); flex-shrink: 0; display: flex; flex-direction: column; height: calc(100vh - 70px); position: sticky; top: 70px; overflow-y: auto; }
+        .nav-links { display: flex; flex-direction: column; padding-top: 10px; flex-grow: 1; }
+        
+        .nav-item, .dropdown-btn { width: 100%; padding: 15px 20px; text-decoration: none; color: #cbd5e1; font-weight: 600; font-size: 11px; display: flex; justify-content: space-between; align-items: center; border-left: 4px solid transparent; transition: 0.3s; cursor: pointer; background: none; border: none; outline: none; box-sizing: border-box; text-transform: uppercase; text-align: left; }
+        .nav-item:hover, .dropdown-btn:hover { background: rgba(255,177,0,0.1); color: var(--primary); border-left-color: var(--primary); }
+        .dropdown-container { display: none; background: #111827; width: 100%; }
+        .dropdown-container a { padding: 12px 20px 12px 45px; color: #94a3b8; font-size: 10px; display: block; text-decoration: none; font-weight: 700; text-transform: uppercase; border-bottom: 1px solid rgba(255,255,255,0.02); }
+
+        .main { flex: 1; padding: 25px; box-sizing: border-box; width: 100%; }
+        .import-card { background: white; padding: 30px; border-radius: 15px; border: 1.5px solid var(--border); box-shadow: 0 4px 6px rgba(0,0,0,0.02); max-width: 1000px; margin: auto; }
+        .upload-section { border: 2px dashed var(--primary); padding: 50px 20px; border-radius: 15px; background: #fffdf5; text-align: center; cursor: pointer; transition: 0.3s; margin: 20px 0; }
+        .upload-section:hover { background: #fff9e6; border-style: solid; }
+        .instruction-box { background: #f8fafc; border-left: 4px solid var(--info); padding: 15px; border-radius: 8px; font-size: 12px; line-height: 1.6; margin-bottom: 20px; }
+        .preview-wrapper { margin-top: 25px; overflow-x: auto; display: none; }
+        table { width: 100%; border-collapse: collapse; background: white; }
+        table th { background: #f8fafc; text-align: left; font-size: 10px; color: #94a3b8; padding: 12px; border-bottom: 2px solid #eee; text-transform: uppercase; }
+        table td { padding: 12px; border-bottom: 1px solid #f1f5f9; font-size: 12px; color: var(--dark); }
+        .btn-finalize { background: var(--dark); color: var(--primary); border: 2px solid var(--primary); padding: 15px 40px; border-radius: 12px; font-size: 13px; font-weight: 900; cursor: pointer; transition: 0.3s; text-transform: uppercase; width: 100%; margin-top: 20px; }
+    </style>
+</head>
+<body onload="initImport()">
+
+<nav class="top-nav">
+    <div class="logo-container"><a href="#" class="logo-text">MERCALIX <span>SYSTEM</span></a></div>
+    <div style="display:flex; align-items:center; gap:20px;">
+        <div style="text-align: right;">
+            <div id="liveClock" style="font-size: 12px; font-weight: 900; color: var(--dark);">00:00:00</div>
+            <div id="loginDuration" style="font-size: 9px; color: var(--warning); font-weight: 800; text-transform: uppercase;">LOGIN: 00:00:00</div>
+        </div>
+        <div style="width:40px; height:40px; border-radius:50%; background:var(--dark); color:var(--primary); display:flex; align-items:center; justify-content:center; font-weight:900; border:2px solid var(--primary);">K</div>
+    </div>
+</nav>
+
+<div class="container">
+    <aside class="sidebar">
+        <div class="nav-links">
+            <a href="branch_dashboard.html" class="nav-item">🏠 Dashboard</a>
+            
+            <button class="dropdown-btn" onclick="toggleSidebarDropdown(this)">👥 Employee Management <span>▼</span></button>
+            <div class="dropdown-container" style="display:block;">
+                <a href="javascript:void(0)" onclick="validateAccess('workforce', 'add_emp.html')">➕ Add New Staff</a>
+                <a href="javascript:void(0)" onclick="validateAccess('workforce', 'bulk_import.html')" style="color:var(--primary);">📁 Bulk Import (Excel)</a>
+                <a href="javascript:void(0)" onclick="validateAccess('workforce', 'employee-report.html')">🔍 Employee Directory</a>
+                <a href="javascript:void(0)" onclick="validateAccess('workforce', 'e_vault.html')">🔒 E-Vault Documents</a>
+                <a href="javascript:void(0)" onclick="validateAccess('workforce', 'lifecycle.html')">🔄 Employee Lifecycle</a>
+                <a href="javascript:void(0)" onclick="validateAccess('workforce', 'assets.html')">💻 Asset Tracking</a>
+                                <a href="javascript:void(0)" onclick="validateAccess('workforce', 'hr_staff_directory.html')">📁 Workforce Directory</a>
+
+            </div>
+
+            <button class="dropdown-btn" onclick="toggleSidebarDropdown(this)">🕒 Attendance & Leaves <span>▼</span></button>
+            <div class="dropdown-container">
+                <a href="javascript:void(0)" onclick="validateAccess('attendance', 'attendance-log.html')">📅 Daily Logs</a>
+                <a href="javascript:void(0)" onclick="validateAccess('attendance', 'monthly-attendance.html')">📊 Monthly Report</a>
+            </div>
+
+            <button class="dropdown-btn" onclick="toggleSidebarDropdown(this)">💸 Payroll Engine <span>▼</span></button>
+            <div class="dropdown-container">
+                <a href="javascript:void(0)" onclick="validateAccess('payroll', 'run-payroll.html')">🚀 Process Salary</a>
+                <a href="javascript:void(0)" onclick="validateAccess('payroll', 'advance-requests.html')">💰 Advance Salary</a>
+                <a href="javascript:void(0)" onclick="validateAccess('payroll', 'salary-slip.html')">📄 Generate Payslips</a>
+                                <a href="javascript:void(0)" onclick="validateAccess('payroll', 'export-attendance.html')">📄 Employee Data</a>
+
+            </div>
+
+            <a onclick="logout()" style="margin-top:auto; color:var(--danger); font-weight:900; font-size:11px; padding:20px; display:block; border-top: 1px solid #334155; cursor:pointer;">🔓 SECURE LOGOUT</a>
+        </div>
+    </aside>
+
+    <main class="main">
+        <div class="import-card">
+            <h2 style="margin:0 0 10px 0; font-size: 20px;">Bulk Staff Migration</h2>
+            <p style="font-size: 11px; color: #64748b; margin-bottom: 25px;">Company: <b id="ccDisplay" style="color:var(--primary)">...</b></p>
+
+            <div class="instruction-box">
+                <b>Excel Headers:</b> StaffID (4 digits), FullName, Mobile, Password, Branch, Department, Manager, DOJ, Designation, PL, SL, CL, Basic, HRA, Special, Bonus, PF, ITax, PTax, OtherDed
+            </div>
+
+            <div class="upload-section" onclick="document.getElementById('excelFile').click()">
+                <img src="https://cdn-icons-png.flaticon.com/512/732/732220.png" width="40" style="margin-bottom:10px;"><br>
+                <span id="fileName" style="font-weight: 700; color: var(--dark);">Upload Employee Master Sheet</span>
+                <input type="file" id="excelFile" hidden accept=".xlsx, .xls" onchange="handleFile(this)">
+            </div>
+
+            <div class="preview-wrapper" id="previewContainer">
+                <table>
+                    <thead><tr id="tableHead"></tr></thead>
+                    <tbody id="tableBody"></tbody>
+                </table>
+            </div>
+
+            <div id="status" style="font-size:12px; font-weight:800; color:var(--info); margin-top:15px; text-align: center;"></div>
+            <button class="btn-finalize" id="uploadBtn" style="display:none;" onclick="uploadToFirebase()">🚀 ACTIVATE ACCOUNTS & SYNC</button>
+        </div>
+    </main>
+</div>
+
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyCkBeHploRe3UHq6ndukFUtfYc8sCkfx9g",
+  authDomain: "hrmsmercalixportal.firebaseapp.com",
+  projectId: "hrmsmercalixportal",
+  storageBucket: "hrmsmercalixportal.firebasestorage.app",
+  messagingSenderId: "126979860674",
+  appId: "1:126979860674:web:f486ad4b470b59189c735b"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+let jsonData = [];
+const currentCC = sessionStorage.getItem("companyCode");
+
+function initImport() {
+    setInterval(() => {
+        document.getElementById("liveClock").innerText = new Date().toLocaleTimeString();
+        let diff = Date.now() - loginTimestamp;
+        let h = Math.floor(diff / 3600000);
+        let m = Math.floor((diff % 3600000) / 60000);
+        let s = Math.floor((diff % 60000) / 1000);
+        document.getElementById("loginDuration").innerText = `LOGIN: ${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
+    }, 1000);
+
+    if(currentCC) document.getElementById("ccDisplay").innerText = currentCC;
+}
+
+function handleFile(input) {
+    const file = input.files[0];
+    if(!file) return;
+    document.getElementById('fileName').innerText = file.name;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, {type: 'array'});
+        jsonData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
+        if(jsonData.length > 0) {
+            document.getElementById('uploadBtn').style.display = 'block';
+            showPreview();
+        }
+    };
+    reader.readAsArrayBuffer(file);
+}
+
+function showPreview() {
+    const head = document.getElementById('tableHead');
+    const body = document.getElementById('tableBody');
+    document.getElementById('previewContainer').style.display = 'block';
+    body.innerHTML = ""; head.innerHTML = "";
+    Object.keys(jsonData[0]).forEach(key => head.innerHTML += `<th>${key}</th>`);
+    jsonData.slice(0, 10).forEach(row => {
+        let tr = "<tr>";
+        Object.values(row).forEach(val => tr += `<td>${val || '--'}</td>`);
+        body.innerHTML += tr + "</tr>";
+    });
+}
+
+async function uploadToFirebase() {
+    const btn = document.getElementById('uploadBtn');
+    const statusDiv = document.getElementById('status');
+    
+    // Session se fallback company code le rahe hain agar Excel mein na ho
+    const sessionCC = sessionStorage.getItem("companyCode");
+
+    btn.disabled = true; btn.innerText = "PROCESSING...";
+
+    let count = 0;
+    for(let emp of jsonData) {
+        try {
+            // 1. COMPANY CODE & STAFF ID LOGIC
+            // Excel se CompanyCode aur StaffID uthayega
+            let finalCC = (emp.CompanyCode || emp.companycode || sessionCC || "").trim().toUpperCase();
+            let rawStaffId = String(emp.StaffID || emp.staffid || "").trim();
+            const shortId = rawStaffId.padStart(4, '0'); // 0001 format
+            
+            if(!finalCC || !shortId) {
+                console.warn("Skipping Row: Missing ID details", emp);
+                continue;
+            }
+
+            // 2. LOGIN ID & DISPLAY ID
+            const fullId = finalCC + shortId;     // Username: MSB00010001
+            const displayId = finalCC + "/" + shortId; // Display: MSB0001/0001
+            
+            // 3. PASSWORD LOGIC
+            // Excel mein 'Password' column hona chaiye, nahi toh MX@2026 default rahega
+            const userPassword = String(emp.Password || emp.password || "MX@2026");
+
+            await db.collection("employees").doc(fullId).set({
+                id: displayId,            // Report mein dikhne wala ID
+                loginId: fullId,          // Employee issey LOGIN karega (Username)
+                password: userPassword,    // Employee ka LOGIN PASSWORD
+                shortId: shortId,
+                companyCode: finalCC,
+                name: String(emp.FullName || emp.fullname || "Unknown"),
+                mobile: String(emp.Mobile || emp.mobile || ""),
+                branch: String(emp.Branch || emp.branch || "GLOBAL"),
+                dept: String(emp.Department || emp.department || "General"),
+                reportingManager: String(emp.Manager || emp.manager || "Admin"),
+                doj: String(emp.DOJ || emp.doj || ""),
+                desig: String(emp.Designation || emp.designation || "Staff"),
+                sl: Number(emp.SL || 6),
+                cl: Number(emp.CL || 6),
+                pl: Number(emp.PL || 12),
+                salary: {
+                    basic: Number(emp.Basic || 0),
+                    hra: Number(emp.HRA || 0),
+                    pf: Number(emp.PF || 0)
+                },
+                status: "Active",
+                timestamp: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            
+            count++;
+            statusDiv.innerText = `✅ Syncing: ${count} / ${jsonData.length}`;
+        } catch (e) { 
+            console.error("Error updating employee:", e); 
+        }
+    }
+    alert(`Success! ${count} Employees can now login using their Full ID and Password.`);
+    location.reload();
+}
+</script>
+</body>
+</html>

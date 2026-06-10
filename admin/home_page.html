@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Mercalix Admin | Master Control Panel</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap');
+        :root { --primary: #ffb100; --dark: #1e293b; --success: #10b981; --danger: #ef4444; --warning: #f59e0b; --info: #3b82f6; --bg: #f1f5f9; --border: #e2e8f0; }
+        
+        body, html { margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', sans-serif; background: var(--bg); overflow-x: hidden; height: 100vh; }
+        .p-container { display: flex; height: 100vh; width: 100%; }
+
+        .sidebar { width: 250px; background: var(--dark); flex-shrink: 0; display: flex; flex-direction: column; height: 100vh; position: sticky; top: 0; }
+        .sidebar-logo { padding: 25px; color: white; font-weight: 800; border-bottom: 1px solid rgba(255,255,255,0.1); text-transform: uppercase; font-size: 14px; }
+        .nav-links { display: flex; flex-direction: column; padding-top: 10px; flex-grow: 1; overflow-y: auto; }
+        .menu-item, .dropdown-btn { padding: 12px 20px; color: #cbd5e1; font-weight: 600; font-size: 11px; text-transform: uppercase; cursor: pointer; display: flex; justify-content: space-between; align-items: center; text-decoration: none; border-left: 4px solid transparent; transition: 0.3s; background: none; border: none; width: 100%; outline: none; }
+        .menu-item:hover, .menu-item.active, .dropdown-btn:hover { background: rgba(255,177,0,0.1); color: var(--primary); border-left-color: var(--primary); }
+        .dropdown-container { display: none; background: #111827; width: 100%; }
+        .dropdown-container a { padding: 10px 20px 10px 45px; color: #94a3b8; font-size: 10px; display: block; text-decoration: none; font-weight: 700; text-transform: uppercase; border-bottom: 1px solid rgba(255,255,255,0.02); }
+
+        .main { flex: 1; display: flex; flex-direction: column; overflow-y: auto; }
+        .top-nav { height: 60px; background: #fff; display: flex; justify-content: space-between; align-items: center; padding: 0 30px; position: sticky; top: 0; z-index: 1000; border-bottom: 3px solid var(--primary); box-sizing: border-box; }
+
+        .dashboard-content { padding: 20px; }
+        .welcome-card { background: white; padding: 15px; border-radius: 12px; margin-bottom: 15px; display: flex; align-items: center; gap: 15px; border: 1px solid var(--border); border-left: 5px solid var(--primary); }
+        .welcome-card img { width: 50px; height: 50px; border-radius: 50%; border: 2px solid var(--primary); }
+
+        .top-info-row { display: grid; grid-template-columns: 1fr 1fr 1.2fr; gap: 15px; margin-bottom: 15px; }
+        .info-box { background: white; padding: 15px; border-radius: 12px; border: 1px solid var(--border); overflow: hidden; min-height: 80px; }
+        .info-box h4 { margin: 0 0 8px 0; font-size: 9px; color: #64748b; text-transform: uppercase; }
+
+        .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 15px; }
+        .stat-card { background: white; padding: 15px; border-radius: 12px; border: 1px solid var(--border); cursor: pointer; transition: 0.2s; }
+        .stat-card:hover { transform: translateY(-2px); border-color: var(--primary); }
+        .stat-card h3 { margin: 0; font-size: 9px; color: #64748b; text-transform: uppercase; }
+        .stat-card p { font-size: 22px; margin: 5px 0 0 0; font-weight: 800; }
+        .budget-card { background: var(--dark); color: white; border-left: 5px solid var(--success); }
+
+        .bday-wrapper { display: flex; gap: 10px; overflow-x: auto; padding: 5px 0; min-height: 45px; }
+        .bday-item { display: flex; align-items: center; gap: 8px; background: #fffbeb; border: 1px solid #fde68a; padding: 8px 12px; border-radius: 12px; min-width: fit-content; }
+        .bday-item img { width: 35px; height: 35px; border-radius: 50%; border: 2px solid #fff; object-fit: cover; }
+        .bday-item .bday-info { display: flex; flex-direction: column; }
+        .bday-item b { font-size: 10px; color: var(--dark); }
+        .bday-item small { font-size: 8px; color: #666; font-weight: 700; }
+
+        .chart-row { display: grid; grid-template-columns: 1.5fr 1fr; gap: 15px; margin-bottom: 15px; }
+        .chart-card { background: white; padding: 15px; border-radius: 15px; border: 1px solid var(--border); height: 260px; position: relative; }
+        .chart-card canvas { max-height: 200px !important; }
+
+        .admin-module { background: white; padding: 20px; border-radius: 15px; border: 1.5px solid var(--border); margin-bottom: 15px; }
+        .data-panel { display: none; background: white; border: 1.5px solid var(--primary); border-radius: 12px; padding: 15px; margin-bottom: 15px; }
+        table { width: 100%; border-collapse: collapse; font-size: 12px; }
+        table th { text-align: left; padding: 10px; background: #f8fafc; }
+        table td { padding: 10px; border-bottom: 1px solid #eee; }
+        .inp { padding: 10px; border: 1.5px solid #e2e8f0; border-radius: 10px; font-size: 12px; outline: none; width: 100%; box-sizing: border-box; }
+        
+        #tEmpList { display:none; position:absolute; width:100%; max-height:200px; background:white; border:1px solid #ddd; border-radius:10px; z-index:2000; overflow-y:auto; box-shadow:0 5px 15px rgba(0,0,0,0.1); }
+        .btn-upload { background: #64748b; color: white; border: none; padding: 10px; border-radius: 10px; font-weight: 800; cursor: pointer; font-size: 10px; }
+
+        .h-card { min-width: 140px; background: white; border: 1px solid #e2e8f0; padding: 12px; border-radius: 12px; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
+        .h-card b { font-size: 11px; color: var(--dark); display: block; }
+        .h-card small { font-size: 9px; color: var(--danger); font-weight: 800; }
+    </style>
+</head>
+<body onload="initDashboard()">
+
+<div class="p-container">
+    <aside class="sidebar">
+        <div class="sidebar-logo">MERCALIX <span style="color:var(--primary)">ADMIN</span></div>
+        <div class="nav-links">
+            <a href="home_page.html" class="menu-item active">📊 Global Dashboard</a>
+            <div class="dropdown-btn" onclick="toggleDrop(this)">🔐 System Access <span>▼</span></div>
+            <div class="dropdown-container">
+                <a href="admin_create_login.html">Create New Login</a>
+                <a href="admin_org_master.html">Create Department</a>
+                <a href="admin_manage_roles.html">Manage Roles</a>
+            </div>
+            <div class="dropdown-btn" onclick="toggleDrop(this)">👥 Workforce <span>▼</span></div>
+            <div class="dropdown-container">
+                <a href="admin_kyc_verify.html">KYC Verification</a>
+                <a href="admin_staff_directory.html">Master Directory</a>
+            </div>
+            <div class="dropdown-btn" onclick="toggleDrop(this)">💰 Enterprise Payroll <span>▼</span></div>
+            <div class="dropdown-container">
+                <a href="admin_salary_register.html">Salary Register</a>
+            </div>
+            <a href="admin_attendance_master.html" class="menu-item">📈 Global Attendance</a>
+            <a href="admin_performance_review.html" class="menu-item">📈 Staff Audit</a>
+        </div>
+        <a onclick="logout()" style="color:var(--danger); padding:15px; border-top:1px solid #334155; cursor:pointer; font-weight:800; font-size:10px; text-align:center;">🔓 SECURE LOGOUT</a>
+    </aside>
+
+    <main class="main">
+        <nav class="top-nav">
+            <div style="font-weight: 800; font-size: 14px;">MERCALIX <span style="color:var(--primary)">SYSTEM</span></div>
+            <div style="display:flex; align-items:center; gap:15px;">
+                <div id="loginTimer" style="font-size: 11px; background: #e0f2fe; color: #0369a1; padding: 5px 12px; border-radius: 20px; font-weight: 800;">Login: 00:00:00</div>
+                <div id="liveClock" style="font-size: 12px; font-weight: 900;">00:00:00</div>
+                <img id="navAvatar" src="https://cdn-icons-png.flaticon.com/512/3135/3135715.png" style="width:35px; height:35px; border-radius:50%; border:2px solid var(--primary);">
+            </div>
+        </nav>
+
+        <div class="dashboard-content">
+            <div class="welcome-card">
+                <img id="welcomeImg" src="https://cdn-icons-png.flaticon.com/512/3135/3135715.png">
+                <div><h2 style="margin:0; font-size: 18px;">Welcome Back, <span id="wNameDisp" style="color:var(--primary)">Admin</span></h2><p style="margin:2px 0 0 0; font-size:11px; color:#64748b;">Enterprise Access: Master Control Active</p></div>
+            </div>
+
+            <div class="top-info-row">
+                <div class="info-box" style="border-left:4px solid var(--info)"><h4>💡 Motivation</h4><p id="slideThought" style="font-size:11px; font-weight:700; transition: opacity 0.5s;">Loading...</p></div>
+                <div class="info-box" style="border-left:4px solid var(--success)">
+                    <h4>🎂 Birthdays Today</h4>
+                    <div id="bdayWrapper" class="bday-wrapper">Checking...</div>
+                </div>
+                <div class="info-box"><h4>📢 Post Thought</h4><div style="display:flex; gap:5px;"><input type="text" id="thoughtInput" class="inp" placeholder="Global post..." style="flex:1;"><button onclick="postThought()" style="background:var(--dark); color:var(--primary); border:none; padding:8px 15px; border-radius:8px; font-size:10px; cursor:pointer;">POST</button></div></div>
+            </div>
+
+            <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:10px; margin-bottom:15px;">
+                <select id="managerFilter" onchange="refreshData()" class="inp"><option value="All">SELECT REPORTING MANAGER</option></select>
+                <select id="branchFilter" onchange="refreshData()" class="inp"><option value="All">SELECT BRANCH</option></select>
+                <select id="deptFilter" onchange="refreshData()" class="inp"><option value="All">SELECT DEPARTMENT</option></select>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-card" onclick="togglePanel('pStaff')"><h3>Workforce</h3><p id="cStaff">0</p></div>
+                <div class="stat-card" onclick="togglePanel('pPresent')"><h3>Present</h3><p id="cPresent" style="color:var(--success)">0</p></div>
+                <div class="stat-card budget-card"><h3>Payout Budget</h3><p id="totalPayout">₹ 0</p></div>
+                
+                <div class="stat-card" onclick="togglePanel('pLateReq')"><h3>Late Requests</h3><p id="cLateReq">0</p></div>
+                <div class="stat-card" onclick="togglePanel('pPending')"><h3>Pending Leaves</h3><p id="cPending" style="color:var(--warning)">0</p></div>
+                <div class="stat-card" onclick="togglePanel('pApprove')"><h3>Approved Leaves</h3><p id="cApprove" style="color:var(--success)">0</p></div>
+
+                <div class="stat-card" onclick="togglePanel('pTasks')"><h3>Tasks Status</h3><p id="cTasks">0 / 0</p></div>
+                <div class="stat-card" onclick="togglePanel('pAbsent')"><h3>Absent</h3><p id="cAbsent" style="color:var(--danger)">0</p></div>
+                <div class="stat-card" onclick="togglePanel('pLateLogs')"><h3>Late Marks</h3><p id="cLate">0</p></div>
+            </div>
+
+            <div id="pStaff" class="data-panel"><h3>Staff List</h3><table id="tStaff"></table></div>
+            <div id="pTasks" class="data-panel"><h3>Task Audit</h3><table id="tTasks"></table></div>
+
+            <div class="chart-row">
+                <div class="chart-card"><h4>Payout Analytics</h4><canvas id="payoutChart"></canvas></div>
+                <div class="chart-card"><h4>Daily Attendance</h4><canvas id="attendanceChart"></canvas></div>
+            </div>
+
+            <div class="admin-module" style="border-color: var(--info);">
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:10px;">
+                    <select id="tManager" onchange="loadManagerEmployees()" class="inp"><option value="">Select Reporting Manager</option></select>
+                    <select id="tEmployee" class="inp"><option value="">Select Employee</option></select>
+                </div>
+                <div style="position:relative; margin-bottom:10px;">
+                    <input type="text" id="tEmpSearch" class="inp" placeholder="🔍 Search Employee Name (Organization)..." oninput="organizationSearch()">
+                    <div id="tEmpList"></div>
+                    <input type="hidden" id="tEmpId"> 
+                </div>
+                <div style="display:grid; grid-template-columns: 2.5fr 1fr 1fr; gap:10px;">
+                    <input type="text" id="tTitle" placeholder="Task Title" class="inp"><input type="date" id="tDeadline" class="inp">
+                    <button onclick="createTask()" style="background:var(--info); color:white; border:none; border-radius:10px; cursor:pointer; font-weight:800; padding:10px;">ASSIGN</button>
+                </div>
+            </div>
+
+            <div class="admin-module" style="border-color: var(--primary);">
+                <div style="display:grid; grid-template-columns: 2fr 1fr 1fr 1fr 1fr; gap:10px; margin-bottom:15px;">
+                    <input type="text" id="hName" placeholder="Holiday Name" class="inp"><input type="date" id="hDate" class="inp">
+                    <button onclick="publishHoliday()" style="background:var(--primary); border:none; border-radius:8px; font-weight:800; cursor:pointer; padding:10px;">PUBLISH</button>
+                    <label class="btn-upload" style="text-align:center; display:flex; align-items:center; justify-content:center; gap:5px;"><i class="fa fa-file-excel"></i> EXCEL<input type="file" id="holidayExcel" accept=".xlsx, .xls" style="display:none;" onchange="uploadHolidayExcel(this)"></label>
+                </div>
+                <div id="holidayStrip" style="display:flex; gap:12px; overflow-x:auto;"></div>
+            </div>
+        </div>
+    </main>
+</div>
+
+<script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyCkBeHploRe3UHq6ndukFUtfYc8sCkfx9g",
+      authDomain: "hrmsmercalixportal.firebaseapp.com",
+      projectId: "hrmsmercalixportal",
+      storageBucket: "hrmsmercalixportal.firebasestorage.app",
+      messagingSenderId: "126979860674",
+      appId: "1:126979860674:web:f486ad4b470b59189c735b",
+      measurementId: "G-EM1HY6T4NF"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+    
+    let allEmps = [], allLogs = [], allLeaves = [], allTasks = [], allThoughts = [];
+    let payoutChart, attendanceChart, thoughtIdx = 0;
+    const myCC = sessionStorage.getItem("companyCode");
+    let loginStartTime = parseInt(localStorage.getItem("startTime")) || Date.now();
+
+    function toggleDrop(btn) {
+        const drop = btn.nextElementSibling;
+        if(drop) drop.style.display = drop.style.display === "block" ? "none" : "block";
+    }
+
+    function togglePanel(id) {
+        const p = document.getElementById(id);
+        const isVis = (p.style.display === "block");
+        document.querySelectorAll('.data-panel').forEach(el => el.style.display = 'none');
+        p.style.display = isVis ? "none" : "block";
+    }
+
+    function initDashboard() {
+        setInterval(() => {
+            document.getElementById("liveClock").innerText = new Date().toLocaleTimeString();
+            let diff = Math.floor((Date.now() - loginStartTime) / 1000);
+            document.getElementById("loginTimer").innerText = `Login: ${Math.floor(diff/3600).toString().padStart(2,'0')}:${Math.floor((diff%3600)/60).toString().padStart(2,'0')}:${(diff%60).toString().padStart(2,'0')}`;
+        }, 1000);
+
+        initCharts();
+        syncOrgMasterData();
+
+        db.collection("employees").onSnapshot(s => { 
+            let tempEmps = s.docs.map(d => ({id: d.id, ...d.data()})); 
+            if (!myCC || myCC === "" || myCC === "null" || myCC === "undefined") {
+                allEmps = tempEmps; 
+            } else {
+                allEmps = tempEmps.filter(e => e.companyCode === myCC);
+                if(allEmps.length === 0) allEmps = tempEmps;
+            }
+            refreshData(); 
+            checkBirthdays(); 
+        });
+
+        db.collection("vc_logs").onSnapshot(s => { allLogs = s.docs.map(d => d.data()); refreshData(); });
+        db.collection("emp_leaves").onSnapshot(s => { allLeaves = s.docs.map(d => d.data()); refreshData(); });
+        db.collection("tasks").onSnapshot(s => { allTasks = s.docs.map(d => d.data()); refreshData(); });
+
+        db.collection("global_thoughts").orderBy("timestamp", "desc").onSnapshot(s => {
+            allThoughts = s.docs.map(d => d.data()).filter(t => !myCC || t.companyCode === myCC);
+            if(allThoughts.length > 0) startMotivationSlider();
+        });
+
+        // AUTO-REMOVE EXPIRED HOLIDAYS MECHANISM
+        db.collection("holidays").orderBy("date", "asc").onSnapshot(s => {
+            const strip = document.getElementById("holidayStrip"); 
+            strip.innerHTML = "";
+            const todayISO = new Date().toISOString().split('T')[0]; // Format: YYYY-MM-DD
+
+            s.forEach(doc => { 
+                const h = doc.data();
+                // Filter logic: Agar holiday ki date beet chuki hai toh client panel se remove, agla show karega
+                if (h.date >= todayISO) {
+                    strip.innerHTML += `<div class="h-card"><b>${h.name}</b><small><i class="fa fa-calendar-alt"></i> ${h.date}</small></div>`;
+                }
+            });
+            if (strip.innerHTML === "") {
+                strip.innerHTML = "<small style='color:#94a3b8; font-weight:700; padding:5px;'>NO UPCOMING HOLIDAYS</small>";
+            }
+        });
+    }
+
+    function syncOrgMasterData() {
+        db.collection("branches").onSnapshot(s => {
+            const bF = document.getElementById("branchFilter");
+            if(bF) {
+                let opt = '<option value="All">SELECT BRANCH (ALL)</option>';
+                s.forEach(doc => { opt += `<option value="${doc.data().name || doc.id}">${doc.data().name || doc.id}</option>`; });
+                bF.innerHTML = opt;
+            }
+        });
+
+        db.collection("departments").onSnapshot(s => {
+            const dF = document.getElementById("deptFilter");
+            if(dF) {
+                let opt = '<option value="All">SELECT DEPARTMENT (ALL)</option>';
+                s.forEach(doc => { opt += `<option value="${doc.data().name || doc.id}">${doc.data().name || doc.id}</option>`; });
+                dF.innerHTML = opt;
+            }
+        });
+
+        db.collection("admins").onSnapshot(s => {
+            const mF = document.getElementById("managerFilter"), tM = document.getElementById("tManager");
+            if(mF) {
+                let opt = '<option value="All">SELECT REPORTING MANAGER (ALL)</option>', tOpt = '<option value="">Select Reporting Manager</option>';
+                s.forEach(doc => {
+                    const d = doc.data();
+                    if(!myCC || d.companyCode === myCC) {
+                        opt += `<option value="${d.name}">${d.name}</option>`;
+                        tOpt += `<option value="${d.name}">${d.name}</option>`;
+                    }
+                });
+                mF.innerHTML = opt; if(tM) tM.innerHTML = tOpt;
+            }
+        });
+    }
+
+    // ACCURATE BIRTHDAY PARSING (STRIPS [object Object] MISMATCHES)
+    function checkBirthdays() {
+        const today = new Date();
+        const currentDD = String(today.getDate()).padStart(2, '0');
+        const currentMM = String(today.getMonth() + 1).padStart(2, '0');
+        const todayMatchPattern = `${currentDD}-${currentMM}`; // Format: DD-MM
+
+        const bdays = allEmps.filter(e => {
+            const dob = e.dob || (e.general && e.general.dob) || (e.personal && e.personal.dob) || "";
+            // Handle cross-formats check (YYYY-MM-DD or DD-MM)
+            if (dob.includes("-")) {
+                const parts = dob.split("-");
+                if (parts.length === 3) {
+                    const parsedDM = parts[0].length === 4 ? `${parts[2]}-${parts[1]}` : `${parts[0]}-${parts[1]}`;
+                    return parsedDM === todayMatchPattern;
+                }
+            }
+            return dob.includes(todayMatchPattern);
+        });
+
+        const w = document.getElementById("bdayWrapper");
+        if (bdays.length > 0) {
+            w.innerHTML = bdays.map(e => `
+                <div class="bday-item" onclick="wishBday('${e.id}','${e.name}')">
+                    <img src="${e.profilePhotoUrl || (e.general && e.general.profilephoto) || 'https://cdn-icons-png.flaticon.com/512/3135/3135715.png'}">
+                    <div class="bday-info"><b>${e.name}</b><small>${e.branch || 'Staff'}</small></div>
+                </div>`).join('');
+        } else {
+            w.innerHTML = "<small style='color:#94a3b8; font-weight:700;'>NO BIRTHDAYS TODAY</small>";
+        }
+    }
+
+    function wishBday(id, name) {
+        const custom = prompt(`Wish ${name} a Happy Birthday?`, `Happy Birthday ${name}! 🎂`);
+        if(custom) {
+            db.collection("employees").doc(id.replace(/\//g, "")).update({
+                birthdayWish: custom, wishCompanyCode: myCC || "", wishTimestamp: Date.now()
+            }).then(() => alert("Wish Sent! ✅"));
+        }
+    }
+
+    function refreshData() {
+        const mgr = document.getElementById("managerFilter").value;
+        const br = document.getElementById("branchFilter").value;
+        const dp = document.getElementById("deptFilter").value;
+
+        const filtered = allEmps.filter(e => 
+            (mgr === "All" || e.reportingManager === mgr) &&
+            (br === "All" || e.branch === br) &&
+            (dp === "All" || e.dept === dp)
+        );
+        
+        document.getElementById("cStaff").innerText = filtered.length;
+        const todayStr = new Date().toLocaleDateString('en-GB').replace(/\//g, '-');
+        
+        const presentStaff = filtered.filter(e => {
+            const cleanId = e.id.replace(/\//g, '');
+            return allLogs.some(l => 
+                l.date === todayStr && 
+                l.type === "IN" && 
+                (l.id === e.id || l.id === cleanId)
+            );
+        });
+
+        const presentCount = presentStaff.length;
+        const absentCount = Math.max(0, filtered.length - presentCount);
+
+        document.getElementById("cPresent").innerText = presentCount;
+        document.getElementById("cAbsent").innerText = absentCount;
+        
+        const lateCount = allLogs.filter(l => 
+            l.date === todayStr && 
+            l.type === "IN" && 
+            (l.late === true || l.status === "LATE") &&
+            filtered.some(e => (e.id === l.id || e.id.replace(/\//g, '') === l.id))
+        ).length;
+        document.getElementById("cLate").innerText = lateCount;
+
+        let budget = filtered.reduce((total, e) => {
+            let basic = Number(e.salary?.basic) || Number(e.salary) || 0;
+            return total + basic;
+        }, 0);
+        document.getElementById("totalPayout").innerText = "₹ " + budget.toLocaleString();
+        
+        document.getElementById("cPending").innerText = allLeaves.filter(l => 
+            l.status === "Pending" && filtered.some(e => e.id === l.empId)
+        ).length;
+        
+        document.getElementById("cApprove").innerText = allLeaves.filter(l => 
+            l.status === "Approved" && filtered.some(e => e.id === l.empId)
+        ).length;
+        
+        const filteredTasks = allTasks.filter(t => filtered.some(e => e.id === t.empId));
+        document.getElementById("cTasks").innerText = `${filteredTasks.filter(t => t.status === 'Completed').length} / ${filteredTasks.length}`;
+
+        updateCharts(filtered, presentCount, absentCount);
+        renderTable(filtered);
+    }
+
+    function organizationSearch() {
+        const q = document.getElementById("tEmpSearch").value.toLowerCase();
+        const list = document.getElementById("tEmpList"); if(!q) { list.style.display = "none"; return; }
+        const matches = allEmps.filter(e => e.name.toLowerCase().includes(q) || e.id.toString().includes(q));
+        list.innerHTML = matches.slice(0,5).map(e => `<div onclick="selectEmpForTask('${e.id}','${e.name}')" style="padding:10px; cursor:pointer; background:white; border-bottom:1px solid #eee;"><b>${e.name}</b> <small>(${e.id})</small></div>`).join('');
+        list.style.display = "block";
+    }
+
+    function selectEmpForTask(id, name) {
+        document.getElementById("tEmpSearch").value = name;
+        document.getElementById("tEmpId").value = id;
+        document.getElementById("tEmpList").style.display = "none";
+    }
+
+    function loadManagerEmployees() {
+        const mgr = document.getElementById("tManager").value;
+        const eSel = document.getElementById("tEmployee");
+        eSel.innerHTML = '<option value="">Select Employee</option>';
+        allEmps.filter(e => e.reportingManager === mgr).forEach(e => { eSel.innerHTML += `<option value="${e.id}">${e.name} (${e.id})</option>`; });
+    }
+
+    async function createTask() {
+        const id = document.getElementById("tEmpId").value || document.getElementById("tEmployee").value;
+        const title = document.getElementById("tTitle").value;
+        if(!id || !title) return alert("Select Employee and Title!");
+        await db.collection("tasks").add({ empId: id, title: title, deadline: document.getElementById("tDeadline").value, status: "Pending", timestamp: Date.now() });
+        alert("Task Assigned!");
+        document.getElementById("tTitle").value = "";
+    }
+
+    function startMotivationSlider() {
+        if(window.tTimer) clearInterval(window.tTimer);
+        const el = document.getElementById("slideThought");
+        const show = () => {
+            el.style.opacity = 0;
+            setTimeout(() => {
+                const t = allThoughts[thoughtIdx];
+                if(t) {
+                    el.innerText = `"${t.text}" — ${t.author || 'Admin'}`;
+                    el.style.opacity = 1; 
+                    thoughtIdx = (thoughtIdx + 1) % allThoughts.length;
+                }
+            }, 500);
+        };
+        show(); window.tTimer = setInterval(show, 5000);
+    }
+
+    function publishHoliday() {
+        const n = document.getElementById("hName").value, d = document.getElementById("hDate").value;
+        if(n && d) { db.collection("holidays").add({ name: n, date: d, timestamp: Date.now() }); document.getElementById("hName").value = ""; document.getElementById("hDate").value = ""; }
+    }
+
+    function renderTable(filtered) {
+        document.getElementById("tStaff").innerHTML = '<tr><th>ID</th><th>Name</th><th>Dept</th><th>Branch</th></tr>' + 
+            filtered.slice(0,5).map(e => `<tr><td>${e.id}</td><td>${e.name}</td><td>${e.dept || 'N/A'}</td><td>${e.branch || 'N/A'}</td></tr>`).join("");
+    }
+
+    function initCharts() {
+        payoutChart = new Chart(document.getElementById('payoutChart'), { type: 'bar', data: { labels: ['Tech', 'HR', 'Acc', 'Ops'], datasets: [{ label: 'Budget', data: [0,0,0,0], backgroundColor: '#ffb100' }] }, options: { responsive: true, maintainAspectRatio: false }});
+        attendanceChart = new Chart(document.getElementById('attendanceChart'), { type: 'doughnut', data: { labels: ['Present', 'Absent'], datasets: [{ data: [0,0], backgroundColor: ['#10b981', '#ef4444'] }] }, options: { responsive: true, maintainAspectRatio: false }});
+    }
+
+    function updateCharts(emps, p, a) {
+        const depts = ['Technology', 'HR', 'Account', 'Operations'];
+        payoutChart.data.datasets[0].data = depts.map(d => emps.filter(e => e.dept === d).reduce((s, x) => s + (Number(x.salary?.basic || x.salary) || 0), 0));
+        payoutChart.update(); attendanceChart.data.datasets[0].data = [p, a]; attendanceChart.update();
+    }
+
+    function postThought() {
+        const txt = document.getElementById("thoughtInput").value;
+        if(txt) { db.collection("global_thoughts").add({ text: txt, author: "Admin", companyCode: myCC || "", timestamp: Date.now() }); document.getElementById("thoughtInput").value = ""; }
+    }
+
+    function logout() { 
+        sessionStorage.removeItem("isLoggedIn");
+        sessionStorage.removeItem("userRole");
+        window.location.href = "index.html"; 
+    }
+</script>
+</body>
+</html>

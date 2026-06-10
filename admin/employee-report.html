@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Employee Master Report | Mercalix Enterprise</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+
+    <script>
+        if (sessionStorage.getItem("isLoggedIn") !== "true") { window.location.href = "index.html"; }
+        
+        const userRole = sessionStorage.getItem("userRole");
+        const userPermissionsRaw = sessionStorage.getItem("userPermissions");
+        const rolePermissions = userPermissionsRaw ? JSON.parse(userPermissionsRaw) : {};
+        const adminCompanyCode = sessionStorage.getItem("companyCode");
+
+        function logout() { 
+            sessionStorage.removeItem("isLoggedIn");
+            sessionStorage.removeItem("userRole");
+            window.location.href = "index.html"; 
+        }
+
+        function validateAccess(moduleId, targetPage) {
+            if (userRole === "super_admin" || userRole === "Main Admin" || userRole === "Main Admin (Boss)") { 
+                window.location.href = targetPage; 
+                return; 
+            }
+            if (rolePermissions && rolePermissions[moduleId] && rolePermissions[moduleId].view === true) {
+                window.location.href = targetPage;
+            } else { 
+                alert("⚠️ ACCESS DENIED\nMain Admin ne aapko is page ka access nahi diya hai."); 
+            }
+        }
+
+        function toggleSidebarDropdown(btn) {
+            const container = btn.nextElementSibling;
+            const isVisible = (container.style.display === "block");
+            document.querySelectorAll('.dropdown-container').forEach(el => el.style.display = 'none');
+            if (!isVisible) container.style.display = "block";
+        }
+    </script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+        :root { --primary: #ffb100; --dark: #1e293b; --success: #10b981; --danger: #ef4444; --warning: #f59e0b; --info: #3b82f6; --bg: #f1f5f9; --border: #e2e8f0; }
+        body { margin: 0; font-family: 'Inter', sans-serif; background: var(--bg); display: flex; flex-direction: column; min-height: 100vh; color: var(--dark); overflow-x: hidden; }
+        
+        .top-nav { width: 100%; padding: 0 20px; height: 70px; display: flex; justify-content: space-between; align-items: center; background: #ffffff; border-bottom: 3px solid var(--primary); position: sticky; top: 0; z-index: 1000; box-shadow: 0 2px 5px rgba(0,0,0,0.05); box-sizing: border-box; }
+        .logo-text { font-size: 18px; font-weight: 800; text-decoration: none; color: var(--dark); }
+        .logo-text span { color: var(--primary); }
+
+        .container { display: flex; flex: 1; min-height: calc(100vh - 70px); }
+        .sidebar { width: 260px; background: var(--dark); flex-shrink: 0; display: flex; flex-direction: column; height: calc(100vh - 70px); position: sticky; top: 70px; overflow-y: auto; }
+        .nav-links { display: flex; flex-direction: column; padding-top: 10px; flex-grow: 1; }
+        
+        .nav-item, .dropdown-btn { 
+            width: 100%; padding: 15px 20px; text-decoration: none; color: #cbd5e1; 
+            font-weight: 600; font-size: 11px; display: flex; justify-content: space-between; 
+            align-items: center; border-left: 4px solid transparent; transition: 0.3s; 
+            cursor: pointer; background: none; border: none; outline: none; box-sizing: border-box;
+            text-transform: uppercase; text-align: left;
+        }
+        .nav-item:hover, .dropdown-btn:hover { background: rgba(255,177,0,0.1); color: var(--primary); border-left-color: var(--primary); }
+        .dropdown-container { display: none; background-color: #111827; width: 100%; }
+        .dropdown-container a { padding: 12px 20px 12px 45px; text-decoration: none; color: #94a3b8; font-size: 10px; display: block; text-decoration: none; font-weight: 700; text-transform: uppercase; border-bottom: 1px solid rgba(255,255,255,0.02); }
+
+        .main { flex: 1; padding: 25px; box-sizing: border-box; width: 100%; }
+        .controls-card { background: white; padding: 20px; border-radius: 15px; margin-bottom: 20px; border: 1px solid var(--border); box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
+        .filter-grid { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr 0.6fr; gap: 10px; align-items: center; }
+        .search-input, .filter-select { width: 100%; padding: 10px; border-radius: 8px; border: 1.5px solid var(--border); outline: none; font-size: 12px; font-weight: 600; }
+
+        .table-container { background: white; border-radius: 15px; border: 1px solid var(--border); overflow-x: auto; box-shadow: 0 4px 6px rgba(0,0,0,0.02); }
+        table { width: 100%; border-collapse: collapse; min-width: 1200px; }
+        table th { background: #f8fafc; color: #64748b; padding: 15px; text-align: left; font-size: 10px; font-weight: 800; text-transform: uppercase; border-bottom: 2px solid #f1f5f9; }
+        table td { padding: 15px; border-bottom: 1px solid #f1f5f9; font-size: 13px; font-weight: 600; }
+
+        .badge { padding: 4px 10px; border-radius: 6px; font-size: 9px; font-weight: 800; text-transform: uppercase; }
+        .bg-Active { background: #dcfce7; color: #10b981; }
+        .bg-Deactive { background: #fee2e2; color: #ef4444; }
+        
+        .action-btn { border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 10px; font-weight: 800; transition: 0.2s; margin-right: 5px; text-transform: uppercase; }
+        .btn-edit { background: #eff6ff; color: #3b82f6; }
+        .btn-status-active { background: #fee2e2; color: var(--danger); }
+        .btn-status-deactive { background: #dcfce7; color: var(--success); }
+
+        .modal { display: none; position: fixed; z-index: 5000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); backdrop-filter: blur(5px); overflow-y: auto; padding: 20px 0; }
+        .modal-content { background: white; margin: auto; width: 850px; border-radius: 20px; padding: 30px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+        .edit-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; }
+        .form-group label { font-size: 9px; font-weight: 800; color: #64748b; text-transform: uppercase; display: block; margin-bottom: 5px; }
+        .form-group input, .form-group select { width: 100%; padding: 10px; border-radius: 8px; border: 1.5px solid var(--border); outline: none; font-size: 12px; font-weight: 600; box-sizing: border-box; }
+        .section-tag { grid-column: 1 / -1; font-size: 11px; font-weight: 900; color: var(--primary); margin-top: 15px; border-bottom: 1px solid #eee; padding-bottom: 5px; text-transform: uppercase; }
+        
+        .financial-card-box { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin-top: 5px; }
+        .fin-col-block { background: #f8fafc; border: 1px solid var(--border); padding: 15px; border-radius: 12px; display: flex; flex-direction: column; gap: 10px; }
+        .fin-col-block h5 { margin: 0 0 5px 0; text-transform: uppercase; font-size: 11px; font-weight: 900; color: #475569; border-bottom: 1px dashed #cbd5e1; padding-bottom: 4px; }
+    </style>
+</head>
+<body onload="fetchMasterData()">
+
+<div class="wrapper">
+    <nav class="top-nav">
+        <div class="logo-container"><a href="#" class="logo-text">MERCALIX <span>ENTERPRISE</span></a></div>
+        <div style="font-size: 11px; font-weight: 800; color: var(--success); background: #f0fdf4; padding: 5px 15px; border-radius: 20px;">REGISTRY_SECURED</div>
+    </nav>
+
+    <div class="container">
+        <aside class="sidebar">
+            <div class="nav-links">
+                <a href="branch_dashboard.html" class="nav-item">🏠 Dashboard</a>
+                
+                <button class="dropdown-btn" onclick="toggleSidebarDropdown(this)">👥 Employee Management <span>▼</span></button>
+                <div class="dropdown-container" style="display: block;">
+                    <a href="javascript:void(0)" onclick="validateAccess('workforce', 'add_emp.html')">➕ Add New Staff</a>
+                    <a href="javascript:void(0)" onclick="validateAccess('workforce', 'bulk_import.html')">📁 Bulk Import (Excel)</a>
+                    <a href="javascript:void(0)" onclick="validateAccess('workforce', 'employee-report.html')" style="color:var(--primary)">🔍 Employee Directory</a>
+                    <a href="javascript:void(0)" onclick="validateAccess('workforce', 'e_vault.html')">🔒 E-Vault Documents</a>
+                    <a href="javascript:void(0)" onclick="validateAccess('workforce', 'lifecycle.html')">🔄 Employee Lifecycle</a>
+                    <a href="javascript:void(0)" onclick="validateAccess('workforce', 'assets.html')">💻 Asset Tracking</a>
+                                    <a href="javascript:void(0)" onclick="validateAccess('workforce', 'hr_staff_directory.html')">📁 Workforce Directory</a>
+
+                </div>
+
+                <button class="dropdown-btn" onclick="toggleSidebarDropdown(this)">🕒 Attendance & Leaves <span>▼</span></button>
+                <div class="dropdown-container">
+                    <a href="javascript:void(0)" onclick="validateAccess('attendance', 'attendance-log.html')">📅 Daily Logs</a>
+                    <a href="javascript:void(0)" onclick="validateAccess('attendance', 'monthly-attendance.html')">📊 Monthly Report</a>
+                </div>
+
+                <button class="dropdown-btn" onclick="toggleSidebarDropdown(this)">💸 Payroll Engine <span>▼</span></button>
+                <div class="dropdown-container">
+                    <a href="javascript:void(0)" onclick="validateAccess('payroll', 'run-payroll.html')">🚀 Process Salary</a>
+                    <a href="javascript:void(0)" onclick="validateAccess('payroll', 'advance-requests.html')">💰 Advance Salary</a>
+                    <a href="javascript:void(0)" onclick="validateAccess('payroll', 'salary-slip.html')">📄 Generate Payslips</a>
+                    <a href="javascript:void(0)" onclick="validateAccess('payroll', 'export-attendance.html')">📄 Employee Data</a>
+                </div>
+
+                <a onclick="logout()" style="margin-top:auto; color:var(--danger); font-weight:900; font-size:11px; padding:20px; display:block; border-top: 1px solid #334155; cursor:pointer;">🔓 SECURE LOGOUT</a>
+            </div>
+        </aside>
+
+        <main class="main">
+            <div class="controls-card">
+                <div class="filter-grid">
+                    <input type="text" id="searchBox" class="search-input" placeholder="Search Name/ID..." oninput="applyFilters()">
+                    <select id="filterBranch" class="filter-select" onchange="applyFilters()"><option value="">All Branches</option></select>
+                    <select id="filterDept" class="filter-select" onchange="applyFilters()"><option value="">All Depts</option></select>
+                    <select id="filterStatus" class="filter-select" onchange="applyFilters()"><option value="">All Status</option><option value="Active">Active</option><option value="Deactive">Deactive</option></select>
+                    <button onclick="applyFilters()" style="background:var(--dark); color:var(--primary); border:none; padding:10px; border-radius:8px; font-weight:800; cursor:pointer;">🔍 Filter</button>
+                </div>
+            </div>
+
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Name</th>
+                            <th>Branch</th>
+                            <th>Department</th>
+                            <th>Designation</th>
+                            <th>Salary</th>
+                            <th>Status</th>
+                            <th style="text-align: center;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="masterTableBody"></tbody>
+                </table>
+            </div>
+        </main>
+    </div>
+</div>
+
+<div id="editModal" class="modal">
+    <div class="modal-content">
+        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid var(--primary); padding-bottom:10px; margin-bottom:20px;">
+            <h2 style="margin:0; font-size: 18px;">Master Registry Edit</h2>
+            <span onclick="closeEdit()" style="cursor:pointer; font-size: 24px;">&times;</span>
+        </div>
+        <div class="edit-grid">
+            <div class="section-tag">Status & Mobile</div>
+            <div class="form-group"><label>Employee ID</label><input type="text" id="editId" readonly style="background:#f1f5f9;"></div>
+            <div class="form-group"><label>Account Status</label><select id="editStatus"><option value="Active">Active</option><option value="Deactive">Deactive</option></select></div>
+            <div class="form-group"><label>Mobile Number</label><input type="tel" id="editMobile"></div>
+
+            <div class="section-tag">Professional Data</div>
+            <div class="form-group"><label>Full Name</label><input type="text" id="editName"></div>
+            <div class="form-group"><label>Assigned Branch</label><select id="editBranch"></select></div>
+            <div class="form-group"><label>Department</label><select id="editDept"></select></div>
+            <div class="form-group"><label>Designation</label><select id="editDesig"></select></div>
+            <div class="form-group"><label>Reporting Manager</label><select id="editManager"></select></div>
+            <div class="form-group"><label>Joining Date</label><input type="date" id="editDoj"></div>
+
+            <div class="section-tag">Leaves Parameters & Attendance Indicators</div>
+            <div class="form-group"><label>Paid Leaves / Pocket (PL)</label><input type="number" step="0.01" id="editPL"></div>
+            <div class="form-group"><label>Sick Leaves (SL)</label><input type="number" step="0.01" id="editSL"></div>
+            <div class="form-group"><label>Casual Leaves (CL)</label><input type="number" step="0.01" id="editCL"></div>
+            <div class="form-group"><label>LOP Leaves Count (Unpaid)</label><input type="number" id="editLop" value="0" oninput="runLiveFinancialEngine('salary')"></div>
+            <div class="form-group"><label>Month Total Days Block</label><input type="number" id="editMonthDays" value="30" oninput="runLiveFinancialEngine('salary')"></div>
+            
+            <div class="section-tag">Financial Salary Management Profile (HR Master Setup Panel)</div>
+            
+            <div style="grid-column: 1 / -1; padding: 15px; background: #fffbeb; border: 1.5px solid var(--primary); border-radius: 12px; margin-bottom: 10px;">
+                <div class="form-group" style="max-width: 400px; margin: 0;">
+                    <label style="color: #b45309; font-weight: 800; font-size: 10.5px;">📋 DESIGNATED APPOINTMENT FIXED SALARY / CTC (₹)</label>
+                    <input type="number" id="editSalary" oninput="runLiveFinancialEngine('salary')" style="border-color: var(--primary); font-size: 15px; font-weight: 800; padding: 12px; color: var(--dark);" placeholder="e.g. 38000">
+                </div>
+            </div>
+            
+            <div class="financial-card-box">
+                <!-- 1. MASTER SITE COLUMN -->
+                <div class="fin-col-block">
+                    <h5>* Master Site</h5>
+                    <div class="form-group">
+                        <label>Master Basic Salary (50%) (₹)</label>
+                        <input type="number" id="editMasterBasic" readonly style="background:#f1f5f9; font-weight:700;">
+                    </div>
+                    <div class="form-group">
+                        <label>Master HRA (25% OF BASIC) (₹)</label>
+                        <input type="number" id="editMasterHra" readonly style="background:#f1f5f9; font-weight:700;">
+                    </div>
+                    <div class="form-group">
+                        <label>Master Special Allowance (₹)</label>
+                        <input type="number" id="editMasterSpecial" readonly style="background:#f1f5f9; font-weight:700;">
+                    </div>
+                    <div class="form-group">
+                        <label>Total Master Earnings (Gross) (₹)</label>
+                        <input type="number" id="editMasterGross" readonly style="background:#e2e8f0; font-weight:800;">
+                    </div>
+                </div>
+
+                <!-- 2. ACTUAL SITE COLUMN -->
+                <div class="fin-col-block" style="background: #f0fdf4; border-color: var(--success);">
+                    <h5 style="color: var(--success); font-weight: 800;">* Actual Site (Attendance Auto-Driven)</h5>
+                    <div class="form-group">
+                        <label>Actual Core Basic Base (50%) (₹)</label>
+                        <input type="number" id="editActualBasic" readonly style="background:#fff; font-weight:700;">
+                    </div>
+                    <div class="form-group">
+                        <label>Actual HRA (25% Split Base) (₹)</label>
+                        <input type="number" id="editActualHra" readonly style="background:#fff; font-weight:700;">
+                    </div>
+                    <div class="form-group">
+                        <label>Actual Special Allowance (₹)</label>
+                        <input type="number" id="editActualSpecial" readonly style="background:#fff; font-weight:700;">
+                    </div>
+                    <div class="form-group">
+                        <label style="color:var(--success); font-weight:800;">Total Actual Month Gross (₹)</label>
+                        <input type="number" id="editActualGross" readonly style="background:#dcfce7; font-weight:800; color:var(--success);">
+                    </div>
+                </div>
+
+                <!-- 3. DEDUCTION SITE COLUMN -->
+                <div class="fin-col-block">
+                    <h5>* Deduction Site</h5>
+                    <div class="form-group">
+                        <label>Employee Contribution PF (₹)</label>
+                        <input type="number" id="editManualPf" value="1800" oninput="runLiveFinancialEngine('deduction')">
+                    </div>
+                    <div class="form-group">
+                        <label>PT Professional Tax (₹)</label>
+                        <input type="number" id="editManualPt" value="200" oninput="runLiveFinancialEngine('deduction')">
+                    </div>
+                    <div class="form-group">
+                        <label>Staff Medical (₹)</label>
+                        <input type="number" id="editManualMedical" value="0" oninput="runLiveFinancialEngine('deduction')">
+                    </div>
+                    <div class="form-group">
+                        <label style="color:var(--danger); font-weight: 800;">Total Deductions (₹)</label>
+                        <input type="number" id="editTotalDeductions" readonly style="background:#fee2e2; color:var(--danger); font-weight:800;">
+                    </div>
+                </div>
+            </div>
+
+            <div style="grid-column: 1 / -1; padding: 15px; background: #eff6ff; border: 1.5px solid var(--info); border-radius: 12px; margin-top: 10px; font-weight: 800; font-size: 14px; text-align: center; color: var(--dark);">
+                Final Net Pay for the Month: ₹ <span id="lblNetPayDisplay" style="color: var(--info); font-size: 16px;">0.00</span>
+            </div>
+
+        </div>
+        <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 30px;">
+            <button onclick="closeEdit()" style="padding: 12px 25px; border: none; background: #eee; border-radius: 10px; cursor:pointer;">Cancel</button>
+            <button id="saveBtn" onclick="saveChanges()" style="padding: 12px 40px; border: none; background: var(--dark); color: var(--primary); font-weight: 800; border-radius: 10px; cursor:pointer;">SAVE SYNC ✅</button>
+        </div>
+    </div>
+</div>
+
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyCkBeHploRe3UHq6ndukFUtfYc8sCkfx9g",
+  authDomain: "hrmsmercalixportal.firebaseapp.com",
+  projectId: "hrmsmercalixportal",
+  storageBucket: "hrmsmercalixportal.firebasestorage.app",
+  messagingSenderId: "126979860674",
+  appId: "1:126979860674:web:f486ad4b470b59189c735b",
+  measurementId: "G-EM1HY6T4NF"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+let masterData = [];
+
+// AUTOMATIC SYSTEM CALCULATION ENGINE BASED ON ATTENDANCE LOGIC
+function runLiveFinancialEngine(triggerType) {
+    const baselineSalary = parseFloat(document.getElementById("editSalary").value) || 0;
+    const totalDays = parseFloat(document.getElementById("editMonthDays").value) || 30;
+    const lopLeaves = parseFloat(document.getElementById("editLop").value) || 0;
+    
+    // 1. Calculate Master Metrics
+    let mBasic = Math.round(baselineSalary * 0.50);
+    let mHra = Math.round(mBasic * 0.50); // Twin mirror split ratio allocation
+    let mSpecial = baselineSalary - (mBasic + mHra); // Remaining special buffer matching
+    
+    if(mSpecial < 0 || baselineSalary === 0) mSpecial = 0;
+
+    document.getElementById("editMasterBasic").value = mBasic;
+    document.getElementById("editMasterHra").value = mHra;
+    document.getElementById("editMasterSpecial").value = mSpecial;
+    document.getElementById("editMasterGross").value = mBasic + mHra + mSpecial;
+
+    // 2. Compute Effective Workdays Actual Metrics
+    let effectiveWorkdays = totalDays - lopLeaves;
+    if(effectiveWorkdays < 0) effectiveWorkdays = 0;
+
+    let actGross = 0;
+    let actBasic = 0;
+    let actHra = 0;
+    let actSpecial = 0;
+
+    if (baselineSalary > 0 && totalDays > 0) {
+        // Calculate dynamic actual values according to real leaves penalty parameters
+        actGross = Math.round((baselineSalary / totalDays) * effectiveWorkdays);
+        actBasic = Math.round((mBasic / totalDays) * effectiveWorkdays);
+        actHra = Math.round((mHra / totalDays) * effectiveWorkdays);
+        actSpecial = actGross - (actBasic + actHra);
+    }
+
+    document.getElementById("editActualBasic").value = actBasic;
+    document.getElementById("editActualHra").value = actHra;
+    document.getElementById("editActualSpecial").value = actSpecial;
+    document.getElementById("editActualGross").value = actGross;
+
+    // 3. Deductions computation site calculation block
+    let pf = parseFloat(document.getElementById("editManualPf").value) || 0;
+    let pt = parseFloat(document.getElementById("editManualPt").value) || 0;
+    let medical = parseFloat(document.getElementById("editManualMedical").value) || 0;
+
+    const totalDeductions = pf + pt + medical;
+    document.getElementById("editTotalDeductions").value = totalDeductions;
+
+    // 4. Net Salary Output Render Display
+    let finalNetPay = actGross - totalDeductions;
+    if (finalNetPay < 0) finalNetPay = 0;
+    document.getElementById("lblNetPayDisplay").innerText = finalNetPay.toLocaleString('en-IN', { minimumFractionDigits: 2 });
+}
+
+async function fetchMasterData() {
+    const myCC = sessionStorage.getItem("companyCode");
+    syncDropdowns();
+
+    db.collection("employees").onSnapshot(snap => {
+        let tempEmps = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+        if (!myCC || myCC === "" || myCC === "null" || myCC === "GENERAL") {
+            masterData = tempEmps;
+        } else {
+            masterData = tempEmps.filter(e => e.companyCode === myCC);
+        }
+        renderTable(masterData);
+    });
+}
+
+function syncDropdowns() {
+    db.collection("branches").onSnapshot(snap => {
+        let opts = '<option value="">All Branches</option>';
+        snap.forEach(doc => opts += `<option value="${doc.data().name}">${doc.data().name}</option>`);
+        document.getElementById("filterBranch").innerHTML = opts;
+        document.getElementById("editBranch").innerHTML = opts;
+    });
+
+    db.collection("org_structure")
+      .where("type", "==", "Department")
+      .onSnapshot(snap => {
+        let dOpts = '<option value="">Select Dept</option>';
+        snap.forEach(doc => dOpts += `<option value="${doc.data().name}">${doc.data().name}</option>`);
+        document.getElementById("filterDept").innerHTML = dOpts;
+        document.getElementById("editDept").innerHTML = dOpts;
+    });
+
+    db.collection("org_structure")
+      .where("type", "==", "Manager")
+      .onSnapshot(snap => {
+        let mOpts = '<option value="">Select Manager</option>';
+        snap.forEach(doc => mOpts += `<option value="${doc.data().name}">${doc.data().name}</option>`);
+        document.getElementById("editManager").innerHTML = mOpts;
+    });
+
+    db.collection("org_structure").doc("designations").collection("list")
+      .onSnapshot(snap => {
+        let opts = '<option value="">Select Desig</option>';
+        snap.forEach(doc => opts += `<option value="${doc.data().name}">${doc.data().name}</option>`);
+        document.getElementById("editDesig").innerHTML = opts;
+    });
+}
+
+function renderTable(data) {
+    const tbody = document.getElementById("masterTableBody");
+    if (!tbody) return;
+    
+    tbody.innerHTML = data.map(emp => {
+        const statusBtnText = emp.status === "Active" ? "Deactivate" : "Activate";
+        const statusBtnClass = emp.status === "Active" ? "btn-status-active" : "btn-status-deactive";
+        
+        let displaySalary = emp.salary?.basic !== undefined ? emp.salary.basic : (parseFloat(emp.salary) || 0);
+
+        return `
+            <tr>
+                <td><b>${emp.id}</b></td>
+                <td>${emp.name}</td>
+                <td>${emp.branch || 'N/A'}</td>
+                <td>${emp.dept || 'N/A'}</td>
+                <td>${emp.desig || emp.designation || 'Staff'}</td>
+                <td>₹${displaySalary.toLocaleString()}</td>
+                <td><span class="badge bg-${emp.status}">${emp.status}</span></td>
+                <td align="center">
+                    <button class="action-btn btn-edit" onclick="openEdit('${emp.id}')">Edit</button>
+                    <button class="action-btn ${statusBtnClass}" onclick="toggleQuickStatus('${emp.id}', '${emp.status}')">${statusBtnText}</button>
+                </td>
+            </tr>
+        `;
+    }).join("");
+}
+
+async function toggleQuickStatus(id, currentStatus) {
+    const nextStatus = currentStatus === "Active" ? "Deactive" : "Active";
+    if(confirm(`Set status to ${nextStatus} for ID: ${id}?`)) {
+        const cleanId = id.replace(/\//g, "");
+        await db.collection("employees").doc(cleanId).update({ status: nextStatus });
+    }
+}
+
+function applyFilters() {
+    const search = document.getElementById("searchBox").value.toLowerCase();
+    const branch = document.getElementById("filterBranch").value;
+    const dept = document.getElementById("filterDept").value;
+    const status = document.getElementById("filterStatus").value;
+    const filtered = masterData.filter(e => {
+        const matchSearch = (!search || e.name.toLowerCase().includes(search) || e.id.toLowerCase().includes(search));
+        const matchBranch = (!branch || e.branch === branch);
+        const matchDept = (!dept || e.dept === dept);
+        const matchStatus = (!status || e.status === status);
+        return matchSearch && matchBranch && matchDept && matchStatus;
+    });
+    renderTable(filtered);
+}
+
+function openEdit(id) {
+    const emp = masterData.find(e => e.id === id);
+    if(!emp) return;
+    document.getElementById("editId").value = id;
+    document.getElementById("editName").value = emp.name;
+    document.getElementById("editStatus").value = emp.status || "Active";
+    document.getElementById("editMobile").value = emp.mobile || "";
+    document.getElementById("editBranch").value = emp.branch || "";
+    document.getElementById("editDept").value = emp.dept || "";
+    document.getElementById("editDesig").value = emp.desig || emp.designation || "";
+    document.getElementById("editManager").value = emp.reportingManager || "";
+    document.getElementById("editDoj").value = emp.doj || "";
+    
+    let currentPL = emp.pl !== undefined ? emp.pl : (emp.leaveBalance !== undefined ? emp.leaveBalance : 2.33);
+    document.getElementById("editPL").value = currentPL;
+    document.getElementById("editSL").value = emp.sl || 0;
+    document.getElementById("editCL").value = emp.cl || 0;
+    
+    document.getElementById("editLop").value = emp.attendanceIndicators?.lopLeaves || 0;
+    document.getElementById("editMonthDays").value = emp.attendanceIndicators?.monthTotalDays || 30;
+    
+    const baseSalary = emp.salary?.basic !== undefined ? emp.salary.basic : (parseFloat(emp.salary) || 0);
+    document.getElementById("editSalary").value = baseSalary;
+    
+    document.getElementById("editManualPf").value = emp.payroll?.pf !== undefined ? emp.payroll.pf : 1800;
+    document.getElementById("editManualPt").value = emp.payroll?.pt !== undefined ? emp.payroll.pt : 200;
+    document.getElementById("editManualMedical").value = emp.payroll?.medical !== undefined ? emp.payroll.medical : 0;
+
+    runLiveFinancialEngine('salary');
+    document.getElementById("editModal").style.display = "block";
+}
+
+function closeEdit() { document.getElementById("editModal").style.display = "none"; }
+
+async function saveChanges() {
+    const rawId = document.getElementById("editId").value; 
+    const cleanId = rawId.replace(/\//g, ""); 
+    
+    const btn = document.getElementById("saveBtn");
+    btn.disabled = true; btn.innerText = "SYNCING...";
+    
+    const finalSalaryBasic = parseFloat(document.getElementById("editSalary").value) || 0;
+    const finalPL = parseFloat(document.getElementById("editPL").value) || 0;
+
+    const mGross = parseFloat(document.getElementById("editMasterGross").value) || 0;
+    const aGross = parseFloat(document.getElementById("editActualGross").value) || 0;
+    const pfVal = parseFloat(document.getElementById("editManualPf").value) || 0;
+    const ptVal = parseFloat(document.getElementById("editManualPt").value) || 0;
+    const medVal = parseFloat(document.getElementById("editManualMedical").value) || 0;
+    const totDeductions = parseFloat(document.getElementById("editTotalDeductions").value) || 0;
+    
+    let calculatedNetPay = aGross - totDeductions;
+    if(calculatedNetPay < 0) calculatedNetPay = 0;
+
+    const updated = {
+        name: document.getElementById("editName").value,
+        status: document.getElementById("editStatus").value,
+        mobile: document.getElementById("editMobile").value,
+        branch: document.getElementById("editBranch").value,
+        dept: document.getElementById("editDept").value,
+        desig: document.getElementById("editDesig").value,
+        reportingManager: document.getElementById("editManager").value,
+        doj: document.getElementById("editDoj").value,
+        
+        pl: finalPL,
+        leaveBalance: finalPL, 
+        sl: parseFloat(document.getElementById("editSL").value) || 0,
+        cl: parseFloat(document.getElementById("editCL").value) || 0,
+        
+        // Dynamic attendance indicators tracking
+        "attendanceIndicators.lopLeaves": parseFloat(document.getElementById("editLop").value) || 0,
+        "attendanceIndicators.monthTotalDays": parseFloat(document.getElementById("editMonthDays").value) || 30,
+        "attendanceIndicators.effectiveWorkdays": (parseFloat(document.getElementById("editMonthDays").value) || 30) - (parseFloat(document.getElementById("editLop").value) || 0),
+
+        salary: finalSalaryBasic,
+        
+        // This direct synchronization fixes profile page input loading without [object Object] mismatch errors
+        "salary.basic": finalSalaryBasic,
+        "payroll.basic": finalSalaryBasic,
+        "payroll.masterBasic": parseFloat(document.getElementById("editMasterBasic").value) || 0,
+        "payroll.masterHra": parseFloat(document.getElementById("editMasterHra").value) || 0,
+        "payroll.masterSpecial": parseFloat(document.getElementById("editMasterSpecial").value) || 0,
+        "payroll.masterGross": mGross,
+        
+        "payroll.actualBasic": parseFloat(document.getElementById("editActualBasic").value) || 0,
+        "payroll.actualHra": parseFloat(document.getElementById("editActualHra").value) || 0,
+        "payroll.actualSpecial": parseFloat(document.getElementById("editActualSpecial").value) || 0,
+        "payroll.actualGross": aGross,
+        
+        "payroll.pf": pfVal,
+        "payroll.pt": ptVal,
+        "payroll.medical": medVal,
+        "payroll.totalDeductions": totDeductions,
+        "payroll.netPay": calculatedNetPay,
+        "payroll.ctc": mGross * 12
+    };
+
+    try {
+        await db.collection("employees").doc(cleanId).update(updated);
+        alert("Master Sync Successful! ✅ Profile Salary Matrix & Net Pay Updated.");
+        closeEdit();
+    } catch(e) { 
+        alert("Sync Error: " + e.message); 
+    }
+    finally { btn.disabled = false; btn.innerText = "SAVE SYNC ✅"; }
+}
+</script>
+</body>
+</html>

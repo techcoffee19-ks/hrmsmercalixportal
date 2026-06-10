@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Leave Intelligence | Mercalix Admin</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        :root { --primary: #ffb100; --dark: #1e293b; --success: #10b981; --danger: #ef4444; --warning: #f59e0b; --info: #3b82f6; --bg: #f1f5f9; }
+        body { margin: 0; font-family: 'Inter', 'Segoe UI', sans-serif; background: var(--bg); display: flex; flex-direction: column; min-height: 100vh; color: var(--dark); overflow-x: hidden; }
+        
+        .top-nav {
+            width: 100%; padding: 0 20px; height: 70px;
+            display: flex; justify-content: space-between; align-items: center;
+            background: #ffffff; border-bottom: 3px solid var(--primary);
+            position: sticky; top: 0; z-index: 1000; box-shadow: 0 2px 10px rgba(0,0,0,0.05); box-sizing: border-box;
+        }
+        .logo-container { display: flex; align-items: center; gap: 15px; }
+        .company-logo { height: 40px; border-radius: 5px; }
+        .logo-text { font-size: 18px; font-weight: 800; color: var(--dark); text-decoration: none; }
+        .logo-text span { color: var(--primary); }
+
+        .container { display: flex; flex: 1; flex-direction: row; }
+        
+        .sidebar { width: 250px; background: var(--dark); display: flex; flex-direction: column; box-shadow: 4px 0 10px rgba(0,0,0,0.1); flex-shrink: 0; }
+        .nav-links { display: flex; flex-direction: column; padding-top: 10px; flex-grow: 1; }
+        .sidebar a { padding: 15px 20px; text-decoration: none; color: #cbd5e1; font-weight: 500; font-size: 14px; border-left: 4px solid transparent; transition: 0.3s; cursor: pointer; }
+        .sidebar a:hover, .sidebar a.active { background: rgba(255,177,0,0.1); color: var(--primary); border-left-color: var(--primary); }
+        
+        .sidebar-footer { padding: 15px 0; border-top: 1px solid #334155; background: var(--dark); display: flex; flex-direction: column; }
+        .sidebar-footer a { padding: 12px 20px; color: var(--primary); font-weight: 800; font-size: 12px; text-decoration: none; }
+
+        .main { flex: 1; padding: 25px; width: 100%; box-sizing: border-box; }
+        
+        .header-section { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; }
+        .page-title { font-size: 22px; font-weight: 800; }
+
+        .range-navigator { 
+            display: flex; align-items: center; gap: 10px; background: white; 
+            padding: 8px 15px; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+        }
+        .nav-btn { border: none; background: #f1f5f9; color: var(--dark); padding: 5px 10px; border-radius: 6px; cursor: pointer; font-weight: 800; transition: 0.2s; }
+        .nav-btn:hover { background: var(--primary); color: white; }
+
+        .analytics-grid { display: grid; grid-template-columns: 1.5fr 1fr; gap: 20px; margin-bottom: 25px; }
+        .card { background: white; padding: 20px; border-radius: 16px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05); }
+        
+        .dept-stat-header { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; padding-bottom: 10px; border-bottom: 2px solid #f1f5f9; font-weight: 800; font-size: 11px; color: #94a3b8; text-transform: uppercase; }
+        .dept-stat-row { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; padding: 12px 0; border-bottom: 1px solid #f1f5f9; align-items: center; }
+        .dept-name { font-weight: 700; color: var(--dark); font-size: 13px; }
+        .count-badge { padding: 4px 10px; border-radius: 12px; font-weight: 800; font-size: 11px; text-align: center; }
+        .bg-total { background: #f1f5f9; color: var(--dark); }
+        .bg-leave { background: #fee2e2; color: var(--danger); }
+        .bg-duty { background: #dcfce7; color: var(--success); }
+
+        .planner-card { background: white; border-radius: 16px; border: 1px solid #e2e8f0; overflow: hidden; margin-bottom: 30px; }
+        .planner-header { background: #f8fafc; padding: 15px 20px; border-bottom: 1px solid #eee; font-weight: 800; font-size: 14px; display: flex; justify-content: space-between; }
+
+        table { width: 100%; border-collapse: collapse; }
+        th { text-align: left; padding: 12px 20px; font-size: 11px; color: #64748b; text-transform: uppercase; background: #f8fafc; }
+        td { padding: 12px 20px; border-bottom: 1px solid #f1f5f9; font-size: 13px; }
+        .badge { padding: 4px 10px; border-radius: 6px; font-size: 10px; font-weight: 800; text-transform: uppercase; }
+        .st-Pending { background: var(--warning); color: white; }
+        .st-Approved { background: var(--success); color: white; }
+        .st-Rejected { background: var(--danger); color: white; }
+
+        .footer { background: #ffffff; padding: 15px; text-align: center; font-size: 12px; font-weight: 600; border-top: 1px solid #e2e8f0; color: #64748b; margin-top: auto; }
+    </style>
+</head>
+<body onload="initAnalytics()">
+
+<nav class="top-nav">
+    <div class="logo-container">
+        <img src="https://api.pay2india.com/uploads/files/setting/logo1765020086879.jpeg" alt="Logo" class="company-logo">
+        <a href="#" class="logo-text"> <span></span></a>
+    </div>
+    <div id="liveTime" style="font-size: 12px; font-weight: 700; color: #64748b;"></div>
+</nav>
+
+<div class="container">
+    <div class="sidebar">
+        <div class="nav-links">
+            <a href="home_page.html">🏠 DASHBOARD</a>
+            <a href="add_emp.html">👤 STAFF MANAGEMENT</a>
+            <a href="employee-report.html">📋 MASTER REPORTS</a>
+            <a href="attendance-log.html">🕒 TIME LOGS</a>
+            <a href="salary.html">💸 PAYROLL ENGINE</a>
+            <a href="leave-analytics.html" class="active">📊 LEAVE INTELLIGENCE</a>
+        </div>
+        <div class="sidebar-footer">
+            <a onclick="logout()" class="btn-logout-text">🔓 SECURE LOGOUT</a>
+        </div>
+    </div>
+
+    <div class="main">
+        <div class="header-section">
+            <div class="page-title">Department Attendance Insight</div>
+            
+            <div class="range-navigator">
+                <button class="nav-btn" onclick="changeRange(-1)">&lt;</button>
+                <div style="font-size: 12px; font-weight: 800; min-width: 150px; text-align: center;">
+                    📅 <span id="periodText" style="color: var(--info);">...</span>
+                </div>
+                <button class="nav-btn" onclick="changeRange(1)">&gt;</button>
+            </div>
+        </div>
+
+        <div class="analytics-grid">
+            <div class="card">
+                <h3 style="margin-top:0; font-size: 15px; margin-bottom: 20px;">Dept Status (<span id="statusMonthLabel">Today</span>)</h3>
+                <div class="dept-stat-header">
+                    <div>Department</div>
+                    <div style="text-align:center">Total</div>
+                    <div style="text-align:center">On Leave</div>
+                    <div style="text-align:center">On Duty</div>
+                </div>
+                <div id="deptLoadContainer"></div>
+            </div>
+
+            <div class="card" style="display: flex; flex-direction: column; align-items: center; justify-content: center;">
+                <h3 style="margin-top:0; font-size: 13px; text-align: center;">Selected Range Trend</h3>
+                <div style="width: 100%; height: 200px;">
+                    <canvas id="leaveChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="planner-card">
+            <div class="planner-header" style="border-left: 5px solid var(--primary);">
+                <span>📅 <span id="table1Label">CURRENT MONTH</span> APPLICATIONS</span>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Staff Name</th>
+                        <th>Department</th>
+                        <th>Date</th>
+                        <th>Duration</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody id="currentMonthTable"></tbody>
+            </table>
+        </div>
+
+        <div class="planner-card">
+            <div class="planner-header">
+                <span>📋 <span id="table2Label">NEXT MONTH</span> ADVANCE PLANNER</span>
+                <span style="color: var(--success); font-size: 10px;">✔ ONLY APPROVED</span>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Employee</th>
+                        <th>Department</th>
+                        <th>Leave Period</th>
+                        <th>Days</th>
+                        <th>Category</th>
+                    </tr>
+                </thead>
+                <tbody id="nextMonthTable"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<footer class="footer">&copy; 2026 @ Mercalix AI | Intelligence Unit</footer>
+
+<script>
+// Is block ko replace karein
+const firebaseConfig = {
+  apiKey: "AIzaSyCkBeHploRe3UHq6ndukFUtfYc8sCkfx9g",
+  authDomain: "hrmsmercalixportal.firebaseapp.com",
+  projectId: "hrmsmercalixportal",
+  storageBucket: "hrmsmercalixportal.firebasestorage.app",
+  messagingSenderId: "126979860674",
+  appId: "1:126979860674:web:f486ad4b470b59189c735b",
+  measurementId: "G-EM1HY6T4NF"
+};
+
+// Initialize Firebase (Compat Version)
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+let allEmployees = [];
+let allLeaves = [];
+let leaveChartInstance = null;
+let baseDate = new Date(); // Analysis starts from this month
+
+async function initAnalytics() {
+    setInterval(() => { document.getElementById("liveTime").innerText = new Date().toLocaleString(); }, 1000);
+    
+    // 1. Fetch Employees
+    const empSnap = await db.collection("employees").get();
+    allEmployees = empSnap.docs.map(doc => doc.data());
+
+    // 2. Real-time Leaves Listener
+    db.collection("emp_leaves").orderBy("timestamp", "desc").onSnapshot(snap => {
+        allLeaves = snap.docs.map(doc => doc.data());
+        refreshDashboard();
+    });
+}
+
+function changeRange(offset) {
+    baseDate.setMonth(baseDate.getMonth() + offset);
+    refreshDashboard();
+}
+
+function refreshDashboard() {
+    const cm = baseDate.getMonth();
+    const cy = baseDate.getFullYear();
+    
+    const nextDate = new Date(cy, cm + 1, 1);
+    const nm = nextDate.getMonth();
+    const ny = nextDate.getFullYear();
+
+    const m1Name = baseDate.toLocaleString('default', { month: 'long' });
+    const m2Name = nextDate.toLocaleString('default', { month: 'long' });
+
+    document.getElementById("periodText").innerText = `${m1Name} & ${m2Name}`;
+    document.getElementById("statusMonthLabel").innerText = m1Name;
+    document.getElementById("table1Label").innerText = m1Name.toUpperCase();
+    document.getElementById("table2Label").innerText = m2Name.toUpperCase();
+
+    processAndDisplayData(cm, nm, cy, ny, m1Name, m2Name);
+}
+
+function processAndDisplayData(cm, nm, cy, ny, m1Label, m2Label) {
+    const currentTable = document.getElementById("currentMonthTable");
+    const nextTable = document.getElementById("nextMonthTable");
+    const loadContainer = document.getElementById("deptLoadContainer");
+    
+    currentTable.innerHTML = "";
+    nextTable.innerHTML = "";
+    loadContainer.innerHTML = "";
+
+    // Initialize Department Stats
+    let deptStats = {};
+    allEmployees.forEach(e => {
+        let d = e.designation || "General";
+        if(!deptStats[d]) deptStats[d] = { total: 0, leave: 0 };
+        deptStats[d].total++;
+    });
+
+    let chartData = { current: 0, next: 0 };
+
+    allLeaves.forEach(lv => {
+        const lvDate = new Date(lv.date);
+        const lMonth = lvDate.getMonth();
+        const lYear = lvDate.getFullYear();
+        const emp = allEmployees.find(e => e.id == lv.empId);
+        const dept = emp ? (emp.designation || "General") : "General";
+
+        // Filter for Month 1 (Base Month)
+        if(lMonth === cm && lYear === cy) {
+            chartData.current++;
+            if(lv.status === "Approved") {
+                if(deptStats[dept]) deptStats[dept].leave++;
+            }
+
+            currentTable.innerHTML += `<tr>
+                <td><b>${lv.empName}</b><br><small>ID: ${lv.empId}</small></td>
+                <td>${dept}</td>
+                <td>${lv.date}</td>
+                <td>${lv.days} Day(s)</td>
+                <td><span class="badge st-${lv.status}">${lv.status}</span></td>
+            </tr>`;
+        }
+
+        // Filter for Month 2 (Next Month - Approved Only)
+        if(lMonth === nm && lYear === ny && lv.status === "Approved") {
+            chartData.next++;
+            nextTable.innerHTML += `<tr>
+                <td><b>${lv.empName}</b></td>
+                <td>${dept}</td>
+                <td>${lv.date}</td>
+                <td>${lv.days} Day(s)</td>
+                <td>${lv.category}</td>
+            </tr>`;
+        }
+    });
+
+    // Display Heatmap
+    Object.keys(deptStats).sort().forEach(d => {
+        const total = deptStats[d].total;
+        const leave = deptStats[d].leave;
+        const duty = total - leave;
+
+        loadContainer.innerHTML += `
+            <div class="dept-stat-row">
+                <div class="dept-name">${d.toUpperCase()}</div>
+                <div style="text-align:center"><span class="count-badge bg-total">${total}</span></div>
+                <div style="text-align:center"><span class="count-badge bg-leave">${leave}</span></div>
+                <div style="text-align:center"><span class="count-badge bg-duty">${duty}</span></div>
+            </div>`;
+    });
+
+    if(!currentTable.innerHTML) currentTable.innerHTML = "<tr><td colspan='5' style='text-align:center'>No data for this period.</td></tr>";
+    if(!nextTable.innerHTML) nextTable.innerHTML = "<tr><td colspan='5' style='text-align:center'>No approved leaves.</td></tr>";
+
+    renderAnalyticsChart(chartData, m1Label, m2Label);
+}
+
+function renderAnalyticsChart(data, l1, l2) {
+    const ctx = document.getElementById('leaveChart').getContext('2d');
+    if (leaveChartInstance) leaveChartInstance.destroy();
+    
+    leaveChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: [l1, l2],
+            datasets: [{
+                data: [data.current, data.next],
+                backgroundColor: ['#ffb100', '#3b82f6'],
+                borderRadius: 10
+            }]
+        },
+        options: {
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: { 
+                y: { beginAtZero: true, grid: { display: false }, ticks: { stepSize: 1 } },
+                x: { grid: { display: false } }
+            }
+        }
+    });
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Manual Punch Entry | Mercalix Enterprise</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+
+    <style>
+        :root { --primary: #ffb100; --dark: #1e293b; --success: #10b981; --danger: #ef4444; --warning: #f59e0b; --info: #3b82f6; --bg: #f1f5f9; --border: #e2e8f0; }
+        body, html { margin: 0; padding: 0; height: 100%; font-family: 'Inter', sans-serif; background: var(--bg); color: var(--dark); overflow-x: hidden; }
+        .wrapper { display: flex; flex-direction: column; min-height: 100vh; }
+        
+        /* TOP NAV SYNCED */
+        .top-nav { width: 100%; padding: 0 20px; height: 70px; display: flex; justify-content: space-between; align-items: center; background: #ffffff; border-bottom: 3px solid var(--primary); position: sticky; top: 0; z-index: 1000; box-shadow: 0 2px 10px rgba(0,0,0,0.05); box-sizing: border-box; }
+        .logo-text { font-size: 18px; font-weight: 800; color: var(--dark); text-decoration: none; }
+        .logo-text span { color: var(--primary); }
+
+        .container { display: flex; flex: 1; min-height: calc(100vh - 70px); }
+        
+        /* SIDEBAR SYNCED & FIXED SIZE */
+        .sidebar { width: 250px; background: var(--dark); display: flex; flex-direction: column; flex-shrink: 0; }
+        .nav-links { display: flex; flex-direction: column; padding-top: 10px; flex-grow: 1; }
+        
+        /* Standard size for both Link and Dropdown Button */
+        .nav-item, .dropdown-btn { 
+            width: 100%; padding: 14px 20px; text-decoration: none; color: #cbd5e1; 
+            font-weight: 600; font-size: 11px; display: flex; justify-content: space-between; 
+            align-items: center; border-left: 3px solid transparent; transition: 0.3s; 
+            cursor: pointer; background: none; border: none; outline: none; box-sizing: border-box;
+            text-transform: uppercase; letter-spacing: 0.5px; text-align: left;
+        }
+        
+        .nav-item:hover, .dropdown-btn:hover, .active-link { 
+            background: rgba(255,177,0,0.1); color: var(--primary); border-left-color: var(--primary); 
+        }
+        
+        .dropdown-container { display: none; background-color: #16202e; padding-left: 0; }
+        .dropdown-container a { 
+            padding: 12px 20px 12px 45px; text-decoration: none; color: #94a3b8; 
+            font-size: 10px; display: block; transition: 0.2s; font-weight: 500;
+            text-transform: uppercase; border-bottom: 1px solid rgba(255,255,255,0.02);
+        }
+        .dropdown-container a:hover { color: var(--primary); background: rgba(255,255,255,0.02); }
+
+        /* MAIN UI - MANUAL PUNCH FORM */
+        .main { flex: 1; padding: 25px; box-sizing: border-box; }
+        .punch-card { background: white; border-radius: 15px; border: 1.5px solid var(--border); max-width: 600px; margin: 0 auto; box-shadow: 0 10px 25px rgba(0,0,0,0.05); overflow: hidden; }
+        .card-header { background: var(--dark); color: white; padding: 20px; text-align: center; }
+        .card-body { padding: 30px; }
+
+        .form-group { margin-bottom: 20px; }
+        .form-group label { display: block; font-size: 11px; font-weight: 800; color: #64748b; text-transform: uppercase; margin-bottom: 8px; }
+        .form-control { width: 100%; padding: 12px; border-radius: 8px; border: 1.5px solid var(--border); font-family: inherit; font-size: 14px; outline: none; transition: 0.3s; box-sizing: border-box; }
+        .form-control:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(255,177,0,0.1); }
+
+        .btn-submit { width: 100%; background: var(--primary); color: #000; border: none; padding: 15px; border-radius: 8px; font-weight: 800; font-size: 13px; text-transform: uppercase; cursor: pointer; transition: 0.3s; margin-top: 10px; }
+        .btn-submit:hover { background: #e69f00; transform: translateY(-2px); }
+
+        .footer { padding: 15px; text-align: center; font-size: 11px; color: #64748b; background: #fff; border-top: 1px solid #e2e8f0; }
+        
+        /* Search Result Preview */
+        #empPreview { background: #f8fafc; padding: 10px; border-radius: 8px; margin-top: 5px; display: none; align-items: center; gap: 10px; border: 1px solid var(--border); }
+        #empPreview img { width: 35px; height: 35px; border-radius: 50%; object-fit: cover; }
+    </style>
+</head>
+<body onload="checkLogin()">
+
+<div class="wrapper">
+    <nav class="top-nav">
+        <div class="logo-container"><a href="#" class="logo-text">MERCALIX <span>SYSTEM</span></a></div>
+        <div id="branchLabel" style="font-size: 10px; font-weight: 800; color: var(--success); background: #f0fdf4; padding: 6px 15px; border-radius: 20px;">ADMIN PRIVILEGE</div>
+    </nav>
+
+    <div class="container">
+        <aside class="sidebar">
+            <div class="nav-links">
+                <a href="branch_dashboard.html" class="nav-item">🏠 Dashboard</a>
+                
+                <button class="dropdown-btn" onclick="toggleSidebarDropdown(this)">👥 Employee Management <span>▼</span></button>
+                <div class="dropdown-container">
+                    <a href="add_emp.html">➕ Add New Staff</a>
+                    <a href="bulk_import.html">📁 Bulk Import (Excel)</a>
+                    <a href="employee-report.html">🔍 Employee Directory</a>
+                    <a href="e_vault.html">🔒 E-Vault (Documents)</a>
+                    <a href="lifecycle.html">🔄 Employee Lifecycle</a>
+                    <a href="assets.html">💻 Asset Tracking</a>
+                </div>
+
+                <button class="dropdown-btn active-link" onclick="toggleSidebarDropdown(this)">🕒 Attendance & Leaves <span>▼</span></button>
+                <div class="dropdown-container" style="display:block;">
+                    <a href="attendance-log.html">📅 Daily Attendance Logs</a>
+                    <a href="monthly-attendance.html">📊 Monthly Report</a>
+                    <a href="manual-punch.html" style="color:var(--primary)">✍️ Manual Punch entry</a>
+                    <a href="upcoming-leaves.html">🗓️ Upcoming Leaves</a>
+                    <a href="holidays.html">🗓️ Holiday Calendar</a>
+                </div>
+                
+                <a href="salary.html" class="nav-item">💸 Payroll Engine</a>
+
+                <button class="dropdown-btn" onclick="toggleSidebarDropdown(this)">📈 Advanced Reports <span>▼</span></button>
+                <div class="dropdown-container">
+                    <a href="branch-reports.html">🏢 Branch wise Report</a>
+                    <a href="audit-logs.html">🛡️ System Audit Logs</a>
+                </div>
+            </div>
+            
+            <div style="padding: 20px; border-top: 1px solid #334155;">
+                <a onclick="logout()" style="color:#ef4444; font-size:11px; font-weight:800; cursor:pointer; text-decoration:none; text-transform:uppercase;">🔓 Secure Logout</a>
+            </div>
+        </aside>
+
+        <main class="main">
+            <div class="punch-card">
+                <div class="card-header">
+                    <h2 style="margin:0; font-size:18px; font-weight:800; letter-spacing:1px;">MANUAL ATTENDANCE ENTRY</h2>
+                    <p style="margin:5px 0 0 0; font-size:10px; opacity:0.7;">Override biometric logs for regularization</p>
+                </div>
+                <div class="card-body">
+                    <div class="form-group">
+                        <label>Search Employee (ID or Name)</label>
+                        <input type="text" id="empSearch" class="form-control" placeholder="Type to search staff..." oninput="searchStaff()">
+                        <div id="empPreview">
+                            <img id="prevImg" src="" alt="">
+                            <span id="prevName" style="font-size:12px; font-weight:700;"></span>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Punch Type</label>
+                        <select id="punchType" class="form-control">
+                            <option value="IN">PUNCH IN (Entry)</option>
+                            <option value="OUT">PUNCH OUT (Exit)</option>
+                        </select>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                        <div class="form-group">
+                            <label>Punch Date</label>
+                            <input type="date" id="punchDate" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label>Punch Time</label>
+                            <input type="time" id="punchTime" class="form-control">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Reason for Manual Entry</label>
+                        <select id="reason" class="form-control">
+                            <option value="Device Failure">Device Failure</option>
+                            <option value="Field Work / On Duty">Field Work / On Duty</option>
+                            <option value="Forget to Punch">Forget to Punch</option>
+                            <option value="New Joining (No Bio)">New Joining (No Bio)</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+
+                    <button class="btn-submit" onclick="submitManualPunch()">Update Attendance Record</button>
+                </div>
+            </div>
+        </main>
+    </div>
+    <footer class="footer">© 2026 @ Mercalix Enterprise | Management Portal</footer>
+</div>
+
+<script>
+    // Is block ko replace karein
+const firebaseConfig = {
+  apiKey: "AIzaSyCkBeHploRe3UHq6ndukFUtfYc8sCkfx9g",
+  authDomain: "hrmsmercalixportal.firebaseapp.com",
+  projectId: "hrmsmercalixportal",
+  storageBucket: "hrmsmercalixportal.firebasestorage.app",
+  messagingSenderId: "126979860674",
+  appId: "1:126979860674:web:f486ad4b470b59189c735b",
+  measurementId: "G-EM1HY6T4NF"
+};
+
+// Initialize Firebase (Compat Version)
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+    let selectedEmp = null;
+
+    // FIXED SIDEBAR DROPDOWN LOGIC
+    function toggleSidebarDropdown(btn) {
+        const container = btn.nextElementSibling;
+        const isVisible = container.style.display === "block";
+        
+        document.querySelectorAll('.dropdown-container').forEach(el => el.style.display = 'none');
+        document.querySelectorAll('.dropdown-btn').forEach(el => el.classList.remove('active-link'));
+
+        if (!isVisible) {
+            container.style.display = "block";
+            btn.classList.add('active-link');
+        }
+    }
+
+    function checkLogin() {
+        if (sessionStorage.getItem("isLoggedIn") !== "true") { window.location.href = "login.html"; }
+        document.getElementById('punchDate').valueAsDate = new Date();
+    }
+
+    async function searchStaff() {
+        const val = document.getElementById("empSearch").value.trim().toLowerCase();
+        const preview = document.getElementById("empPreview");
+        
+        if(val.length < 3) { preview.style.display = "none"; return; }
+
+        const snap = await db.collection("employees").get();
+        const emp = snap.docs.find(doc => doc.id.toLowerCase() === val || doc.data().name.toLowerCase().includes(val));
+
+        if(emp) {
+            selectedEmp = { id: emp.id, ...emp.data() };
+            document.getElementById("prevImg").src = selectedEmp.profilePic || 'https://via.placeholder.com/50';
+            document.getElementById("prevName").innerText = selectedEmp.name + " (" + selectedEmp.id + ")";
+            preview.style.display = "flex";
+        }
+    }
+
+    async function submitManualPunch() {
+        if(!selectedEmp) return alert("Please select an employee first!");
+        
+        const type = document.getElementById("punchType").value;
+        const dateRaw = document.getElementById("punchDate").value; 
+        const time = document.getElementById("punchTime").value; 
+        const reason = document.getElementById("reason").value;
+
+        if(!dateRaw || !time) return alert("Please select Date and Time!");
+
+        const dateParts = dateRaw.split("-");
+        const formattedDate = `${dateParts[2]}-${dateParts[1]}-${dateParts[0]}`;
+
+        let [h, m] = time.split(":");
+        let ampm = h >= 12 ? 'PM' : 'AM';
+        h = h % 12 || 12;
+        const formattedTime = `${h}:${m} ${ampm}`;
+
+        try {
+            await db.collection("vc_logs").add({
+                id: selectedEmp.id,
+                name: selectedEmp.name,
+                branch: selectedEmp.branch,
+                type: type,
+                date: formattedDate,
+                time: formattedTime,
+                late: false,
+                photo: "https://cdn-icons-png.flaticon.com/512/1048/1048937.png",
+                locationName: "Manual: " + reason,
+                timestamp: firebase.firestore.FieldValue.serverTimestamp()
+            });
+
+            alert("Attendance Updated Successfully! ✅");
+            location.reload();
+        } catch(e) {
+            alert("Error updating record: " + e.message);
+        }
+    }
+
+    function logout() { sessionStorage.clear(); window.location.href = "login.html"; }
+</script>
+</body>
+</html>
