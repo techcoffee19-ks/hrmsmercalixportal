@@ -16,6 +16,7 @@
             --primary: #00d4ff; --dark: #002b3d; --bg: #f3f7f9; 
             --header: #1a1a1a; --white: #ffffff; --border: #e2e8f0;
             --success: #10b981; --danger: #ef4444; --orange: #fcc419;
+            --wfh: #a855f7;
         }
 
         body, html { font-family: 'Plus Jakarta Sans', sans-serif; background: var(--bg); margin: 0; padding: 0; height: 100vh; overflow: hidden; }
@@ -43,11 +44,11 @@
         .punch-in { color: var(--success); font-weight: 800; }
         .punch-out { color: var(--danger); font-weight: 800; }
         
-        .status-badge { padding: 5px 12px; border-radius: 20px; font-size: 9px; font-weight: 800; text-transform: uppercase; }
+        .status-badge { padding: 5px 12px; border-radius: 20px; font-size: 9px; font-weight: 800; text-transform: uppercase; display: inline-block; }
         .bg-ontime { background: #dcfce7; color: #15803d; }
         .bg-late { background: #fee2e2; color: #b91c1c; }
         
-        .btn-map { background: #f0faff; color: #008eba; padding: 6px 12px; border-radius: 8px; font-size: 9px; font-weight: 800; text-decoration: none; border: 1px solid #00d4ff; text-transform: uppercase; }
+        .btn-map { background: #f0faff; color: #008eba; padding: 6px 12px; border-radius: 8px; font-size: 9px; font-weight: 800; text-decoration: none; border: 1px solid #00d4ff; text-transform: uppercase; display: inline-block; }
         .emp-photo { width: 40px; height: 40px; border-radius: 10px; object-fit: cover; border: 1px solid var(--border); }
     </style>
 </head>
@@ -95,7 +96,7 @@
                                 <th>Entry Time</th>
                                 <th>Activity</th>
                                 <th>Status</th>
-                                <th>Geo Tag</th>
+                                <th>Geo Tag / Origin</th>
                             </tr>
                         </thead>
                         <tbody id="attTableBody">
@@ -107,8 +108,6 @@
         </div>
     </main>
 </div>
-
-<!-- Baki sara CSS aur Sidebar bilkul same rahega -->
 
 <script>
 const firebaseConfig = {
@@ -134,7 +133,6 @@ function setAutoMonth() {
 
 async function initCloudAttendance() {
     const empId = sessionStorage.getItem("employeeId") || sessionStorage.getItem("empId");
-    // ID normalize karna: Slash hatakar match karne ke liye
     const cleanId = empId ? empId.replace(/\//g, '') : "";
 
     if (!empId) { window.location.href = "login.html"; return; }
@@ -145,13 +143,11 @@ async function initCloudAttendance() {
         if(clock) clock.innerText = new Date().toLocaleTimeString(); 
     }, 1000);
 
-    // Filter updated: Original ID, Clean ID, aur empId teeno se check karega
     db.collection("vc_logs")
       .onSnapshot((snapshot) => {
         allMyLogs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
             .filter(l => l.id === empId || l.id === cleanId || l.empId === empId);
         
-        // Sorting: Latest attendance sabse upar dikhegi
         allMyLogs.sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
         
         applyFilters();
@@ -169,22 +165,36 @@ function applyFilters() {
     }
 
     tbody.innerHTML = filtered.map(log => {
-        // 1. Status Logic: Orange (Late Mark) and Green (On Time)
-        // Terminal (index.html) se aane wali 'late' field check hogi
         const isLate = log.late === true || log.status === "LATE MARK";
-        const statusHTML = log.type === "IN" ? 
-            (isLate ? `<span class="status-badge" style="background:#fff7ed; color:#f59e0b; border:1px solid #f59e0b;">LATE MARK</span>` : 
-                      `<span class="status-badge bg-ontime">ON TIME</span>`) : '--';
+        const cleanStatus = String(log.status || "").toUpperCase().trim();
         
-        // 2. Activity Logic: PUNCH undefined fix
+        // 1. Updated Status Badge Multi-logic for WFH & Office Status Elements
+        let statusHTML = '--';
+        if (log.type === "IN") {
+            if (log.wfhStatus === "Pending" || cleanStatus === "PENDING WFH APPROVAL") {
+                statusHTML = `<span class="status-badge" style="background:#f3e8ff; color:#7e22ce; border:1px solid #a855f7;"><i class="fas fa-hourglass-half"></i> PENDING WFH</span>`;
+            } else if (log.wfhStatus === "Approved" || cleanStatus === "WFH" || log.isWFH === true) {
+                statusHTML = `<span class="status-badge" style="background:#a855f7; color:white;"><i class="fas fa-home"></i> WFH APPROVED</span>`;
+            } else if (isLate) {
+                statusHTML = `<span class="status-badge" style="background:#fff7ed; color:#f59e0b; border:1px solid #f59e0b;">LATE MARK</span>`;
+            } else {
+                statusHTML = `<span class="status-badge bg-ontime">ON TIME</span>`;
+            }
+        }
+        
         const activityType = log.type ? log.type : "DATA";
         const activityClass = log.type === 'IN' ? 'punch-in' : 'punch-out';
 
-        // 3. Geo-tagging Logic: VIEW ON MAP fix
+        // 2. Updated Geo-tagging Matrix for Manual Punch / WFH Logs Elements
         let locHTML = '<span style="color:#94a3b8; font-size:10px;">GPS Restricted</span>';
-        if(log.lat && log.lat !== 0) {
+        
+        if (log.locationTag === "Manual Punch" || log.location === "Manual Punch") {
+            locHTML = `<span style="font-size:11px; color:var(--wfh); font-weight:800;"><i class="fas fa-fingerprint"></i> ✨ Manual Punch</span>`;
+        } else if (log.isWFH === true || log.location === "Work From Home") {
+            locHTML = `<span style="font-size:11px; color:#7e22ce; font-weight:700;"><i class="fas fa-house-user"></i> Remote Home Log</span>`;
+        } else if (log.lat && log.lat !== 0) {
             locHTML = `<a href="https://www.google.com/maps?q=${log.lat},${log.lng}" target="_blank" class="btn-map"><i class="fas fa-map-marker-alt"></i> View on Map</a>`;
-        } else if(log.location && log.location !== "Location Restricted") {
+        } else if (log.location && log.location !== "Location Restricted") {
             locHTML = `<span title="${log.location}" style="font-size:9px; color:var(--dark); cursor:help;"><i class="fas fa-map-pin"></i> Fixed: ${log.location.substring(0,15)}...</span>`;
         }
 

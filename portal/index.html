@@ -11,13 +11,14 @@
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap');
-        :root { --primary: #ffb100; --dark: #0f172a; }
+        :root { --primary: #ffb100; --dark: #0f172a; --wfh: #a855f7; }
         body { font-family: 'Inter', sans-serif; background: radial-gradient(circle at center, #1e293b 0%, #0f172a 100%); color: #e2e8f0; margin: 0; min-height: 100vh; overflow: hidden; }
         .top-nav { width: 100%; padding: 15px 40px; box-sizing: border-box; display: flex; justify-content: space-between; align-items: center; background: rgba(0, 0, 0, 0.4); backdrop-filter: blur(20px); border-bottom: 2px solid var(--primary); position: fixed; top: 0; z-index: 1000; }
         .logo-text { font-size: 20px; font-weight: 800; color: white; text-decoration: none; letter-spacing: 1px; }
         .logo-text span { color: var(--primary); }
         .glass-panel { background: rgba(30, 41, 59, 0.5); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.08); }
         .scanner-line { height: 4px; background: var(--primary); width: 100%; position: absolute; top: 0; box-shadow: 0 0 25px var(--primary); animation: scan 2.5s infinite ease-in-out; z-index: 30; }
+        .scanner-line.wfh-active { background: var(--wfh) !important; box-shadow: 0 0 25px var(--wfh) !important; }
         @keyframes scan { 0%, 100% { top: 5%; opacity: 0.2; } 50% { top: 95%; opacity: 1; } }
         #video-feed { transform: scaleX(-1); border-radius: 2rem; object-fit: cover; }
         .btn-punch { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); border-bottom-width: 6px; }
@@ -35,12 +36,12 @@
     </nav>
 
     <main class="flex-1 max-w-4xl mx-auto w-full p-6 flex flex-col items-center justify-center pt-28">
-        <div class="text-center mb-6">
+        <div class="text-center mb-4">
             <p id="cloud-status" class="text-amber-500 text-[10px] font-black uppercase tracking-[0.3em] mb-1">Neural Pulse: Initialising...</p>
             <h2 class="text-4xl font-black text-white tracking-tighter">ATTENDANCE <span class="text-slate-400">TERMINAL</span></h2>
         </div>
 
-        <div class="w-full relative glass-panel rounded-[3rem] p-4 border border-white/5 shadow-2xl aspect-video overflow-hidden mb-8">
+        <div class="w-full relative glass-panel rounded-[3rem] p-4 border border-white/5 shadow-2xl aspect-video overflow-hidden mb-4">
             <div id="scanner-line" class="scanner-line hidden"></div>
             <div id="scan-overlay" class="absolute inset-0 z-20 pointer-events-none flex items-center justify-center">
                 <div id="overlay-msg" class="px-10 py-5 rounded-3xl border-2 hidden text-sm font-black shadow-2xl backdrop-blur-2xl uppercase tracking-widest text-center"></div>
@@ -53,9 +54,24 @@
             </div>
         </div>
 
+        <div class="w-full max-w-xl mb-4 glass-panel p-4 rounded-2xl border border-white/5 flex flex-col gap-3">
+            <div class="flex items-center justify-between">
+                <label class="text-[10px] font-black tracking-widest text-slate-400 uppercase">Select Attendance Location Mode</label>
+                <select id="dutyLocationMode" onchange="toggleDutyLocationModeView()" class="bg-slate-900 border border-slate-700 text-amber-400 font-bold text-xs rounded-lg px-3 py-1.5 focus:outline-none focus:border-amber-500">
+                    <option value="OFFICE">🏢 Office Base (Default)</option>
+                    <option value="WFH">🏠 Work From Home (WFH)</option>
+                </select>
+            </div>
+            
+            <div id="wfhReasonContainer" class="hidden flex-col gap-1">
+                <label class="text-[10px] font-black tracking-widest text-purple-400 uppercase">Reason for Work From Home *</label>
+                <input type="text" id="wfhReasonInput" placeholder="e.g., Severe rainstorms / Client site meeting assignment" class="w-full bg-slate-950/80 border border-purple-500/30 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-purple-500 font-medium">
+            </div>
+        </div>
+
         <div class="flex gap-6 w-full max-w-xl">
-            <button onclick="triggerPunch('IN')" class="btn-punch flex-1 bg-emerald-500 text-emerald-950 font-black py-6 rounded-3xl text-2xl border-emerald-700 shadow-xl">PUNCH IN</button>
-            <button onclick="triggerPunch('OUT')" class="btn-punch flex-1 bg-rose-500 text-rose-950 font-black py-6 rounded-3xl text-2xl border-rose-700 shadow-xl">PUNCH OUT</button>
+            <button onclick="triggerPunch('IN')" class="btn-punch flex-1 bg-emerald-500 text-emerald-950 font-black py-5 rounded-3xl text-2xl border-emerald-700 shadow-xl">PUNCH IN</button>
+            <button onclick="triggerPunch('OUT')" class="btn-punch flex-1 bg-rose-500 text-rose-950 font-black py-5 rounded-3xl text-2xl border-rose-700 shadow-xl">PUNCH OUT</button>
         </div>
     </main>
 
@@ -80,6 +96,19 @@
 
         const video = document.getElementById('video-feed');
         const canvas = document.getElementById('capture-canvas');
+
+        function toggleDutyLocationModeView() {
+            const mode = document.getElementById("dutyLocationMode").value;
+            const container = document.getElementById("wfhReasonContainer");
+            if(mode === "WFH") {
+                container.classList.remove("hidden");
+                container.classList.add("flex");
+            } else {
+                container.classList.add("hidden");
+                container.classList.remove("flex");
+                document.getElementById("wfhReasonInput").value = "";
+            }
+        }
 
         async function initTerminal() { 
             setInterval(() => { document.getElementById('clock').innerText = new Date().toLocaleTimeString(); }, 1000);
@@ -109,7 +138,6 @@
 
         async function startCamera() {
             try { 
-                // Mobile processors par load kam karne aur speed ke liye resolution ko optimize kiya
                 activeStream = await navigator.mediaDevices.getUserMedia({ 
                     video: { 
                         facingMode: "user",
@@ -133,130 +161,148 @@
         }
 
         async function triggerPunch(type) {
-    if (!activeStream) return alert("Initialise Neural Link First");
-    const line = document.getElementById('scanner-line');
+            if (!activeStream) return alert("Initialise Neural Link First");
+            const line = document.getElementById('scanner-line');
+            const mode = document.getElementById("dutyLocationMode").value;
+            const wfhReason = document.getElementById("wfhReasonInput").value;
 
-    updateUI("SCANNING BIOMETRICS...<br><span class='text-[10px] text-amber-500'>VERIFYING IDENTITY & GPS</span>", "bg-slate-900 border-amber-500/50");
-    line.classList.remove('hidden');
-
-    try {
-        // Mobile speed ko 3x badhane ke liye TinyFaceDetectorOptions ka input size chota configure kiya
-        const faceOptions = new faceapi.TinyFaceDetectorOptions({ inputSize: 160, scoreThreshold: 0.5 });
-        const detection = await faceapi.detectSingleFace(video, faceOptions).withFaceLandmarks().withFaceDescriptor();
-        
-        if (!detection) {
-            line.classList.add('hidden');
-            return updateUI("FACE NOT DETECTED", "bg-rose-600");
-        }
-
-        let bestMatch = null;
-        let minDistance = 0.45;
-
-        biometricRegistry.forEach(user => {
-            const dist = faceapi.euclideanDistance(detection.descriptor, new Float32Array(user.descriptor));
-            if (dist < minDistance) { minDistance = dist; bestMatch = user; }
-        });
-
-        if (bestMatch) {
-            // --- MANDATORY LOCATION LOGIC ---
-            const coords = await new Promise((resolve) => {
-                navigator.geolocation.getCurrentPosition(
-                    (p) => resolve({ lat: p.coords.latitude, lng: p.coords.longitude }),
-                    (e) => resolve(null), 
-                    { enableHighAccuracy: true, timeout: 6000 } 
-                );
-            });
-
-            if (!coords || coords.lat === 0) {
-                line.classList.add('hidden');
-                return updateUI("ACCESS DENIED<br><span class='text-[10px] text-rose-300'>GPS LOCATION REQUIRED TO PUNCH</span>", "bg-rose-800");
+            if (mode === "WFH" && !wfhReason.trim()) {
+                return alert("⚠️ Reason required! Please fill in why you are working from home before scanning.");
             }
 
-            const todayStr = new Date().toLocaleDateString('en-GB').replace(/\//g, '-');
-            
-            // --- INDEX-FREE SEQUENCE CHECK ---
-            const logsSnap = await db.collection("vc_logs")
-                .where("id", "==", String(bestMatch.id))
-                .where("date", "==", todayStr)
-                .get();
+            // Purple scanner color transition if WFH selected
+            if (mode === "WFH") line.classList.add("wfh-active");
+            else line.classList.remove("wfh-active");
 
-            let allLogs = [];
-            logsSnap.forEach(doc => allLogs.push(doc.data()));
-            allLogs.sort((a, b) => b.timestamp - a.timestamp);
-            
-            const lastLog = allLogs[0]; 
-            const lastType = lastLog ? lastLog.type : null;
+            updateUI("SCANNING BIOMETRICS...<br><span class='text-[10px] text-amber-500'>VERIFYING IDENTITY & GPS</span>", "bg-slate-900 border-amber-500/50");
+            line.classList.remove('hidden');
 
-            if (type === "IN" && lastType === "IN") {
+            try {
+                const faceOptions = new faceapi.TinyFaceDetectorOptions({ inputSize: 160, scoreThreshold: 0.5 });
+                const detection = await faceapi.detectSingleFace(video, faceOptions).withFaceLandmarks().withFaceDescriptor();
+                
+                if (!detection) {
+                    line.classList.add('hidden');
+                    return updateUI("FACE NOT DETECTED", "bg-rose-600");
+                }
+
+                let bestMatch = null;
+                let minDistance = 0.45;
+
+                biometricRegistry.forEach(user => {
+                    const dist = faceapi.euclideanDistance(detection.descriptor, new Float32Array(user.descriptor));
+                    if (dist < minDistance) { minDistance = dist; bestMatch = user; }
+                });
+
+                if (bestMatch) {
+                    const coords = await new Promise((resolve) => {
+                        navigator.geolocation.getCurrentPosition(
+                            (p) => resolve({ lat: p.coords.latitude, lng: p.coords.longitude }),
+                            (e) => resolve(null), 
+                            { enableHighAccuracy: true, timeout: 6000 } 
+                        );
+                    });
+
+                    if (!coords || coords.lat === 0) {
+                        line.classList.add('hidden');
+                        return updateUI("ACCESS DENIED<br><span class='text-[10px] text-rose-300'>GPS LOCATION REQUIRED TO PUNCH</span>", "bg-rose-800");
+                    }
+
+                    const todayStr = new Date().toLocaleDateString('en-GB').replace(/\//g, '-');
+                    
+                    const logsSnap = await db.collection("vc_logs")
+                        .where("id", "==", String(bestMatch.id))
+                        .where("date", "==", todayStr)
+                        .get();
+
+                    let allLogs = [];
+                    logsSnap.forEach(doc => allLogs.push(doc.data()));
+                    allLogs.sort((a, b) => b.timestamp - a.timestamp);
+                    
+                    const lastLog = allLogs[0]; 
+                    const lastType = lastLog ? lastLog.type : null;
+
+                    if (type === "IN" && lastType === "IN") {
+                        line.classList.add('hidden');
+                        return updateUI(`ALREADY PUNCHED IN<br><span class='text-[10px] text-amber-500'>PLEASE PUNCH OUT FIRST</span>`, "bg-amber-600");
+                    } 
+                    if (type === "OUT" && (!lastType || lastType === "OUT")) {
+                        line.classList.add('hidden');
+                        return updateUI(`PUNCH IN FIRST<br><span class='text-[10px] text-amber-500'>NO ACTIVE SESSION FOUND</span>`, "bg-amber-600");
+                    }
+
+                    updateUI(`IDENTITY: ${bestMatch.name.toUpperCase()}<br><span class='text-[10px] text-emerald-400'>SECURE SYNC IN PROGRESS...</span>`, "bg-slate-900 border-emerald-500/50");
+                    
+                    const addr = await getAddressFromCoords(coords.lat, coords.lng);
+                    await finalizePunch(bestMatch, type, coords.lat, coords.lng, addr, mode, wfhReason);
+
+                } else {
+                    line.classList.add('hidden');
+                    updateUI("IDENTITY UNKNOWN", "bg-rose-700");
+                }
+            } catch (err) { 
+                console.error("Critical Sync Error:", err);
+                updateUI("SYNC BUSY - RETRY", "bg-slate-800"); 
+            } finally {
                 line.classList.add('hidden');
-                return updateUI(`ALREADY PUNCHED IN<br><span class='text-[10px] text-amber-500'>PLEASE PUNCH OUT FIRST</span>`, "bg-amber-600");
-            } 
-            if (type === "OUT" && (!lastType || lastType === "OUT")) {
-                line.classList.add('hidden');
-                return updateUI(`PUNCH IN FIRST<br><span class='text-[10px] text-amber-500'>NO ACTIVE SESSION FOUND</span>`, "bg-amber-600");
             }
+        }
 
-            // --- FINAL EXECUTION ---
-            updateUI(`IDENTITY: ${bestMatch.name.toUpperCase()}<br><span class='text-[10px] text-emerald-400'>SECURE SYNC IN PROGRESS...</span>`, "bg-slate-900 border-emerald-500/50");
+        async function finalizePunch(user, type, lat, lng, addr, mode, wfhReason) {
+            const now = new Date();
+            const dateStr = now.toLocaleDateString('en-GB').replace(/\//g, '-');
+            const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+
+            let isLate = false;
+            let punchStatus = "ON TIME";
+            const officeDeadline = 10.0; 
+
+            if (type === "IN" && mode !== "WFH") {
+                const currentTimeDecimal = now.getHours() + (now.getMinutes() / 60);
+                if (currentTimeDecimal > officeDeadline) { 
+                    isLate = true; 
+                    punchStatus = "LATE MARK"; 
+                }
+            }
             
-            const addr = await getAddressFromCoords(coords.lat, coords.lng);
-            await finalizePunch(bestMatch, type, coords.lat, coords.lng, addr);
+            // If checking WFH mode active, rewrite status codes mapping configurations
+            if (mode === "WFH") {
+                punchStatus = "PENDING WFH APPROVAL";
+            }
+            
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0, 640, 480);
+            const photoData = canvas.toDataURL('image/jpeg', 0.1); 
 
-        } else {
-            line.classList.add('hidden');
-            updateUI("IDENTITY UNKNOWN", "bg-rose-700");
+            try {
+                await db.collection("vc_logs").add({
+                    id: String(user.id), 
+                    empId: String(user.id), 
+                    name: String(user.name),
+                    companyCode: String(user.companyCode || terminalCC),
+                    type: String(type),
+                    date: String(dateStr),
+                    time: String(timeStr),
+                    late: isLate,
+                    status: punchStatus,
+                    photo: photoData,
+                    lat: Number(lat),
+                    lng: Number(lng),
+                    location: mode === "WFH" ? "Work From Home" : String(addr),
+                    isWFH: mode === "WFH",
+                    wfhReason: mode === "WFH" ? String(wfhReason) : "",
+                    wfhStatus: mode === "WFH" ? "Pending" : "Approved",
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                
+                const uiColor = mode === "WFH" ? "bg-purple-600" : (isLate ? "bg-orange-500" : "bg-emerald-500");
+                const uiMsg = mode === "WFH" ? 
+                    `WFH REQUEST FILED: ${user.name.toUpperCase()}<br><span style="font-size:11px;">AWAITING ADMIN APPROVAL LOCK</span>` :
+                    `GREETINGS: ${user.name.toUpperCase()}<br><span style="font-size:12px;">STATUS: ${punchStatus} | GPS OK</span>`;
+                
+                updateUI(uiMsg, uiColor);
+            } catch (e) { updateUI("CLOUD SYNC ERROR", "bg-rose-800"); }
         }
-    } catch (err) { 
-        console.error("Critical Sync Error:", err);
-        updateUI("SYNC BUSY - RETRY", "bg-slate-800"); 
-    } finally {
-        line.classList.add('hidden');
-    }
-}
-
-async function finalizePunch(user, type, lat, lng, addr) {
-    const now = new Date();
-    const dateStr = now.toLocaleDateString('en-GB').replace(/\//g, '-');
-    const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
-
-    let isLate = false;
-    let punchStatus = "ON TIME";
-    const officeDeadline = 10.0; 
-
-    if (type === "IN") {
-        const currentTimeDecimal = now.getHours() + (now.getMinutes() / 60);
-        if (currentTimeDecimal > officeDeadline) { 
-            isLate = true; 
-            punchStatus = "LATE MARK"; 
-        }
-    }
-    
-    const ctx = canvas.getContext('2d');
-    ctx.drawImage(video, 0, 0, 640, 480);
-    const photoData = canvas.toDataURL('image/jpeg', 0.1); 
-
-    try {
-        await db.collection("vc_logs").add({
-            id: String(user.id), 
-            empId: String(user.id), 
-            name: String(user.name),
-            companyCode: String(user.companyCode || terminalCC),
-            type: String(type),
-            date: String(dateStr),
-            time: String(timeStr),
-            late: isLate,
-            status: punchStatus,
-            photo: photoData,
-            lat: Number(lat),
-            lng: Number(lng),
-            location: String(addr),
-            timestamp: firebase.firestore.FieldValue.serverTimestamp()
-        });
-        
-        const uiColor = isLate ? "bg-orange-500" : "bg-emerald-500";
-        updateUI(`GREETINGS: ${user.name.toUpperCase()}<br><span style="font-size:12px;">STATUS: ${punchStatus} | GPS OK</span>`, uiColor);
-    } catch (e) { updateUI("CLOUD SYNC ERROR", "bg-rose-800"); }
-}
 
         function updateUI(txt, cls) {
             const el = document.getElementById('overlay-msg');

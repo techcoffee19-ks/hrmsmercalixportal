@@ -27,6 +27,8 @@
             --blue: #3b82f6;
             --blue-light: #eff6ff;
             --white: #ffffff;
+            --wfh: #a855f7;
+            --wfh-light: #f3e8ff;
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -177,11 +179,11 @@
         }
         .btn-export:hover { opacity: 0.9; }
 
-        /* Metric Widgets Grid (6 Cards for precise tracking) */
-        .grid-6 {
+        /* ─── 🆕 UPGRADED STRUCTURAL GRID FROM 6 TO 7 COLUMNS FOR WFH CARD INJECTION ─── */
+        .grid-7 {
             display: grid;
-            grid-template-columns: repeat(6, 1fr);
-            gap: 15px;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 12px;
             margin-bottom: 30px;
         }
 
@@ -308,6 +310,7 @@
         .badge-danger { background: var(--danger-light); color: var(--danger); }
         .badge-warning { background: var(--primary-light); color: #b45309; }
         .badge-blue { background: var(--blue-light); color: var(--blue); }
+        .badge-wfh { background: var(--wfh-light); color: var(--wfh); }
 
         .btn-action-view {
             padding: 4px 8px;
@@ -403,7 +406,7 @@
             </div>
         </div>
 
-        <div class="grid-6">
+        <div class="grid-7">
             <div class="metric-card">
                 <h5>Effective Workdays</h5>
                 <span id="metricWorkdays" class="val">0</span>
@@ -413,6 +416,11 @@
                 <h5>Total Present</h5>
                 <span id="metricPresent" class="val" style="color: var(--success);">0</span>
                 <i class="fas fa-user-check"></i>
+            </div>
+            <div class="metric-card" style="border-bottom: 3px solid var(--wfh);">
+                <h5 style="color:var(--wfh);">WFH Approved</h5>
+                <span id="metricWFH" class="val" style="color: var(--wfh);">0</span>
+                <i class="fas fa-home" style="color:#f3e8ff;"></i>
             </div>
             <div class="metric-card">
                 <h5>Total Absent</h5>
@@ -595,6 +603,7 @@ let presentDaysCount = 0;
 let absentDaysCount = 0;
 let lateDaysCount = 0;
 let totalLeavesCount = 0;
+let wfhDaysCount = 0; // 🆕 WFH Global Counter Initialization Node
 
 // Dynamic Object structure for month-wise bifurcation inside Javascript memory
 let monthWiseBifurcationMap = {};
@@ -673,6 +682,7 @@ function syncMonthlyMetrics() {
     presentDaysCount = 0;
     absentDaysCount = 0;
     lateDaysCount = 0;
+    wfhDaysCount = 0; // 🆕 Reset counter loops parameter
     let effectiveWorkdays = 0;
     let combinedProductiveHours = 0;
 
@@ -686,7 +696,8 @@ function syncMonthlyMetrics() {
             monthLabel: `${monthNamesIndex[currentM]} ${currentY}`,
             present: 0,
             absent: 0,
-            late: 0
+            late: 0,
+            wfh: 0 // 🆕 Add structure mapping into memory arrays
         };
         currentM++;
         if (currentM > 12) {
@@ -705,10 +716,13 @@ function syncMonthlyMetrics() {
                 const uniqueKey = `${logYearInt}-${String(logMonthInt).padStart(2, '0')}`;
                 
                 if (monthWiseBifurcationMap[uniqueKey]) {
-                    const statusValue = String(manualLogsMap[logDateKey]).toUpperCase();
+                    const statusValue = String(manualLogsMap[logDateKey]).toUpperCase().trim();
                     if(statusValue === "ABSENT") {
                         absentDaysCount++;
                         monthWiseBifurcationMap[uniqueKey].absent++;
+                    } else if(statusValue === "WFH" || statusValue === "WORK FROM HOME") {
+                        wfhDaysCount++;
+                        monthWiseBifurcationMap[uniqueKey].wfh++;
                     }
                 }
             }
@@ -739,6 +753,7 @@ function syncMonthlyMetrics() {
                                 in: "---", 
                                 out: "---", 
                                 late: false, 
+                                isWFHLog: false, // 🆕 Add WFH logical flag inside memory objects
                                 geo: "N/A", 
                                 rawHours: 0, 
                                 yearSort: currentLogYear,
@@ -747,9 +762,16 @@ function syncMonthlyMetrics() {
                                 monthKey: uniqueKey
                             };
                         }
+                        
+                        const rawStatus = String(logData.status || "").toUpperCase().trim();
+                        // 🆕 Validate remote punch in states tracking pointers
+                        if (logData.isWFH === true || logData.wfhStatus === "Approved" || rawStatus === "WFH") {
+                            organizedDailyLogsMap[targetDay].isWFHLog = true;
+                        }
+
                         if (logData.type === "IN") {
                             organizedDailyLogsMap[targetDay].in = logData.time;
-                            organizedDailyLogsMap[targetDay].geo = logData.location || "Office Desk Area";
+                            organizedDailyLogsMap[targetDay].geo = logData.location || (organizedDailyLogsMap[targetDay].isWFHLog ? "Remote Location" : "Office Desk Area");
                             if (logData.late === true || logData.late === "true" || logData.status === "LATE") {
                                 organizedDailyLogsMap[targetDay].late = true;
                             }
@@ -779,11 +801,19 @@ function syncMonthlyMetrics() {
         } else {
             sortedDaysKeys.forEach(dayKey => {
                 const dayObj = organizedDailyLogsMap[dayKey];
-                presentDaysCount++; 
+                
+                // 🆕 IF DETECTED BIOMETRIC REMOTE WFH PUNCH INCREMENT CORRESPONDING COMPONENT BOARDS
+                if (dayObj.isWFHLog) {
+                    wfhDaysCount++;
+                    if(monthWiseBifurcationMap[dayObj.monthKey]) monthWiseBifurcationMap[dayObj.monthKey].wfh++;
+                } else {
+                    presentDaysCount++; 
+                    if(monthWiseBifurcationMap[dayObj.monthKey]) monthWiseBifurcationMap[dayObj.monthKey].present++;
+                }
+
                 effectiveWorkdays++;
                 
-                if(monthWiseBifurcationMap[dayObj.monthKey]) {
-                    monthWiseBifurcationMap[dayObj.monthKey].present++;
+                if(monthWiseBifurcationMap[dayObj.monthKey] && !dayObj.isWFHLog) {
                     if (dayObj.late) {
                         lateDaysCount++;
                         monthWiseBifurcationMap[dayObj.monthKey].late++;
@@ -804,22 +834,28 @@ function syncMonthlyMetrics() {
 
                 monthlyLogsStore.push(dayObj);
 
+                // UI Table Row creation with custom localization badges for WFH entries
                 const row = document.createElement("tr");
+                let inBadgeClass = dayObj.isWFHLog ? "badge-wfh" : "badge-success";
+                let inBadgeText = dayObj.isWFHLog ? `<i class="fa fa-home"></i> ${dayObj.in}` : dayObj.in;
+
                 row.innerHTML = `
                     <td><b>${dayObj.date}</b></td>
-                    <td><span class="badge badge-success">${dayObj.in}</span></td>
+                    <td><span class="badge ${inBadgeClass}">${inBadgeText}</span></td>
                     <td><span class="badge badge-blue">${dayObj.out}</span></td>
                     <td><span class="badge ${dayObj.rawHours >= 8 ? 'badge-success' : 'badge-warning'}">${calculatedHoursString}</span></td>
-                    <td><small style="font-size:11px; font-weight:600;"><i class="fas fa-map-marker-alt text-danger"></i> ${dayObj.geo}</small></td>
+                    <td><small style="font-size:11px; font-weight:600;"><i class="fas fa-map-marker-alt ${dayObj.isWFHLog ? 'text-purple' : 'text-danger'}"></i> ${dayObj.geo}</small></td>
                 `;
                 attendanceRowContainer.appendChild(row);
             });
         }
 
-        effectiveWorkdays = presentDaysCount + absentDaysCount;
+        // Restructure dynamic total parameters: Effective matching calculation blocks
+        effectiveWorkdays = presentDaysCount + wfhDaysCount + absentDaysCount;
 
         document.getElementById("metricWorkdays").innerText = effectiveWorkdays;
         document.getElementById("metricPresent").innerText = presentDaysCount;
+        document.getElementById("metricWFH").innerText = wfhDaysCount; // 🆕 Flush value into live viewport cards
         document.getElementById("metricAbsent").innerText = absentDaysCount;
         document.getElementById("metricLates").innerText = lateDaysCount;
         document.getElementById("metricHours").innerText = `${combinedProductiveHours.toFixed(1)} Hrs`;
@@ -850,8 +886,9 @@ function syncMonthlyMetrics() {
         document.getElementById("payBonus").innerText = "₹ " + (normalizedNetCalculatedPay * 0.1).toLocaleString('en-IN');
 
         let calculatedEfficiencyPercentage = 100;
-        if (presentDaysCount > 0) {
-            const lateDeductionRatio = (lateDaysCount / presentDaysCount) * 40;
+        let activePerformanceDays = presentDaysCount + wfhDaysCount;
+        if (activePerformanceDays > 0) {
+            const lateDeductionRatio = (lateDaysCount / activePerformanceDays) * 40;
             calculatedEfficiencyPercentage = Math.round(Math.max(15, 100 - lateDeductionRatio));
         } else if (absentDaysCount > 0) {
             calculatedEfficiencyPercentage = 0;
@@ -939,7 +976,6 @@ function updateEfficiencyGaugeWidget(score) {
     });
 }
 
-// ─── 🌟 EXCEL EXPORT ENGINE WITH MONTH WISE BIFURCATION FOR MAIN BOSS 🌟 ───
 function exportDataToExcel() {
     const fromText = document.getElementById("filterMonthFrom").options[document.getElementById("filterMonthFrom").selectedIndex].text;
     const fromYear = document.getElementById("filterYearFrom").value;
@@ -960,10 +996,12 @@ function exportDataToExcel() {
     matrix.push([]); 
 
     matrix.push(["2. AGGREGATED RANGE ATTENDANCE METRICS COUNTER SUMMARY"]);
-    matrix.push(["Effective Workdays", "Total Present Days", "Total Absent Days", "Total Late Mark Marks", "Productive Duty Hours Worked", "Net Calculated Disbursed Salary"]);
+    // ─── 🆕 INJECT WFH EXTRACTOR CELL VALUES INTO EXCEL SHEET DATA MATRIX ARRAY ───
+    matrix.push(["Effective Workdays", "Office Present Days", "WFH Approved Days", "Total Absent Days", "Total Late Mark Marks", "Productive Duty Hours Worked", "Net Calculated Disbursed Salary"]);
     matrix.push([
         document.getElementById("metricWorkdays").innerText,
         presentDaysCount,
+        wfhDaysCount,
         absentDaysCount,
         lateDaysCount,
         document.getElementById("metricHours").innerText,
@@ -979,11 +1017,18 @@ function exportDataToExcel() {
     });
     matrix.push(headersRow);
 
-    let presentRow = ["Present Days"];
+    let presentRow = ["Office Present Days"];
     Object.keys(monthWiseBifurcationMap).forEach(key => {
         presentRow.push(monthWiseBifurcationMap[key].present);
     });
     matrix.push(presentRow);
+
+    // ─── 🆕 RENDER WFH DATA SUB SECTION ROW SPLIT CHANNELS FOR SHEETS EXPORT ───
+    let wfhRow = ["WFH Approved Days"];
+    Object.keys(monthWiseBifurcationMap).forEach(key => {
+        wfhRow.push(monthWiseBifurcationMap[key].wfh);
+    });
+    matrix.push(wfhRow);
 
     let absentRow = ["Absent Days"];
     Object.keys(monthWiseBifurcationMap).forEach(key => {
@@ -1018,7 +1063,7 @@ function exportDataToExcel() {
                 item.in,
                 item.out,
                 item.rawHours ? `${item.rawHours} Hrs` : "---",
-                item.late ? "YES (LATE)" : "NO",
+                item.late ? "YES (LATE)" : (item.isWFHLog ? "WFH WORK" : "NO"),
                 item.geo
             ]);
         });

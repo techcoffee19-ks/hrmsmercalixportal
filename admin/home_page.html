@@ -12,7 +12,7 @@
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap');
-        :root { --primary: #ffb100; --dark: #1e293b; --success: #10b981; --danger: #ef4444; --warning: #f59e0b; --info: #3b82f6; --bg: #f1f5f9; --border: #e2e8f0; }
+        :root { --primary: #ffb100; --dark: #1e293b; --success: #10b981; --danger: #ef4444; --warning: #f59e0b; --info: #3b82f6; --bg: #f1f5f9; --border: #e2e8f0; --wfh: #a855f7; }
         
         body, html { margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', sans-serif; background: var(--bg); overflow-x: hidden; height: 100vh; }
         .p-container { display: flex; height: 100vh; width: 100%; }
@@ -42,6 +42,9 @@
         .stat-card h3 { margin: 0; font-size: 9px; color: #64748b; text-transform: uppercase; }
         .stat-card p { font-size: 22px; margin: 5px 0 0 0; font-weight: 800; }
         .budget-card { background: var(--dark); color: white; border-left: 5px solid var(--success); }
+        /* ─── 🆕 EXTRA CSS PROPERTY MATRICES FOR DYNAMIC WFH ANCHOR CARDS ─── */
+        .wfh-card { border-left: 5px solid var(--wfh) !important; }
+        .wfh-card:hover { border-color: var(--wfh) !important; }
 
         .bday-wrapper { display: flex; gap: 10px; overflow-x: auto; padding: 5px 0; min-height: 45px; }
         .bday-item { display: flex; align-items: center; gap: 8px; background: #fffbeb; border: 1px solid #fde68a; padding: 8px 12px; border-radius: 12px; min-width: fit-content; }
@@ -56,6 +59,8 @@
 
         .admin-module { background: white; padding: 20px; border-radius: 15px; border: 1.5px solid var(--border); margin-bottom: 15px; }
         .data-panel { display: none; background: white; border: 1.5px solid var(--primary); border-radius: 12px; padding: 15px; margin-bottom: 15px; }
+        /* Style adjustments for custom panels overrides */
+        .data-panel.wfh-panel-style { border-color: var(--wfh) !important; }
         table { width: 100%; border-collapse: collapse; font-size: 12px; }
         table th { text-align: left; padding: 10px; background: #f8fafc; }
         table td { padding: 10px; border-bottom: 1px solid #eee; }
@@ -138,11 +143,13 @@
                 <div class="stat-card" onclick="togglePanel('pApprove')"><h3>Approved Leaves</h3><p id="cApprove" style="color:var(--success)">0</p></div>
 
                 <div class="stat-card" onclick="togglePanel('pTasks')"><h3>Tasks Status</h3><p id="cTasks">0 / 0</p></div>
+                <div class="stat-card wfh-card" onclick="togglePanel('pWFH')"><h3>Work From Home</h3><p id="cWFH" style="color:var(--wfh)">0</p></div>
                 <div class="stat-card" onclick="togglePanel('pAbsent')"><h3>Absent</h3><p id="cAbsent" style="color:var(--danger)">0</p></div>
                 <div class="stat-card" onclick="togglePanel('pLateLogs')"><h3>Late Marks</h3><p id="cLate">0</p></div>
             </div>
 
             <div id="pStaff" class="data-panel"><h3>Staff List</h3><table id="tStaff"></table></div>
+            <div id="pWFH" class="data-panel wfh-panel-style"><h3>Work from home list</h3><table id="tWFH"></table></div>
             <div id="pTasks" class="data-panel"><h3>Task Audit</h3><table id="tTasks"></table></div>
 
             <div class="chart-row">
@@ -240,15 +247,13 @@
             if(allThoughts.length > 0) startMotivationSlider();
         });
 
-        // AUTO-REMOVE EXPIRED HOLIDAYS MECHANISM
         db.collection("holidays").orderBy("date", "asc").onSnapshot(s => {
             const strip = document.getElementById("holidayStrip"); 
             strip.innerHTML = "";
-            const todayISO = new Date().toISOString().split('T')[0]; // Format: YYYY-MM-DD
+            const todayISO = new Date().toISOString().split('T')[0];
 
             s.forEach(doc => { 
                 const h = doc.data();
-                // Filter logic: Agar holiday ki date beet chuki hai toh client panel se remove, agla show karega
                 if (h.date >= todayISO) {
                     strip.innerHTML += `<div class="h-card"><b>${h.name}</b><small><i class="fa fa-calendar-alt"></i> ${h.date}</small></div>`;
                 }
@@ -294,16 +299,14 @@
         });
     }
 
-    // ACCURATE BIRTHDAY PARSING (STRIPS [object Object] MISMATCHES)
     function checkBirthdays() {
         const today = new Date();
         const currentDD = String(today.getDate()).padStart(2, '0');
         const currentMM = String(today.getMonth() + 1).padStart(2, '0');
-        const todayMatchPattern = `${currentDD}-${currentMM}`; // Format: DD-MM
+        const todayMatchPattern = `${currentDD}-${currentMM}`;
 
         const bdays = allEmps.filter(e => {
             const dob = e.dob || (e.general && e.general.dob) || (e.personal && e.personal.dob) || "";
-            // Handle cross-formats check (YYYY-MM-DD or DD-MM)
             if (dob.includes("-")) {
                 const parts = dob.split("-");
                 if (parts.length === 3) {
@@ -349,6 +352,17 @@
         document.getElementById("cStaff").innerText = filtered.length;
         const todayStr = new Date().toLocaleDateString('en-GB').replace(/\//g, '-');
         
+        // ─── 🆕 1. CORE SEARCH LOGIC STRINGS PARSING FOR REAL-TIME WFH STAFF ───
+        const wfhStaff = filtered.filter(e => {
+            const cleanId = e.id.replace(/\//g, '');
+            return allLogs.some(l => 
+                l.date === todayStr && 
+                l.type === "IN" && 
+                (l.id === e.id || l.id === cleanId) &&
+                (l.isWFH === true || l.wfhStatus === "Approved" || String(l.status).toUpperCase().trim() === "WFH")
+            );
+        });
+
         const presentStaff = filtered.filter(e => {
             const cleanId = e.id.replace(/\//g, '');
             return allLogs.some(l => 
@@ -358,10 +372,13 @@
             );
         });
 
+        const wfhCount = wfhStaff.length;
         const presentCount = presentStaff.length;
+        // Restructure absent matrix: employees who didn't punch in anywhere (neither Office nor WFH)
         const absentCount = Math.max(0, filtered.length - presentCount);
 
         document.getElementById("cPresent").innerText = presentCount;
+        document.getElementById("cWFH").innerText = wfhCount; // 🆕 Sync counter variable to WFH card node
         document.getElementById("cAbsent").innerText = absentCount;
         
         const lateCount = allLogs.filter(l => 
@@ -391,6 +408,7 @@
 
         updateCharts(filtered, presentCount, absentCount);
         renderTable(filtered);
+        renderWFHTable(wfhStaff); // 🆕 Fire rendering grid for newly added panel mapping
     }
 
     function organizationSearch() {
@@ -448,6 +466,20 @@
     function renderTable(filtered) {
         document.getElementById("tStaff").innerHTML = '<tr><th>ID</th><th>Name</th><th>Dept</th><th>Branch</th></tr>' + 
             filtered.slice(0,5).map(e => `<tr><td>${e.id}</td><td>${e.name}</td><td>${e.dept || 'N/A'}</td><td>${e.branch || 'N/A'}</td></tr>`).join("");
+    }
+
+    // ─── 🆕 2. NEW INTERACTIVE LIVE DRAW DOM RENDER ENGINE FOR WFH SUB-PANEL ───
+    function renderWFHTable(wfhList) {
+        const wfhTable = document.getElementById("tWFH");
+        if(!wfhTable) return;
+        
+        if (wfhList.length === 0) {
+            wfhTable.innerHTML = '<tr><td align="center" style="padding:20px; color:gray; font-weight:700;">No one is working today</td></tr>';
+            return;
+        }
+        
+        wfhTable.innerHTML = '<tr><th>ID</th><th>Employee Name</th><th>Department</th><th>Branch Target</th><th style="color:var(--wfh);">Status</th></tr>' + 
+            wfhList.map(e => `<tr><td><b>${e.id}</b></td><td>${e.name}</td><td>${e.dept || 'N/A'}</td><td><span style="color:#64748b; font-weight:700;">📍 ${e.branch || 'N/A'}</span></td><td><span style="background:#f3e8ff; color:var(--wfh); padding:2px 8px; border-radius:4px; font-weight:800; font-size:10px;"><i class="fa fa-home"></i> REMOTE LOG</span></td></tr>`).join("");
     }
 
     function initCharts() {

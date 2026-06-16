@@ -10,7 +10,7 @@
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap');
-        :root { --primary: #ffb100; --dark: #1e293b; --success: #10b981; --danger: #ef4444; --warning: #f59e0b; --info: #3b82f6; --bg: #f1f5f9; --border: #e2e8f0; }
+        :root { --primary: #ffb100; --dark: #1e293b; --success: #10b981; --danger: #ef4444; --warning: #f59e0b; --info: #3b82f6; --bg: #f1f5f9; --border: #e2e8f0; --wfh: #a855f7; }
         
         body, html { margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', sans-serif; background: var(--bg); overflow: hidden; height: 100vh; }
         .p-container { display: flex; height: 100vh; width: 100%; }
@@ -47,6 +47,7 @@
         .punch-img { width: 55px; height: 55px; border-radius: 10px; object-fit: cover; border: 1px solid #eee; }
         
         .hrs-total-badge { background: #fff7ed; color: #ea580c; border: 1px dashed #fdba74; padding: 4px 12px; border-radius: 8px; font-size: 11px; font-weight: 800; }
+        .wfh-total-badge { background: #f3e8ff; color: var(--wfh); border: 1px dashed #d8b4fe; padding: 4px 12px; border-radius: 8px; font-size: 11px; font-weight: 800; }
     </style>
 </head>
 <body onload="initMasterAttendance()">
@@ -217,7 +218,6 @@ function filterData() {
         const rawEmpId = String(e.id);
         const cleanEmpId = rawEmpId.replace(/\//g, '');
         
-        // Filter and sort today logs for active calculations matrix
         const logs = todayLogs.filter(l => 
             String(l.id) === rawEmpId || String(l.id) === cleanEmpId || 
             String(l.empId) === rawEmpId || String(l.empId) === cleanEmpId
@@ -226,8 +226,31 @@ function filterData() {
         const latestIn = logs.find(l => String(l.type || l.activity).toUpperCase().trim().includes("IN"));
         const latestOut = logs.find(l => String(l.type || l.activity).toUpperCase().trim().includes("OUT"));
         
-        let status = latestIn ? (latestIn.status === "LATE MARK" || latestIn.late === true ? "LATE" : "PRESENT") : "ABSENT";
-        let statusColor = latestIn ? (latestIn.status === "LATE MARK" || latestIn.late === true ? "var(--warning)" : "var(--success)") : "#94a3b8";
+        // ─── 🆕 CORE LOGICAL SEARCH NODES FOR REAL-TIME REMOTE HOVER CODES ───
+        let isTodayWFH = false;
+        if (latestIn) {
+            const rawStatus = String(latestIn.status || "").toUpperCase().trim();
+            if (latestIn.isWFH === true || latestIn.wfhStatus === "Approved" || rawStatus === "WFH") {
+                isTodayWFH = true;
+            }
+        }
+
+        let status = "ABSENT";
+        let statusColor = "#94a3b8";
+        
+        if (latestIn) {
+            if (isTodayWFH) {
+                status = "WFH";
+                statusColor = "var(--wfh)";
+            } else if (latestIn.status === "LATE MARK" || latestIn.late === true) {
+                status = "LATE";
+                statusColor = "var(--warning)";
+            } else {
+                status = "PRESENT";
+                statusColor = "var(--success)";
+            }
+        }
+
         let profileImg = (latestIn && latestIn.photo) ? latestIn.photo : (e.general?.profilephoto || 'https://cdn-icons-png.flaticon.com/512/3135/3135715.png');
 
         // ─── 🌟 DAILY WORKING HOURS TABLE CELL CALCULATOR 🌟 ───
@@ -257,19 +280,19 @@ function filterData() {
             workingHoursDisplay = `<b>${finalH}h ${finalM.toString().padStart(2,'0')}m</b>`;
             if(activeShiftLive) workingHoursDisplay += ` <small style="color:var(--success); font-weight:800;">(Active)</small>`;
         } else if(activeShiftLive) {
-            workingHoursDisplay = `<span style="color:var(--success); font-weight:800;"><i class="fas fa-sign-in-alt"></i> Active</span>`;
+            workingHoursDisplay = `<span style="color:${isTodayWFH ? 'var(--wfh)' : 'var(--success)'}; font-weight:800;"><i class="fas fa-sign-in-alt"></i> Active</span>`;
         }
 
         return `
             <tr style="cursor:pointer;" onclick="viewFullHistory('${rawEmpId}', '${e.name}')">
-                <td><img src="${profileImg}" class="prof-img"></td>
+                <td><img src="${profileImg}" class="prof-img" style="${isTodayWFH ? 'border-color:var(--wfh)' : ''}"></td>
                 <td style="color:var(--info); font-weight:800;">${rawEmpId}</td>
                 <td><b>${e.name}</b></td>
                 <td>${e.reportingManager || 'Not Assigned'}</td>
-                <td style="color:var(--success); font-weight:800;">${latestIn ? latestIn.time : '--:--'}</td>
+                <td style="color:${isTodayWFH ? 'var(--wfh)' : 'var(--success)'}; font-weight:800;">${latestIn ? latestIn.time : '--:--'}</td>
                 <td style="color:var(--danger); font-weight:800;">${latestOut ? latestOut.time : '--:--'}</td>
                 <td>${workingHoursDisplay}</td>
-                <td><span style="color:${statusColor}; font-weight:900; font-size:10px; border:1px solid ${statusColor}; padding:2px 8px; border-radius:4px;">${status}</span></td>
+                <td><span style="color:${statusColor}; font-weight:900; font-size:10px; border:1px solid ${statusColor}; padding:2px 8px; border-radius:4px; ${isTodayWFH ? 'background:rgba(168,85,247,0.06)' : ''}">${status}</span></td>
             </tr>
         `;
     }).join('');
@@ -309,19 +332,24 @@ async function viewFullHistory(id, name) {
         container.innerHTML = sortedDates.map(date => {
             const dayLogs = groupedByDate[date];
             
-            // Step 1: Sort logs chronologically (ascending) for accurate calculations
             dayLogs.sort((a, b) => {
                 if(a.timestamp && b.timestamp) return a.timestamp - b.timestamp;
                 return (a.time || "").localeCompare(b.time || "");
             });
 
-            // Step 2: Continuous calculation mapping algorithm
             let accumulatedMins = 0;
             let lastInMinutes = null;
             let activeShiftDetected = false;
+            let dayHasWFH = false; // 🆕 Check flag parameter for drawer headers
 
             dayLogs.forEach(log => {
                 const actType = String(log.type || log.activity).toUpperCase().trim();
+                const rawStatus = String(log.status || "").toUpperCase().trim();
+                
+                if (log.isWFH === true || log.wfhStatus === "Approved" || rawStatus === "WFH") {
+                    dayHasWFH = true;
+                }
+
                 if(actType === "IN" || actType === "PUNCH IN") {
                     lastInMinutes = parseHoursToMinutes(log.time);
                     activeShiftDetected = true;
@@ -330,7 +358,7 @@ async function viewFullHistory(id, name) {
                     if(outMinutes >= lastInMinutes) {
                         accumulatedMins += (outMinutes - lastInMinutes);
                     }
-                    lastInMinutes = null; // reset track key
+                    lastInMinutes = null;
                     activeShiftDetected = false;
                 }
             });
@@ -345,30 +373,45 @@ async function viewFullHistory(id, name) {
                 computedShiftHoursStr = "Active Shift";
             }
 
+            // UI Adjustments inside drawers matching WFH color layouts
+            let badgeClass = dayHasWFH ? "wfh-total-badge" : "hrs-total-badge";
+            let iconLabel = dayHasWFH ? '<i class="fas fa-home"></i> REMOTE: ' : '<i class="fas fa-stopwatch"></i> WORKED: ';
+
             let dayHtml = `
                 <div style="background:#f8fafc; padding:12px 15px; font-size:11px; font-weight:800; color:#64748b; border-bottom:1px solid #eee; margin-top:15px; display:flex; justify-content:space-between; align-items:center; border-radius:10px 10px 0 0;">
                     <span>📅 DATE: ${date}</span>
-                    <span class="hrs-total-badge"><i class="fas fa-stopwatch"></i> WORKED: ${computedShiftHoursStr}</span>
+                    <span class="${badgeClass}">${iconLabel}${computedShiftHoursStr}</span>
                 </div>
             `;
             
             dayHtml += dayLogs.map(log => {
                 const actType = String(log.type || log.activity).toUpperCase().trim();
                 const isIn = actType.includes("IN");
-                const color = isIn ? "#10b981" : "#ef4444";
+                const rawStatus = String(log.status || "").toUpperCase().trim();
+                const isLogWFH = log.isWFH === true || log.wfhStatus === "Approved" || rawStatus === "WFH";
+
+                let color = isIn ? "#10b981" : "#ef4444";
+                if (isLogWFH && isIn) color = "var(--wfh)";
+
                 const isLate = log.status === "LATE MARK" || log.late === true;
                 const statusTag = (isIn && isLate) ? `<span style="font-size:8px; color:#f59e0b; border:1px solid #f59e0b; padding:1px 4px; border-radius:3px; margin-left:5px; font-weight:800;">LATE</span>` : "";
                 
                 const cleanLat = String(log.lat || "").trim();
-                const mapLink = (cleanLat && cleanLat !== "0" && cleanLat !== "undefined") ? 
-                    `<a href="https://maps.google.com/?q=${log.lat},${log.lng}" target="_blank" style="font-size:10px; color:#3b82f6; font-weight:800; text-decoration:none;"><i class="fas fa-map-marker-alt"></i> VIEW ON MAP</a>` : 
-                    `<small style="font-size:9px; color:#94a3b8;">📍 Location Secured</small>`;
+                let mapLink = "";
+                
+                if (isLogWFH) {
+                    mapLink = `<small style="font-size:9px; color:var(--wfh); font-weight:700;"><i class="fa fa-home"></i> Ghar Se Kaam (Remote Access)</small>`;
+                } else if (cleanLat && cleanLat !== "0" && cleanLat !== "undefined") {
+                    mapLink = `<a href="http://googleusercontent.com/maps.google.com/?q=${log.lat},${log.lng}" target="_blank" style="font-size:10px; color:#3b82f6; font-weight:800; text-decoration:none;"><i class="fas fa-map-marker-alt"></i> VIEW ON MAP</a>`;
+                } else {
+                    mapLink = `<small style="font-size:9px; color:#94a3b8;">📍 Location Secured</small>`;
+                }
 
                 return `
                 <div style="background:white; border:1px solid #e2e8f0; border-top:none; padding:15px; display:flex; gap:15px; align-items:center;">
-                    <img src="${log.photo || 'https://cdn-icons-png.flaticon.com/512/3135/3135715.png'}" style="width:50px; height:50px; border-radius:10px; object-fit:cover; border:1px solid #eee;">
+                    <img src="${log.photo || 'https://cdn-icons-png.flaticon.com/512/3135/3135715.png'}" style="width:50px; height:50px; border-radius:10px; object-fit:cover; border:1px solid #eee; ${isLogWFH ? 'border-color:var(--wfh)' : ''}">
                     <div style="flex:1">
-                        <b style="color:${color}; font-size:12px;">PUNCH ${isIn ? "IN" : "OUT"}: ${log.time}</b> ${statusTag}<br>
+                        <b style="color:${color}; font-size:12px;">PUNCH ${isIn ? "IN" : "OUT"}: ${log.time} ${isLogWFH ? '(WFH)' : ''}</b> ${statusTag}<br>
                         ${mapLink}
                     </div>
                 </div>`;

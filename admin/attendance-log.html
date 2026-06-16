@@ -9,7 +9,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 
     <style>
-        :root { --primary: #ffb100; --dark: #1e293b; --success: #10b981; --danger: #ef4444; --warning: #f59e0b; --info: #3b82f6; --bg: #f1f5f9; --border: #e2e8f0; }
+        :root { --primary: #ffb100; --dark: #1e293b; --success: #10b981; --danger: #ef4444; --warning: #f59e0b; --info: #3b82f6; --bg: #f1f5f9; --border: #e2e8f0; --wfh: #a855f7; }
         * { box-sizing: border-box; }
         body, html { margin: 0; padding: 0; height: 100%; font-family: 'Inter', sans-serif; background: var(--bg); color: var(--dark); overflow-x: hidden; }
         
@@ -37,7 +37,7 @@
 
         .profile-img-table { width: 45px; height: 45px; border-radius: 10px; object-fit: cover; border: 2px solid var(--primary); cursor: pointer; }
         .id-link { color: var(--info); cursor: pointer; text-decoration: underline; font-weight: 800; }
-        .status-pill { padding: 4px 10px; border-radius: 6px; font-size: 9px; font-weight: 900; text-transform: uppercase; }
+        .status-pill { padding: 4px 10px; border-radius: 6px; font-size: 9px; font-weight: 900; text-transform: uppercase; display: inline-block; }
         .pill-present { background: #dcfce7; color: var(--success); }
         .pill-absent { background: #fee2e2; color: var(--danger); }
 
@@ -71,8 +71,7 @@
                     <a href="javascript:void(0)" onclick="validateAccess('workforce', 'e_vault.html')">🔒 E-Vault Documents</a>
                     <a href="javascript:void(0)" onclick="validateAccess('workforce', 'lifecycle.html')">🔄 Employee Lifecycle</a>
                     <a href="javascript:void(0)" onclick="validateAccess('workforce', 'assets.html')">💻 Asset Tracking</a>
-                                    <a href="javascript:void(0)" onclick="validateAccess('workforce', 'hr_staff_directory.html')">📁 Workforce Directory</a>
-
+                    <a href="javascript:void(0)" onclick="validateAccess('workforce', 'hr_staff_directory.html')">📁 Workforce Directory</a>
                 </div>
                 <button class="dropdown-btn" onclick="toggleSidebarDropdown(this)">🕒 Attendance & Leaves <span>▼</span></button>
                 <div class="dropdown-container" style="display:block;">
@@ -166,7 +165,6 @@ function validateAccess(moduleId, targetPage) {
     else { alert("⚠️ ACCESS DENIED\nMain Admin ne aapko is page ka access nahi diya hai."); }
 }
 
-// STABLE TIME PARSING UTILITY TO HANDLE 12-HR AM/PM AND 24-HR CORRECTLY
 function parseHoursToMinutes(str) {
     if(!str) return 0;
     let rawTimeString = str.trim();
@@ -251,22 +249,29 @@ function renderTable() {
             String(l.empId) === rawId || String(l.empId) === cleanId
         ).sort((a, b) => b.timestamp - a.timestamp);
 
-        // Normalized matching mapping condition keys for activity strings matching database
         const latestIn = logs.find(l => String(l.type || l.activity).toUpperCase().trim() === "IN" || String(l.type || l.activity).toUpperCase().trim() === "PUNCH IN");
         const latestOut = logs.find(l => String(l.type || l.activity).toUpperCase().trim() === "OUT" || String(l.type || l.activity).toUpperCase().trim() === "PUNCH OUT");
         
         const photo = (latestIn && latestIn.photo) ? latestIn.photo : 
                       (emp.general?.profilephoto || emp.profilePhotoUrl || 'https://cdn-icons-png.flaticon.com/512/3135/3135715.png');
 
+        // 1. UPDATED STATUS BADGES REAL-TIME BINDING MATRIX FOR WFH & LATE RECORDS
         let statusHTML = '<span class="status-pill pill-absent">ABSENT</span>';
         if (latestIn) {
-            const isLate = latestIn.status === "LATE MARK" || latestIn.late === true || latestIn.isLate === true;
-            const statusColor = isLate ? "#f59e0b" : "#10b981"; 
-            const statusLabel = isLate ? "LATE MARK" : "ON TIME";
-            statusHTML = `<span style="font-size:9px; color:${statusColor}; border:1.5px solid ${statusColor}; padding:2px 6px; border-radius:4px; font-weight:800; background:rgba(0,0,0,0.02);">${statusLabel}</span>`;
+            const isLate = latestIn.late === true || latestIn.isLate === true || latestIn.status === "LATE MARK";
+            const logStatusUpper = String(latestIn.status || "").toUpperCase();
+            
+            if (latestIn.wfhStatus === "Pending" || logStatusUpper === "PENDING WFH APPROVAL") {
+                statusHTML = `<span style="font-size:9px; color:#a855f7; border:1.5px solid #a855f7; padding:2px 6px; border-radius:4px; font-weight:800; background:rgba(168,85,247,0.05);"><i class="fas fa-hourglass-half"></i> WFH PENDING</span>`;
+            } else if (latestIn.wfhStatus === "Approved" || latestIn.isWFH === true || logStatusUpper === "WFH" || logStatusUpper === "WFH APPROVED") {
+                statusHTML = `<span style="font-size:9px; color:white; background:#a855f7; padding:3px 8px; border-radius:4px; font-weight:800;"><i class="fas fa-home"></i> WFH APPROVED</span>`;
+            } else if (isLate) {
+                statusHTML = `<span style="font-size:9px; color:#f59e0b; border:1.5px solid #f59e0b; padding:2px 6px; border-radius:4px; font-weight:800; background:rgba(0,0,0,0.02);">LATE MARK</span>`;
+            } else {
+                statusHTML = `<span style="font-size:9px; color:#10b981; border:1.5px solid #10b981; padding:2px 6px; border-radius:4px; font-weight:800; background:rgba(0,0,0,0.02);">ON TIME</span>`;
+            }
         }
 
-        // CALCULATION LOGIC FOR DAILY DURATION CELL
         let workingHoursDisplay = "--";
         if(latestIn && !latestOut) {
             workingHoursDisplay = `<span style="color:var(--success); font-weight:800;"><i class="fas fa-sign-in-alt"></i> Active</span>`;
@@ -352,7 +357,6 @@ async function viewFullHistory(id) {
 
             let dayHtml = `<div class="history-date-header"><span>📅 DATE: ${date}</span> <span style="color:var(--info)">⏱️ ${dateDurationString}</span></div>`;
             
-            // Combine all entries chronologically to render inside side-drawer loop
             const combinedLogs = [...dayBlock.inputs, ...dayBlock.outputs].sort((a,b) => a.timestamp - b.timestamp);
 
             dayHtml += combinedLogs.map(log => {
@@ -361,9 +365,17 @@ async function viewFullHistory(id) {
                 const colorVar = isIn ? "var(--success)" : "var(--danger)";
                 const isLate = log.status === "LATE MARK" || log.late === true || log.isLate === true;
                 
-                const mapLink = (log.lat && log.lat !== 0) ? 
-                    `<a href="https://maps.google.com/?q=${log.lat},${log.lng}" target="_blank" style="font-size:10px; color:var(--info); font-weight:800; text-decoration:none;"><i class="fas fa-map-marker-alt"></i> VIEW ON MAP</a>` : 
-                    `<small style="font-size:9px; color:gray;">📍 Location Secured</small>`;
+                // 2. UPDATED GEO/ORIGIN TRACKING PIPELINE (MANUAL PUNCH & WFH BYPASS)
+                let locationTrackingHTML = "";
+                if (log.locationTag === "Manual Punch" || log.location === "Manual Punch") {
+                    locationTrackingHTML = `<span style="font-size:10px; color:#4f46e5; font-weight:800;"><i class="fas fa-fingerprint"></i> ✨ Manual Punch Approved</span>`;
+                } else if (log.isWFH === true || log.location === "Work From Home") {
+                    locationTrackingHTML = `<span style="font-size:10px; color:var(--wfh); font-weight:800;"><i class="fas fa-house-user"></i> Work From Home Log</span>`;
+                } else if (log.lat && log.lat !== 0) {
+                    locationTrackingHTML = `<a href="https://maps.google.com/?q=${log.lat},${log.lng}" target="_blank" style="font-size:10px; color:var(--info); font-weight:800; text-decoration:none;"><i class="fas fa-map-marker-alt"></i> VIEW ON MAP</a>`;
+                } else {
+                    locationTrackingHTML = `<small style="font-size:9px; color:gray;">📍 Location Secured</small>`;
+                }
 
                 const statusTag = (isIn && isLate) ? `<span style="font-size:8px; color:var(--warning); border:1px solid var(--warning); padding:1px 4px; border-radius:3px; margin-left:5px; font-weight:800;">LATE MARKED</span>` : "";
 
@@ -372,7 +384,7 @@ async function viewFullHistory(id) {
                     <img src="${log.photo || 'https://cdn-icons-png.flaticon.com/512/3135/3135715.png'}" class="punch-img">
                     <div style="flex:1">
                         <b style="color:${colorVar}">PUNCH ${isIn ? "IN" : "OUT"}: ${log.time}</b> ${statusTag}<br>
-                        ${mapLink}
+                        ${locationTrackingHTML}
                     </div>
                 </div>`;
             }).join("");

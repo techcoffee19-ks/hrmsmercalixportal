@@ -10,7 +10,7 @@
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght=400;500;600;700;800&display=swap');
         
         :root {
             --primary: #ffb100;
@@ -27,6 +27,8 @@
             --blue: #3b82f6;
             --blue-light: #eff6ff;
             --white: #ffffff;
+            --wfh: #a855f7;
+            --wfh-light: #f3e8ff;
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -67,7 +69,7 @@
 
         .emp-pfp-wrapper { position: relative; margin-bottom: 16px; }
         .emp-pfp { width: 120px; height: 120px; border-radius: 24px; object-fit: cover; border: 3px solid var(--primary); box-shadow: 0 10px 25px rgba(255, 177, 0, 0.15); }
-        .status-badge { position: absolute; bottom: -5px; background: var(--success); color: white; padding: 2px 10px; border-radius: 20px; font-size: 10px; font-weight: 700; border: 2px solid var(--white); }
+        .status-badge { position: absolute; bottom: -5px; background: var(--success); color: white; padding: 2px 10px; border-radius: 20px; font-size: 10px; font-weight: 700; border: 2px solid var(--white); white-space: nowrap; }
 
         .side-profile h2 { font-size: 18px; font-weight: 800; color: var(--dark); margin-bottom: 4px; }
         .side-profile .designation { color: var(--blue); font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
@@ -90,11 +92,12 @@
         .btn-export { background: var(--success); color: var(--white); border: none; padding: 10px 16px; border-radius: 8px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 13px; transition: 0.2s; }
         .btn-export:hover { opacity: 0.9; }
 
-        .grid-6 { display: grid; grid-template-columns: repeat(6, 1fr); gap: 15px; margin-bottom: 30px; }
-        .metric-card { background: var(--white); padding: 18px; border-radius: 16px; border: 1px solid var(--border); position: relative; overflow: hidden; }
-        .metric-card h5 { font-size: 10px; color: var(--slate-400); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
-        .metric-card .val { font-size: 22px; font-weight: 800; color: var(--dark); }
-        .metric-card i { position: absolute; right: 10px; bottom: 10px; font-size: 24px; color: #f1f5f9; z-index: 1; }
+        .grid-6 { display: grid; grid-template-columns: repeat(7, 1fr); gap: 12px; margin-bottom: 30px; }
+        .metric-card { background: var(--white); padding: 15px 12px; border-radius: 16px; border: 1px solid var(--border); position: relative; overflow: hidden; }
+        .metric-card h5 { font-size: 9px; color: var(--slate-400); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+        .metric-card .val { font-size: 20px; font-weight: 800; color: var(--dark); }
+        .metric-card i { position: absolute; right: 8px; bottom: 8px; font-size: 20px; color: #f1f5f9; z-index: 1; }
+        .metric-card.wfh-metric { border-left: 4px solid var(--wfh); background: var(--wfh-light); }
 
         .content-grid { display: grid; grid-template-columns: 1.6fr 1fr; gap: 30px; align-items: start; }
         .info-card { background: var(--white); border-radius: 24px; border: 1px solid var(--border); padding: 26px; margin-bottom: 30px; }
@@ -118,6 +121,7 @@
         .badge-danger { background: var(--danger-light); color: var(--danger); }
         .badge-warning { background: var(--primary-light); color: #b45309; }
         .badge-blue { background: var(--blue-light); color: var(--blue); }
+        .badge-purple { background: var(--wfh-light); color: var(--wfh); border: 1px solid var(--wfh); }
 
         .btn-action-view { padding: 4px 8px; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; text-decoration: none; color: var(--slate-700); font-size: 11px; font-weight: 700; }
         .gauge-block { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 10px 0; position: relative; }
@@ -201,6 +205,11 @@
                 <span id="metricPresent" class="val" style="color: var(--success);">0</span>
                 <i class="fas fa-user-check"></i>
             </div>
+            <div class="metric-card wfh-metric">
+                <h5 style="color: var(--wfh); font-weight:700;">Total WFH Days</h5>
+                <span id="metricWFH" class="val" style="color: var(--wfh);">0</span>
+                <i class="fas fa-house-user" style="color: #e9d5ff;"></i>
+            </div>
             <div class="metric-card">
                 <h5>Total Absent</h5>
                 <span id="metricAbsent" class="val" style="color: var(--danger);">0</span>
@@ -269,7 +278,7 @@
                                     <th>Punch-In</th>
                                     <th>Punch-Out</th>
                                     <th>Duration</th>
-                                    <th>Location Tracking</th>
+                                    <th>Location Tracking / Origin</th>
                                 </tr>
                             </thead>
                             <tbody id="attendanceLogRows">
@@ -376,9 +385,9 @@ let monthlyLeavesStore = [];
 let presentDaysCount = 0;
 let absentDaysCount = 0;
 let lateDaysCount = 0;
+let wfhDaysCount = 0; // 🆕 Track WFH range elements
 let totalLeavesCount = 0;
 
-// Dynamic Object structure for month-wise bifurcation inside Javascript memory
 let monthWiseBifurcationMap = {};
 
 const monthNamesIndex = ["", "January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
@@ -424,7 +433,6 @@ function streamCoreEmployeeFile() {
             document.getElementById("detDesig").innerText = data.desig || data.job?.designation || "N/A";
             document.getElementById("detCompany").innerText = data.companyCode || "GENERAL";
             
-            // Real fetching of family lists array
             if(data.family && data.family.length > 0){
                 let famText = data.family.map(f => `${f.name} (${f.relation})`).join(", ");
                 document.getElementById("detFather").innerText = famText;
@@ -457,13 +465,12 @@ function syncMonthlyMetrics() {
     presentDaysCount = 0;
     absentDaysCount = 0;
     lateDaysCount = 0;
+    wfhDaysCount = 0; // Reset counters
     let effectiveWorkdays = 0;
     let combinedProductiveHours = 0;
 
-    // Resetting month wise allocation structures dynamically
     monthWiseBifurcationMap = {};
     
-    // Initialize years and months loop maps
     let currentY = fromYear;
     let currentM = fromMonth;
     while (currentY < toYear || (currentY === toYear && currentM <= toMonth)) {
@@ -472,7 +479,8 @@ function syncMonthlyMetrics() {
             monthLabel: `${monthNamesIndex[currentM]} ${currentY}`,
             present: 0,
             absent: 0,
-            late: 0
+            late: 0,
+            wfh: 0
         };
         currentM++;
         if (currentM > 12) {
@@ -481,11 +489,10 @@ function syncMonthlyMetrics() {
         }
     }
 
-    // Process manual logs map from employee collections
     if(fetchedEmployeeData.attendance_manual_logs) {
         const manualLogsMap = fetchedEmployeeData.attendance_manual_logs;
         Object.keys(manualLogsMap).forEach(logDateKey => {
-            const parts = logDateKey.split('-'); // [YYYY, MM, DD]
+            const parts = logDateKey.split('-'); 
             if(parts.length === 3) {
                 const logYearInt = parseInt(parts[0]);
                 const logMonthInt = parseInt(parts[1]);
@@ -505,14 +512,16 @@ function syncMonthlyMetrics() {
     const attendanceRowContainer = document.getElementById("attendanceLogRows");
     attendanceRowContainer.innerHTML = `<tr><td colspan="5" style="text-align:center; color: var(--slate-400);"><i class="fas fa-spinner fa-spin"></i> Merging Range Ledgers...</td></tr>`;
 
+    // Fetch live logs sync structure
     db.collection("vc_logs").where("id", "==", globalEmpIdClean).get().then(snapshot => {
         monthlyLogsStore = [];
         let organizedDailyLogsMap = {};
+        let isWFHActiveToday = false;
 
         snapshot.forEach(doc => {
             const logData = doc.data();
             if (logData.date) {
-                const dateParts = logData.date.split('-'); // [DD, MM, YYYY]
+                const dateParts = logData.date.split('-'); 
                 if(dateParts.length === 3) {
                     const currentLogYear = parseInt(dateParts[2]);
                     const currentLogMonth = parseInt(dateParts[1]);
@@ -527,6 +536,8 @@ function syncMonthlyMetrics() {
                                 out: "---", 
                                 late: false, 
                                 geo: "N/A", 
+                                isWFH: false,
+                                isManual: false,
                                 rawHours: 0, 
                                 yearSort: currentLogYear,
                                 monthSort: currentLogMonth, 
@@ -534,10 +545,24 @@ function syncMonthlyMetrics() {
                                 monthKey: uniqueKey
                             };
                         }
+                        
+                        const logStatusClean = String(logData.status || "").toUpperCase();
+                        
                         if (logData.type === "IN") {
                             organizedDailyLogsMap[targetDay].in = logData.time;
                             organizedDailyLogsMap[targetDay].geo = logData.location || "Office Base Desk";
-                            if (logData.late === true || logData.late === "true" || logData.status === "LATE") {
+                            
+                            // Detect WFH validation state parameters
+                            if(logData.isWFH === true || logData.wfhStatus === "Approved" || logStatusClean === "WFH") {
+                                organizedDailyLogsMap[targetDay].isWFH = true;
+                            }
+                            // Detect Manual punch logging references
+                            if(logData.locationTag === "Manual Punch" || logData.location === "Manual Punch") {
+                                organizedDailyLogsMap[targetDay].isManual = true;
+                                organizedDailyLogsMap[targetDay].geo = "Manual Punch";
+                            }
+
+                            if (logData.late === true || logData.late === "true" || logData.status === "LATE" || logStatusClean === "LATE MARK") {
                                 organizedDailyLogsMap[targetDay].late = true;
                             }
                         }
@@ -552,26 +577,44 @@ function syncMonthlyMetrics() {
         attendanceRowContainer.innerHTML = "";
         
         const sortedDaysKeys = Object.keys(organizedDailyLogsMap).sort((a,b) => {
-            if(organizedDailyLogsMap[a].yearSort !== organizedDailyLogsMap[b].yearSort) {
-                return organizedDailyLogsMap[a].yearSort - organizedDailyLogsMap[b].yearSort;
-            }
-            if(organizedDailyLogsMap[a].monthSort !== organizedDailyLogsMap[b].monthSort) {
-                return organizedDailyLogsMap[a].monthSort - organizedDailyLogsMap[b].monthSort;
-            }
+            if(organizedDailyLogsMap[a].yearSort !== organizedDailyLogsMap[b].yearSort) return organizedDailyLogsMap[a].yearSort - organizedDailyLogsMap[b].yearSort;
+            if(organizedDailyLogsMap[a].monthSort !== organizedDailyLogsMap[b].monthSort) return organizedDailyLogsMap[a].monthSort - organizedDailyLogsMap[b].monthSort;
             return organizedDailyLogsMap[a].daySort - organizedDailyLogsMap[b].daySort;
         });
+
+        // Today's validation engine for profile photo badge
+        const todayStringStr = new Date().toLocaleDateString('en-GB').replace(/\//g, '-');
+        if(organizedDailyLogsMap[todayStringStr]) {
+            const todayObj = organizedDailyLogsMap[todayStringStr];
+            if(todayObj.isWFH) {
+                document.getElementById("livePresence").innerText = "WORK FROM HOME 🏠";
+                document.getElementById("livePresence").style.background = "var(--wfh)";
+            } else {
+                document.getElementById("livePresence").innerText = "OFFICE BASE 🏢";
+                document.getElementById("livePresence").style.background = "var(--success)";
+            }
+        } else {
+            document.getElementById("livePresence").innerText = "NOT LOGGED TODAY";
+            document.getElementById("livePresence").style.background = "var(--slate-400)";
+        }
 
         if (sortedDaysKeys.length === 0) {
             attendanceRowContainer.innerHTML = `<tr><td colspan="5" style="text-align:center; color: var(--slate-400);">No logs synced for this custom range.</td></tr>`;
         } else {
             sortedDaysKeys.forEach(dayKey => {
                 const dayObj = organizedDailyLogsMap[dayKey];
-                presentDaysCount++; 
+                
                 effectiveWorkdays++;
                 
-                // Increment specific dynamic month tracker keys
                 if(monthWiseBifurcationMap[dayObj.monthKey]) {
-                    monthWiseBifurcationMap[dayObj.monthKey].present++;
+                    if (dayObj.isWFH) {
+                        wfhDaysCount++;
+                        monthWiseBifurcationMap[dayObj.monthKey].wfh++;
+                    } else {
+                        presentDaysCount++;
+                        monthWiseBifurcationMap[dayObj.monthKey].present++;
+                    }
+
                     if (dayObj.late) {
                         lateDaysCount++;
                         monthWiseBifurcationMap[dayObj.monthKey].late++;
@@ -592,27 +635,34 @@ function syncMonthlyMetrics() {
 
                 monthlyLogsStore.push(dayObj);
 
+                // Origin tag style processing parameters
+                let locationBadgeHTML = `<small style="font-size:11px; font-weight:600;"><i class="fas fa-map-marker-alt text-danger"></i> ${dayObj.geo}</small>`;
+                if(dayObj.isManual) {
+                    locationBadgeHTML = `<span class="badge" style="background:#e0e7ff; color:#4f46e5; font-size:10px;"><i class="fas fa-fingerprint"></i> ✨ Manual Punch</span>`;
+                } else if(dayObj.isWFH) {
+                    locationBadgeHTML = `<span class="badge badge-purple" style="font-size:10px;"><i class="fas fa-house-user"></i> Remote Home Log</span>`;
+                }
+
                 const row = document.createElement("tr");
                 row.innerHTML = `
                     <td><b>${dayObj.date}</b></td>
                     <td><span class="badge badge-success">${dayObj.in}</span></td>
                     <td><span class="badge badge-blue">${dayObj.out}</span></td>
                     <td><span class="badge ${dayObj.rawHours >= 8 ? 'badge-success' : 'badge-warning'}">${calculatedHoursString}</span></td>
-                    <td><small style="font-size:11px; font-weight:600;"><i class="fas fa-map-marker-alt text-danger"></i> ${dayObj.geo}</small></td>
+                    <td>${locationBadgeHTML}</td>
                 `;
                 attendanceRowContainer.appendChild(row);
             });
         }
 
-        effectiveWorkdays = presentDaysCount + absentDaysCount;
-
-        document.getElementById("metricWorkdays").innerText = effectiveWorkdays;
+        // Set layout metric components text fields
+        document.getElementById("metricWorkdays").innerText = presentDaysCount + wfhDaysCount + absentDaysCount;
         document.getElementById("metricPresent").innerText = presentDaysCount;
+        document.getElementById("metricWFH").innerText = wfhDaysCount; // 🆕 Sync into card UI elements
         document.getElementById("metricAbsent").innerText = absentDaysCount;
         document.getElementById("metricLates").innerText = lateDaysCount;
         document.getElementById("metricHours").innerText = `${combinedProductiveHours.toFixed(1)} Hrs`;
 
-        // Profile real extraction parameter checks
         let incomingSalaryFieldRaw = fetchedEmployeeData.salary;
         if(fetchedEmployeeData.payroll && fetchedEmployeeData.payroll.basic) {
             incomingSalaryFieldRaw = fetchedEmployeeData.payroll.basic;
@@ -639,8 +689,9 @@ function syncMonthlyMetrics() {
         document.getElementById("payBonus").innerText = "₹ " + (normalizedNetCalculatedPay * 0.1).toLocaleString('en-IN');
 
         let calculatedEfficiencyPercentage = 100;
-        if (presentDaysCount > 0) {
-            const lateDeductionRatio = (lateDaysCount / presentDaysCount) * 40;
+        const netProductiveDays = presentDaysCount + wfhDaysCount;
+        if (netProductiveDays > 0) {
+            const lateDeductionRatio = (lateDaysCount / netProductiveDays) * 40;
             calculatedEfficiencyPercentage = Math.round(Math.max(15, 100 - lateDeductionRatio));
         } else if (absentDaysCount > 0) {
             calculatedEfficiencyPercentage = 0;
@@ -728,7 +779,6 @@ function updateEfficiencyGaugeWidget(score) {
     });
 }
 
-// ─── 🌟 EXCEL EXPORT ENGINE WITH MONTH WISE BIFURCATION COLUMNS 🌟 ───
 function exportDataToExcel() {
     const fromText = document.getElementById("filterMonthFrom").options[document.getElementById("filterMonthFrom").selectedIndex].text;
     const fromYear = document.getElementById("filterYearFrom").value;
@@ -749,10 +799,11 @@ function exportDataToExcel() {
     matrix.push([]); 
 
     matrix.push(["2. AGGREGATED RANGE ATTENDANCE METRICS COUNTER SUMMARY"]);
-    matrix.push(["Effective Workdays", "Total Present Days", "Total Absent Days", "Total Late Mark Marks", "Productive Duty Hours Worked", "Net Calculated Disbursed Salary"]);
+    matrix.push(["Effective Workdays", "Office Present Days", "Work From Home Days", "Total Absent Days", "Total Late Mark Marks", "Productive Duty Hours Worked", "Net Calculated Disbursed Salary"]);
     matrix.push([
         document.getElementById("metricWorkdays").innerText,
         presentDaysCount,
+        wfhDaysCount,
         absentDaysCount,
         lateDaysCount,
         document.getElementById("metricHours").innerText,
@@ -760,7 +811,6 @@ function exportDataToExcel() {
     ]);
     matrix.push([]); 
 
-    // 🔥 NEW REQUIREMENT: MONTH WISE BIFURCATION MATRIX COLUMNS IN EXCEL FORMAT
     matrix.push(["3. MONTH WISE ATTENDANCE BIFURCATION SHEET"]);
     
     let headersRow = ["Metric Parameter"];
@@ -769,11 +819,18 @@ function exportDataToExcel() {
     });
     matrix.push(headersRow);
 
-    let presentRow = ["Present Days"];
+    let presentRow = ["Office Present Days"];
     Object.keys(monthWiseBifurcationMap).forEach(key => {
         presentRow.push(monthWiseBifurcationMap[key].present);
     });
     matrix.push(presentRow);
+
+    // 🆕 Inject multi-month WFH mapping parameters row to Excel file arrays
+    let wfhExcelRow = ["Work From Home Days"];
+    Object.keys(monthWiseBifurcationMap).forEach(key => {
+        wfhExcelRow.push(monthWiseBifurcationMap[key].wfh);
+    });
+    matrix.push(wfhExcelRow);
 
     let absentRow = ["Absent Days"];
     Object.keys(monthWiseBifurcationMap).forEach(key => {
@@ -797,19 +854,23 @@ function exportDataToExcel() {
     matrix.push([]); 
 
     matrix.push(["5. DETAILED ATTENDANCE PUNCH DRILL-DOWN LEDGER (SEQUENCE LOG)"]);
-    matrix.push(["Date Stamp", "Clock In Time", "Clock Out Time", "Shift Duration Hrs", "Late Indicator Flag", "GPS Tracker Location Verification Area"]);
+    matrix.push(["Date Stamp", "Clock In Time", "Clock Out Time", "Shift Duration Hrs", "Late Indicator Flag", "GPS Tracker Location Verification / Origin Mode"]);
     
     if (monthlyLogsStore.length === 0) {
         matrix.push(["No data rows matched parameters."]);
     } else {
         monthlyLogsStore.forEach(item => {
+            let originText = item.geo;
+            if(item.isManual) originText = "Manual Punch Request Approved";
+            else if(item.isWFH) originText = "Work From Home Remote Log";
+
             matrix.push([
                 item.date,
                 item.in,
                 item.out,
                 item.rawHours ? `${item.rawHours} Hrs` : "---",
                 item.late ? "YES (LATE)" : "NO",
-                item.geo
+                originText
             ]);
         });
     }
@@ -831,7 +892,7 @@ function exportDataToExcel() {
         { wch: 32 }, { wch: 25 }, { wch: 22 }, { wch: 25 }, { wch: 20 }, { wch: 65 }
     ];
 
-    const workbookInstance = XLSX.utils.book_new();
+    const workbookInstance = workbook_Instance = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbookInstance, worksheetInstance, "Consolidated Summary");
 
     const exportFileNameStr = `HRMS_Consolidated_Audit_${globalEmpIdClean}_${fromText}_to_${toText}.xlsx`;
