@@ -37,14 +37,12 @@
         
         .prof-img { width: 45px; height: 45px; border-radius: 10px; object-fit: cover; border: 2px solid var(--primary); cursor: pointer; }
 
-        /* OVERLAY SIDE PANEL WORKED STATUS BADGES */
         .overlay { display: none; position: fixed; right: 0; top: 0; width: 500px; height: 100vh; background: white; z-index: 5000; box-shadow: -10px 0 30px rgba(0,0,0,0.2); border-left: 6px solid var(--primary); padding: 0; overflow-y: auto; animation: slideIn 0.3s ease; }
         @keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
         .ov-header { background: var(--dark); color: white; padding: 30px; position: relative; }
         .ov-body { padding: 25px; }
         .history-card { background: #fff; border: 1px solid var(--border); border-radius: 15px; margin-bottom: 20px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.03); }
         .punch-row { display: flex; gap: 15px; padding: 15px; align-items: center; border-bottom: 1px solid #f8fafc; }
-        .punch-img { width: 55px; height: 55px; border-radius: 10px; object-fit: cover; border: 1px solid #eee; }
         
         .hrs-total-badge { background: #fff7ed; color: #ea580c; border: 1px dashed #fdba74; padding: 4px 12px; border-radius: 8px; font-size: 11px; font-weight: 800; }
         .wfh-total-badge { background: #f3e8ff; color: var(--wfh); border: 1px dashed #d8b4fe; padding: 4px 12px; border-radius: 8px; font-size: 11px; font-weight: 800; }
@@ -140,12 +138,10 @@ function toggleDrop(btn) {
     if(container) container.style.display = container.style.display === "block" ? "none" : "block";
 }
 
-// SECURE TIMESTAMPS PARSING ALGORITHM
 function parseHoursToMinutes(str) {
     if(!str) return 0;
     let rawTimeString = str.trim();
     let h = 0, m = 0;
-    
     if (rawTimeString.toUpperCase().includes("AM") || rawTimeString.toUpperCase().includes("PM")) {
         let parts = rawTimeString.split(" ");
         let timeParts = parts[0].split(":");
@@ -162,9 +158,7 @@ function parseHoursToMinutes(str) {
 }
 
 async function initMasterAttendance() {
-    setInterval(() => { 
-        document.getElementById("liveClock").innerText = new Date().toLocaleTimeString(); 
-    }, 1000);
+    setInterval(() => { document.getElementById("liveClock").innerText = new Date().toLocaleTimeString(); }, 1000);
     syncFilters();
     db.collection("employees").onSnapshot(s => {
         allEmps = s.docs.map(d => ({id: d.id, ...d.data()}));
@@ -226,11 +220,11 @@ function filterData() {
         const latestIn = logs.find(l => String(l.type || l.activity).toUpperCase().trim().includes("IN"));
         const latestOut = logs.find(l => String(l.type || l.activity).toUpperCase().trim().includes("OUT"));
         
-        // ─── 🆕 CORE LOGICAL SEARCH NODES FOR REAL-TIME REMOTE HOVER CODES ───
+        // ─── 🌟 STRICT CORE WFH DETECTOR ENGINE ───
         let isTodayWFH = false;
         if (latestIn) {
             const rawStatus = String(latestIn.status || "").toUpperCase().trim();
-            if (latestIn.isWFH === true || latestIn.wfhStatus === "Approved" || rawStatus === "WFH") {
+            if ((latestIn.isWFH === true && latestIn.wfhStatus === "Approved") || rawStatus === "WFH" || rawStatus === "WFH APPROVED") {
                 isTodayWFH = true;
             }
         }
@@ -239,21 +233,12 @@ function filterData() {
         let statusColor = "#94a3b8";
         
         if (latestIn) {
-            if (isTodayWFH) {
-                status = "WFH";
-                statusColor = "var(--wfh)";
-            } else if (latestIn.status === "LATE MARK" || latestIn.late === true) {
-                status = "LATE";
-                statusColor = "var(--warning)";
-            } else {
-                status = "PRESENT";
-                statusColor = "var(--success)";
-            }
+            status = isTodayWFH ? "WFH" : (latestIn.status === "LATE MARK" || latestIn.late === true ? "LATE" : "PRESENT");
+            statusColor = isTodayWFH ? "var(--wfh)" : (status === "LATE" ? "var(--warning)" : "var(--success)");
         }
 
         let profileImg = (latestIn && latestIn.photo) ? latestIn.photo : (e.general?.profilephoto || 'https://cdn-icons-png.flaticon.com/512/3135/3135715.png');
 
-        // ─── 🌟 DAILY WORKING HOURS TABLE CELL CALCULATOR 🌟 ───
         let totalMinutesWorked = 0;
         let currentInMinutes = null;
         let activeShiftLive = false;
@@ -298,7 +283,6 @@ function filterData() {
     }).join('');
 }
 
-// ─── 🌟 DRAWER SIDE OVERLAY DETAILED ACCUMULATOR LOGIC 🌟 ───
 async function viewFullHistory(id, name) {
     document.getElementById("ovName").innerText = name;
     document.getElementById("ovId").innerText = "STAFF ID: " + id;
@@ -307,7 +291,6 @@ async function viewFullHistory(id, name) {
     document.getElementById("logOverlay").style.display = "block";
 
     const cleanId = String(id).replace(/\//g, '');
-
     db.collection("vc_logs").onSnapshot(snap => {
         const allLogs = snap.docs.map(doc => doc.data()).filter(l => 
             String(l.id) === String(id) || String(l.id) === cleanId || 
@@ -320,104 +303,40 @@ async function viewFullHistory(id, name) {
             groupedByDate[l.date].push(l);
         });
 
-        const sortedDates = Object.keys(groupedByDate).sort((a,b) => {
-            return b.split('-').reverse().join('').localeCompare(a.split('-').reverse().join(''));
-        });
-
-        if(sortedDates.length === 0) {
-            container.innerHTML = "<div style='text-align:center; padding:50px; color:gray;'>No biometric records found.</div>";
-            return;
-        }
+        const sortedDates = Object.keys(groupedByDate).sort((a,b) => b.split('-').reverse().join('').localeCompare(a.split('-').reverse().join('')));
 
         container.innerHTML = sortedDates.map(date => {
-            const dayLogs = groupedByDate[date];
-            
-            dayLogs.sort((a, b) => {
-                if(a.timestamp && b.timestamp) return a.timestamp - b.timestamp;
-                return (a.time || "").localeCompare(b.time || "");
-            });
-
-            let accumulatedMins = 0;
-            let lastInMinutes = null;
-            let activeShiftDetected = false;
-            let dayHasWFH = false; // 🆕 Check flag parameter for drawer headers
+            const dayLogs = groupedByDate[date].sort((a,b) => (a.timestamp || 0) - (b.timestamp || 0));
+            let accumulatedMins = 0, lastInMinutes = null, activeShiftDetected = false, dayHasWFH = false;
 
             dayLogs.forEach(log => {
                 const actType = String(log.type || log.activity).toUpperCase().trim();
                 const rawStatus = String(log.status || "").toUpperCase().trim();
+                if ((log.isWFH === true && log.wfhStatus === "Approved") || rawStatus === "WFH" || rawStatus === "WFH APPROVED") dayHasWFH = true;
                 
-                if (log.isWFH === true || log.wfhStatus === "Approved" || rawStatus === "WFH") {
-                    dayHasWFH = true;
-                }
-
-                if(actType === "IN" || actType === "PUNCH IN") {
-                    lastInMinutes = parseHoursToMinutes(log.time);
-                    activeShiftDetected = true;
-                } else if((actType === "OUT" || actType === "PUNCH OUT") && lastInMinutes !== null) {
+                if(actType === "IN" || actType === "PUNCH IN") { lastInMinutes = parseHoursToMinutes(log.time); activeShiftDetected = true; } 
+                else if((actType === "OUT" || actType === "PUNCH OUT") && lastInMinutes !== null) {
                     const outMinutes = parseHoursToMinutes(log.time);
-                    if(outMinutes >= lastInMinutes) {
-                        accumulatedMins += (outMinutes - lastInMinutes);
-                    }
-                    lastInMinutes = null;
-                    activeShiftDetected = false;
+                    if(outMinutes >= lastInMinutes) accumulatedMins += (outMinutes - lastInMinutes);
+                    lastInMinutes = null; activeShiftDetected = false;
                 }
             });
 
-            let computedShiftHoursStr = "---";
-            if(accumulatedMins > 0) {
-                const finalHrs = Math.floor(accumulatedMins / 60);
-                const finalMins = accumulatedMins % 60;
-                computedShiftHoursStr = `${finalHrs}h ${finalMins.toString().padStart(2,'0')}m`;
-                if(activeShiftDetected) computedShiftHoursStr += " + Active";
-            } else if (activeShiftDetected) {
-                computedShiftHoursStr = "Active Shift";
-            }
-
-            // UI Adjustments inside drawers matching WFH color layouts
+            let computedShiftHoursStr = (accumulatedMins > 0) ? `${Math.floor(accumulatedMins/60)}h ${(accumulatedMins%60).toString().padStart(2,'0')}m` : (activeShiftDetected ? "Active" : "---");
             let badgeClass = dayHasWFH ? "wfh-total-badge" : "hrs-total-badge";
-            let iconLabel = dayHasWFH ? '<i class="fas fa-home"></i> REMOTE: ' : '<i class="fas fa-stopwatch"></i> WORKED: ';
 
-            let dayHtml = `
-                <div style="background:#f8fafc; padding:12px 15px; font-size:11px; font-weight:800; color:#64748b; border-bottom:1px solid #eee; margin-top:15px; display:flex; justify-content:space-between; align-items:center; border-radius:10px 10px 0 0;">
-                    <span>📅 DATE: ${date}</span>
-                    <span class="${badgeClass}">${iconLabel}${computedShiftHoursStr}</span>
+            return `
+            <div class="history-card">
+                <div style="background:#f8fafc; padding:12px; font-size:11px; font-weight:800; border-bottom:1px solid #eee; display:flex; justify-content:space-between;">
+                    <span>📅 ${date}</span> <span class="${badgeClass}">${dayHasWFH ? 'REMOTE' : 'OFFICE'}: ${computedShiftHoursStr}</span>
                 </div>
-            `;
-            
-            dayHtml += dayLogs.map(log => {
-                const actType = String(log.type || log.activity).toUpperCase().trim();
-                const isIn = actType.includes("IN");
-                const rawStatus = String(log.status || "").toUpperCase().trim();
-                const isLogWFH = log.isWFH === true || log.wfhStatus === "Approved" || rawStatus === "WFH";
-
-                let color = isIn ? "#10b981" : "#ef4444";
-                if (isLogWFH && isIn) color = "var(--wfh)";
-
-                const isLate = log.status === "LATE MARK" || log.late === true;
-                const statusTag = (isIn && isLate) ? `<span style="font-size:8px; color:#f59e0b; border:1px solid #f59e0b; padding:1px 4px; border-radius:3px; margin-left:5px; font-weight:800;">LATE</span>` : "";
-                
-                const cleanLat = String(log.lat || "").trim();
-                let mapLink = "";
-                
-                if (isLogWFH) {
-                    mapLink = `<small style="font-size:9px; color:var(--wfh); font-weight:700;"><i class="fa fa-home"></i> Ghar Se Kaam (Remote Access)</small>`;
-                } else if (cleanLat && cleanLat !== "0" && cleanLat !== "undefined") {
-                    mapLink = `<a href="http://googleusercontent.com/maps.google.com/?q=${log.lat},${log.lng}" target="_blank" style="font-size:10px; color:#3b82f6; font-weight:800; text-decoration:none;"><i class="fas fa-map-marker-alt"></i> VIEW ON MAP</a>`;
-                } else {
-                    mapLink = `<small style="font-size:9px; color:#94a3b8;">📍 Location Secured</small>`;
-                }
-
-                return `
-                <div style="background:white; border:1px solid #e2e8f0; border-top:none; padding:15px; display:flex; gap:15px; align-items:center;">
-                    <img src="${log.photo || 'https://cdn-icons-png.flaticon.com/512/3135/3135715.png'}" style="width:50px; height:50px; border-radius:10px; object-fit:cover; border:1px solid #eee; ${isLogWFH ? 'border-color:var(--wfh)' : ''}">
-                    <div style="flex:1">
-                        <b style="color:${color}; font-size:12px;">PUNCH ${isIn ? "IN" : "OUT"}: ${log.time} ${isLogWFH ? '(WFH)' : ''}</b> ${statusTag}<br>
-                        ${mapLink}
-                    </div>
-                </div>`;
-            }).join("");
-            
-            return `<div class="history-card" style="margin-bottom:12px; border-radius:10px; overflow:hidden;">${dayHtml}</div>`;
+                ${dayLogs.map(log => {
+                    const isIn = String(log.type || log.activity).toUpperCase().trim().includes("IN");
+                    const rawStatus = String(log.status || "").toUpperCase().trim();
+                    const isLogWFH = (log.isWFH === true && log.wfhStatus === "Approved") || rawStatus === "WFH" || rawStatus === "WFH APPROVED";
+                    return `<div class="punch-row"><img src="${log.photo || 'https://cdn-icons-png.flaticon.com/512/3135/3135715.png'}" class="punch-img"><div><b style="color:${isLogWFH && isIn ? 'var(--wfh)' : (isIn ? 'var(--success)' : 'var(--danger)')}">${isIn ? "PUNCH IN" : "PUNCH OUT"} @ ${log.time}</b><br><small>${isLogWFH ? 'Ghar Se Kaam (Remote)' : 'Office Terminal'}</small></div></div>`;
+                }).join("")}
+            </div>`;
         }).join("");
     });
 }

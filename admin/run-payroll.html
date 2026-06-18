@@ -10,13 +10,13 @@
 
     <script>
         const userRole = sessionStorage.getItem("userRole");
-        const userBranch = sessionStorage.getItem("userBranch");
-        const adminCompanyCode = sessionStorage.getItem("companyCode"); 
+        const userBranch = sessionStorage.getItem("branch") || sessionStorage.getItem("userBranch");
+        const adminCompanyCode = sessionStorage.getItem("companyCode") || "GENERAL"; 
         const userPermissionsRaw = sessionStorage.getItem("userPermissions");
         const rolePermissions = userPermissionsRaw ? JSON.parse(userPermissionsRaw) : {};
 
         function checkAdminAccess() {
-            if (sessionStorage.getItem("isLoggedIn") !== "true") { window.location.href = "index.html"; }
+            if (sessionStorage.getItem("adminId") === null && sessionStorage.getItem("isLoggedIn") !== "true") { window.location.href = "login.html"; }
         }
         checkAdminAccess();
 
@@ -30,14 +30,14 @@
         }
 
         function validateAccess(moduleId, targetPage) {
-            if (userRole === "super_admin" || userRole === "Main Admin" || userRole === "Main Admin (Boss)") { window.location.href = targetPage; return; }
+            if (userRole === "super_admin" || userRole === "reporting_manager" || userRole === "Main Admin") { window.location.href = targetPage; return; }
             if (rolePermissions && rolePermissions[moduleId] && rolePermissions[moduleId].view === true) {
                 window.location.href = targetPage;
             } else { 
                 alert("⚠️ ACCESS DENIED\nMain Admin ne aapko is page ka access nahi diya hai."); 
             }
         }
-        function logout() { sessionStorage.removeItem("isLoggedIn"); window.location.href = "index.html"; }
+        function logout() { sessionStorage.clear(); window.location.href = "login.html"; }
     </script>
 
     <style>
@@ -65,7 +65,6 @@
         .stat-box h2 { margin: 5px 0 0 0; font-size: 22px; font-weight: 900; }
 
         .control-panel { background: white; padding: 20px; border-radius: 15px; border: 1.5px solid var(--border); display: grid; grid-template-columns: 1.2fr 1fr 0.8fr; gap: 15px; align-items: flex-end; margin-bottom: 25px; }
-        .filter-grid { display: flex; flex-direction: column; gap: 8px; }
         .filter-group { display: flex; flex-direction: column; gap: 8px; font-size: 10px; font-weight: 800; color: #64748b; text-transform: uppercase; margin-bottom: 5px; }
         .input-ctrl { padding: 10px; border-radius: 8px; border: 1.5px solid #ddd; font-size: 13px; outline: none; font-weight: 700; width: 100%; }
 
@@ -96,14 +95,12 @@
         .status-late { background: #fef3c7 !important; color: #b45309 !important; border-color: #fde68a !important; }
         .status-late .dot { background: #b45309; }
         
-        /* ─── 🆕 NEW MODULE STYLE CHANNELS FOR WFH ATTENDANCE SPECIFICATION ─── */
         .status-wfh { background: #f3e8ff !important; color: var(--wfh) !important; border-color: #e9d5ff !important; }
         .status-wfh .dot { background: var(--wfh); }
         
         .status-sunday { background: #f1f5f9 !important; color: #94a3b8 !important; border-color: #e2e8f0 !important; cursor: not-allowed !important; pointer-events: none !important; }
         .status-sunday .dot { display: none !important; }
 
-        .stat-block-mini { background: #f8fafc; padding: 8px; border-radius: 6px; border: 1px solid #e2e8f0; text-align: center; }
         .attendance-seeker-card:hover { border-color: var(--primary) !important; background: #eff6ff !important; transform: translateY(-1px); box-shadow: 0 4px 8px rgba(59,130,246,0.08) !important; }
     </style>
 </head>
@@ -175,7 +172,7 @@
                     Kisi bhi staff ka present/absent manual data update karne ke liye niche search karein aur click karke calendar adjust karein.
                 </p>
                 <div style="position: relative; margin-bottom: 12px;">
-                    <input type="text" id="attendanceEmpSearch" onkeyup="filterAttendanceStaffList()" placeholder="🔍 Search by Employee ID or Name..." style="width: 100%; padding: 10px 15px; border: 1.5px solid #cbd5e1; border-radius: 8px; font-size: 12px; font-weight: 700; outline: none; transition: 0.3s; box-sizing: border-box;">
+                    <input type="text" id="attendanceEmpSearch" onkeyup="filterAttendanceStaffList()" placeholder="🔍 Search by Username or Name..." style="width: 100%; padding: 10px 15px; border: 1.5px solid #cbd5e1; border-radius: 8px; font-size: 12px; font-weight: 700; outline: none; transition: 0.3s; box-sizing: border-box;">
                 </div>
                 <div id="attendanceStaffDirectory" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; max-height: 180px; overflow-y: auto; padding: 8px; border: 1px dashed #cbd5e1; border-radius: 8px; background: #f8fafc;">
                     <div style="grid-column: 1/-1; text-align: center; color: #94a3b8; font-size: 11px; padding: 10px; font-weight: 700;">Click "START AUTO-CALCULATION" to fetch active workers directory.</div>
@@ -186,7 +183,7 @@
                 <table>
                     <thead>
                         <tr>
-                            <th>Staff ID & Name</th>
+                            <th>Staff Username & Name</th>
                             <th>Worked Days</th>
                             <th>Late Marks</th>
                             <th>Monthly Gross</th>
@@ -307,10 +304,17 @@ function initPayrollEngine() {
     setInterval(() => { document.getElementById("liveClock").innerText = new Date().toLocaleTimeString(); }, 1000);
     document.getElementById("billingMonth").value = new Date().toISOString().slice(0, 7);
     
-    db.collection("branches").where("companyCode", "==", adminCompanyCode).onSnapshot(snap => {
+    db.collection("employees").onSnapshot(snap => {
         const sel = document.getElementById("branchScope");
         sel.innerHTML = '<option value="All">-- ALL BRANCHES (GLOBAL) --</option>';
-        snap.forEach(doc => sel.innerHTML += `<option value="${doc.data().name}">${doc.data().name}</option>`);
+        let branches = [];
+        snap.forEach(doc => {
+            const d = doc.data();
+            if(d.branch && !branches.includes(d.branch)) {
+                branches.push(d.branch);
+                sel.innerHTML += `<option value="${d.branch}">${d.branch}</option>`;
+            }
+        });
     });
 
     db.collection("salary_holds").onSnapshot(snap => {
@@ -331,120 +335,149 @@ async function calculatePayroll() {
     const bMonth = document.getElementById("billingMonth").value;
     const tbody = document.getElementById("payrollTableBody");
     const [year, month] = bMonth.split("-");
-    const datePattern = `${month}-${year}`;
-
+    
     currentSelectedYearStr = year;
     currentSelectedMonthStr = month;
+
+    // CRITICAL FIX: Lock strict loop range to today's date if processing current ongoing month
+    const nowServer = new Date();
+    const currentYearInt = nowServer.getFullYear();
+    const currentMonthInt = nowServer.getMonth() + 1;
+    const currentTodayDayInt = nowServer.getDate();
+
+    const isCurrentMonthLoop = (parseInt(year) === currentYearInt && parseInt(month) === currentMonthInt);
 
     tbody.innerHTML = "<tr><td colspan='9' align='center' style='padding:40px;'>Calculating attendance-based salary & checking advances...</td></tr>";
     payrollBatch = [];
 
     try {
-        let query = db.collection("employees").where("status", "==", "Active");
-        
-        if (adminCompanyCode && adminCompanyCode !== "" && adminCompanyCode !== "GENERAL" && adminCompanyCode !== "null") {
+        let query = db.collection("employees");
+        if (adminCompanyCode && adminCompanyCode !== "" && adminCompanyCode !== "GENERAL") {
             query = query.where("companyCode", "==", adminCompanyCode);
         }
 
-        if(scope !== "All") {
-            query = query.where("branch", "==", scope);
-        }
-
         const empSnap = await query.get();
-        
         if (empSnap.empty) {
-            tbody.innerHTML = "<tr><td colspan='9' align='center' style='padding:50px; color:#ef4444;'>⚠️ No active employees found for this criteria.</td></tr>";
-            document.getElementById("attendanceStaffDirectory").innerHTML = `<div style="grid-column: 1/-1; text-align: center; color: #94a3b8; font-size: 11px; padding: 10px; font-weight:700;">No active staff matches selected scope.</div>`;
+            tbody.innerHTML = "<tr><td colspan='9' align='center' style='padding:50px; color:#ef4444;'>⚠️ No active personnel found in master collection.</td></tr>";
+            document.getElementById("attendanceStaffDirectory").innerHTML = `<div style="grid-column: 1/-1; text-align: center; color: #94a3b8; font-size: 11px; padding: 10px; font-weight:700;">No workers match company criteria.</div>`;
             return;
         }
 
         const logsSnap = await db.collection("vc_logs").get();
-        const allLogs = logsSnap.docs.map(d => d.data());
+        const todayLogs = logsSnap.docs.map(d => d.data());
 
         populateMasterAttendanceDirectory(empSnap.docs);
 
         for(let doc of empSnap.docs) {
-            const emp = doc.data();
-            const empIdForQuery = emp.id || doc.id;
-            const cleanId = empIdForQuery.replace(/\//g, '');
+            try {
+                const emp = doc.data();
+                const empUsername = String(emp.id || emp.username || doc.id); 
+                const cleanId = empUsername.replace(/\//g, '');
 
-            const baselineDecidedCTC = sanitizeValue(emp.salary?.basic !== undefined ? emp.salary.basic : emp.salary) || 25000;
-            const configuredPF = emp.payroll?.pf !== undefined ? sanitizeValue(emp.payroll.pf) : 1800;
-            const configuredPT = emp.payroll?.pt !== undefined ? sanitizeValue(emp.payroll.pt) : 200;
-            const configuredMedical = emp.payroll?.medical !== undefined ? sanitizeValue(emp.payroll.medical) : 0;
+                if (scope !== "All" && emp.branch !== scope) continue;
 
-            const mBasic = Math.round(baselineDecidedCTC * 0.50);
-            const mHra = Math.round(mBasic * 0.50); 
-            const mSpecial = mHra; 
-            const mGrossTotal = mBasic + mHra + mSpecial;
+                const baselineDecidedCTC = sanitizeValue(emp.salary_gross || (emp.salary?.basic)) || 30000;
+                const configuredPF = 1800;
+                const configuredPT = 200;
+                const configuredMedical = 0;
 
-            const totalDaysInMonth = new Date(year, month, 0).getDate(); 
-            let workedDays = 0;
-            let lateMarksCount = 0; 
-            const manualLogs = emp.attendance_manual_logs || {};
-            const monthPrefix = `${year}-${month}-`;
+                const mBasic = Math.round(baselineDecidedCTC * 0.50);
+                const mHra = Math.round(mBasic * 0.50); 
+                const mSpecial = mHra; 
+                const mGrossTotal = mBasic + mHra + mSpecial;
 
-            for(let d = 1; d <= totalDaysInMonth; d++) {
-                const currentDayOfWeek = new Date(year, parseInt(month) - 1, d).getDay();
-                const dateKey = `${monthPrefix}${String(d).padStart(2, '0')}`;
+                const totalDaysInMonth = new Date(year, month, 0).getDate(); 
                 
-                if (currentDayOfWeek === 0) {
-                    workedDays++;
-                } else {
-                    if (manualLogs[dateKey]) {
-                        const manualStatus = String(manualLogs[dateKey]).toUpperCase().trim();
-                        // 🆕 INCLUDE WFH IN MANUAL LOGS VERIFICATION STRINGS
-                        if (manualStatus === "PRESENT" || manualStatus === "LATE" || manualStatus === "SUNDAY" || manualStatus === "WFH" || manualStatus === "WORK FROM HOME") {
-                            workedDays++;
-                            if (manualStatus === "LATE") lateMarksCount++;
-                        }
+                // Limit evaluations explicitly to today's date if processing ongoing live cycle
+                const evaluationsLimitDay = isCurrentMonthLoop ? currentTodayDayInt : totalDaysInMonth;
+
+                let workedDays = 0;
+                let lateMarksCount = 0; 
+                const manualLogs = emp.attendance_manual_logs || {};
+
+                for(let d = 1; d <= totalDaysInMonth; d++) {
+                    const currentDayOfWeek = new Date(year, parseInt(month) - 1, d).getDay();
+                    const dayPad = String(d).padStart(2, '0');
+                    const reverseDateKeyMatch = `${dayPad}-${month}-${year}`;
+                    
+                    // Stop counting upcoming days out of constraint zone
+                    if (d > evaluationsLimitDay) {
+                        continue;
+                    }
+
+                    if (currentDayOfWeek === 0) {
+                        workedDays++; 
                     } else {
-                        let dayFoundInBio = false;
-                        allLogs.forEach(l => {
-                            if ((l.id === empIdForQuery || l.id === cleanId) && l.date === `${String(d).padStart(2,'0')}-${datePattern}` && l.type === "IN") {
-                                dayFoundInBio = true;
+                        if (manualLogs[reverseDateKeyMatch]) {
+                            const manualStatus = String(manualLogs[reverseDateKeyMatch]).toUpperCase().trim();
+                            if (manualStatus === "PRESENT" || manualStatus === "LATE" || manualStatus === "WFH" || manualStatus === "SUNDAY") {
                                 workedDays++;
-                                const bioStatus = String(l.status || "").toUpperCase().trim();
-                                if (bioStatus === "LATE" || l.isLate === true || l.late === true) {
-                                    lateMarksCount++;
-                                }
+                                if (manualStatus === "LATE") lateMarksCount++;
                             }
-                        });
+                        } else {
+                            let dayFoundInBio = false;
+                            todayLogs.forEach(l => {
+                                if (!l.date) return;
+                                const isUser = (String(l.id) === empUsername || String(l.id) === cleanId || String(l.empId) === empUsername || String(l.empId) === cleanId);
+                                if (!isUser) return;
+                                
+                                if (String(l.date).trim() === reverseDateKeyMatch) {
+                                    const rawAct = String(l.punchType || l.type || l.activity || "").toUpperCase().trim();
+                                    const logStatus = String(l.status || "").toUpperCase().trim();
+                                    const isInPunch = (rawAct === "IN" || rawAct === "PUNCH IN") && logStatus !== "SHIFT END";
+                                    
+                                    if (isInPunch) {
+                                        if (!dayFoundInBio) {
+                                            dayFoundInBio = true;
+                                            workedDays++; 
+                                        }
+                                        if (logStatus === "LATE MARK" || l.late === true || l.isLate === true) {
+                                            lateMarksCount++;
+                                        }
+                                    }
+                                }
+                            });
+                        }
                     }
                 }
+                
+                if (workedDays > evaluationsLimitDay) workedDays = evaluationsLimitDay;
+
+                // LOP is absolute difference of maximum month configuration minus actual days completed ratio
+                const dynamicMonthAttendanceRatio = totalDaysInMonth > 0 ? (workedDays / totalDaysInMonth) : 1;
+                const totalActualSalaryEarned = Math.round(baselineDecidedCTC * dynamicMonthAttendanceRatio);
+                
+                const aBasic = Math.round(totalActualSalaryEarned * 0.50);
+                const aHra = Math.round(aBasic * 0.50);
+                const aSpecial = aHra; 
+                const aGrossTotal = aBasic + aHra + aSpecial;
+
+                const lopAmount = Math.max(0, mGrossTotal - aGrossTotal);
+                const totalDeductionsSum = configuredPF + configuredPT + configuredMedical;
+
+                const advSnap = await db.collection("advance_requests")
+                    .where("username", "==", empUsername)
+                    .where("month", "==", bMonth)
+                    .where("status", "==", "Approved")
+                    .get();
+                
+                let isAdvancePaid = !advSnap.empty;
+                let finalNet = isAdvancePaid ? 0 : Math.max(0, aGrossTotal - totalDeductionsSum);
+
+                payrollBatch.push({
+                    empId: empUsername, name: emp.name || empUsername, branch: emp.branch || "Main HQ", 
+                    month: bMonth, gross: mGrossTotal, lop: lopAmount, workedDays, lateMarks: lateMarksCount,
+                    net: finalNet, advanceAdjusted: isAdvancePaid,
+                    masterBasic: mBasic, actualBasic: aBasic,
+                    masterHra: mHra, actualHra: aHra,
+                    masterSpecial: mSpecial, actualSpecial: aSpecial,
+                    masterGross: mGrossTotal, actualGross: aGrossTotal,
+                    deductionPf: configuredPF, deductionPt: configuredPT,
+                    deductionMedical: configuredMedical, totalDeductions: totalDeductionsSum
+                });
+            } catch (innerError) {
+                console.warn(`Profile skipping dynamic error path skip matrix for id: ${doc.id}`, innerError);
             }
-            
-            const dynamicMonthAttendanceRatio = totalDaysInMonth > 0 ? (workedDays / totalDaysInMonth) : 0;
-            const totalActualSalaryEarned = Math.round(baselineDecidedCTC * dynamicMonthAttendanceRatio);
-            
-            const aBasic = Math.round(totalActualSalaryEarned * 0.50);
-            const aHra = Math.round(aBasic * 0.50);
-            const aSpecial = aHra; 
-            const aGrossTotal = aBasic + aHra + aSpecial;
-
-            const lopAmount = Math.max(0, mGrossTotal - aGrossTotal);
-            const totalDeductionsSum = configuredPF + configuredPT + configuredMedical;
-
-            const advSnap = await db.collection("advance_requests")
-                .where("empId", "==", empIdForQuery)
-                .where("month", "==", bMonth)
-                .where("status", "==", "Approved")
-                .get();
-            
-            let isAdvancePaid = !advSnap.empty;
-            let finalNet = isAdvancePaid ? 0 : Math.max(0, aGrossTotal - totalDeductionsSum);
-
-            payrollBatch.push({
-                empId: empIdForQuery, name: emp.name, branch: emp.branch, 
-                month: bMonth, gross: mGrossTotal, lop: lopAmount, workedDays, lateMarks: lateMarksCount,
-                net: finalNet, advanceAdjusted: isAdvancePaid,
-                masterBasic: mBasic, actualBasic: aBasic,
-                masterHra: mHra, actualHra: aHra,
-                masterSpecial: mSpecial, actualSpecial: aSpecial,
-                masterGross: mGrossTotal, actualGross: aGrossTotal,
-                deductionPf: configuredPF, deductionPt: configuredPT,
-                deductionMedical: configuredMedical, totalDeductions: totalDeductionsSum
-            });
         }
         
         renderPayrollTable();
@@ -452,8 +485,8 @@ async function calculatePayroll() {
         document.getElementById("stBranch").innerText = scope.toUpperCase();
 
     } catch (e) { 
-        console.error("Payroll Error:", e);
-        tbody.innerHTML = `<tr><td colspan='9' align='center' style='color:red;'>Error calculating: ${e.message}</td></tr>`;
+        console.error("Payroll Global Calculation Sync Dropped:", e);
+        tbody.innerHTML = `<tr><td colspan='9' align='center' style='color:red;'>Error running calculations matrix: ${e.message}</td></tr>`;
     }
 }
 
@@ -462,6 +495,11 @@ function renderPayrollTable() {
     const bMonth = document.getElementById("billingMonth").value;
     let html = "";
     let totalNet = 0, holdCount = 0;
+
+    if(payrollBatch.length === 0) {
+        tbody.innerHTML = "<tr><td colspan='9' align='center' style='padding:50px; color:#94a3b8;'>No records found for the selection criteria.</td></tr>";
+        return;
+    }
 
     payrollBatch.forEach(p => {
         const holdKey = `${p.empId}_${bMonth}`;
@@ -479,7 +517,7 @@ function renderPayrollTable() {
                 <td style="color:var(--danger)">- ₹${p.lop.toLocaleString('en-IN')}</td>
                 <td>
                     ${p.advanceAdjusted ? 
-                    '<span class="status-badge" style="background:#ef4444; color:white;">⚠️ ADVANCE PAID</span>' : 
+                    '<span class="status-badge" style="background:#ef4444; color:white;">⚠️ ADVANCE ADJUST</span>' : 
                     '₹0'}
                 </td>
                 <td style="font-weight:900; color:${p.advanceAdjusted ? '#94a3b8' : 'var(--success)'}; font-size:14px;">
@@ -503,16 +541,16 @@ async function togglePermanentHold(empId) {
     const bMonth = document.getElementById("billingMonth").value;
     const holdKey = `${empId}_${bMonth}`;
     if (!databaseHolds[holdKey]) {
-        const reason = prompt("Enter Hold Reason (e.g. Asset Recovery / Notice Period):");
+        const reason = prompt("Enter Hold Reason (Notice Period / Asset Recovery):");
         if (!reason) return;
         await db.collection("salary_holds").doc(holdKey).set({ empId, month: bMonth, reason, timestamp: Date.now() });
     } else {
-        if(confirm("Release salary for this month?")) await db.collection("salary_holds").doc(holdKey).delete();
+        if(confirm("Release salary operations for this month?")) await db.collection("salary_holds").doc(holdKey).delete();
     }
 }
 
 async function releasePayrollFinal() {
-    if(!confirm("Are you sure? This will generate payslips and record cumulative salary for this month.")) return;
+    if(!confirm("Execute final salary disbursement block routines? Slips will create in employee dashboards.")) return;
     const batch = db.batch();
     const bMonth = document.getElementById("billingMonth").value;
     const [yearStr, monthStr] = bMonth.split('-');
@@ -529,7 +567,7 @@ async function releasePayrollFinal() {
             empId: data.empId,
             name: data.name,
             period: formattedPeriodKey,
-            companyCode: adminCompanyCode || "",
+            companyCode: adminCompanyCode || "GENERAL",
             effectiveWorkdays: data.workedDays,
             lopDays: calculatedLopDaysCount, 
             masterBasic: data.masterBasic,
@@ -554,7 +592,7 @@ async function releasePayrollFinal() {
         batch.set(cumRef, { 
             empId: data.empId, 
             month: bMonth, 
-            companyCode: adminCompanyCode || "",
+            companyCode: adminCompanyCode || "GENERAL",
             netAmount: data.net, 
             status: isHeld ? "On Hold" : "Credited" 
         });
@@ -562,10 +600,10 @@ async function releasePayrollFinal() {
 
     try {
         await batch.commit();
-        alert("🚀 PAYROLL PROCESSED SUCCESSFULLY!\nAll splits saved. Slips are now dynamic inside employee portal.");
+        alert("🚀 PAYROLL DISBURSED SUCCESSFUL!\nSlips synced instantly to corporate databases.");
         location.reload();
     } catch (e) {
-        alert("Sync Error: " + e.message);
+        alert("Sync Transaction Failure: " + e.message);
     }
 }
 
@@ -576,15 +614,15 @@ function populateMasterAttendanceDirectory(docs) {
     docs.forEach(doc => {
         const emp = doc.data();
         const docId = doc.id; 
-        const empId = emp.id || doc.id;
-        const empName = emp.name || "Unknown Staff";
-        const branch = emp.branch || "N/A";
+        const empUsername = String(emp.id || emp.username || doc.id);
+        const empName = emp.name || empUsername;
+        const branch = emp.branch || "Main HQ";
 
         directory.innerHTML += `
-            <div class="attendance-seeker-card" data-id="${empId.toLowerCase()}" data-name="${empName.toLowerCase()}" onclick="openAttendanceEditor('${docId}', '${empName.replace(/'/g, "\\'")}')" style="background: white; padding: 10px; border-radius: 6px; border: 1px solid #e2e8f0; cursor: pointer; transition: 0.2s; display: flex; flex-direction: column; justify-content: space-between;">
+            <div class="attendance-seeker-card" data-id="${empUsername.toLowerCase()}" data-name="${empName.toLowerCase()}" onclick="openAttendanceEditor('${docId}', '${empName.replace(/'/g, "\\'")}')" style="background: white; padding: 10px; border-radius: 6px; border: 1px solid #e2e8f0; cursor: pointer; transition: 0.2s; display: flex; flex-direction: column; justify-content: space-between;">
                 <div>
                     <div style="font-size: 11px; font-weight: 800; color: var(--dark); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${empName}</div>
-                    <div style="font-size: 10px; font-weight: 700; color: var(--info); margin-top: 1px;">ID: ${empId}</div>
+                    <div style="font-size: 10px; font-weight: 700; color: var(--info); margin-top: 1px;">ID: ${empUsername}</div>
                 </div>
                 <div style="font-size: 8px; font-weight: 800; color: #94a3b8; margin-top: 5px; text-transform: uppercase;">
                     📍 ${branch}
@@ -617,7 +655,9 @@ async function openAttendanceEditor(docId, empName) {
     const [year, month] = bMonth.split("-");
     currentSelectedYearStr = year;
     currentSelectedMonthStr = month;
-    const datePattern = `${month}-${year}`;
+    
+    const targetMonthInt = parseInt(month);
+    const targetYearInt = parseInt(year);
 
     document.getElementById("modEmpName").innerText = empName;
     tempAttendanceData = {}; 
@@ -632,17 +672,14 @@ async function openAttendanceEditor(docId, empName) {
         const doc = await db.collection("employees").doc(currentEditingEmpId).get();
         if(doc.exists) {
             const empData = doc.data();
-            const displayId = empData.id || doc.id; 
+            const displayId = String(empData.id || empData.username || doc.id); 
             const cleanId = displayId.replace(/\//g, '');
-            document.getElementById("modTargetMonth").innerText = `ID: ${displayId} | Target Period: ${month}-${year}`;
+            document.getElementById("modTargetMonth").innerText = `Username: ${displayId} | Target Period: ${month}-${year}`;
             
-            baseLivePL = parseFloat(empData.pl !== undefined ? empData.pl : (empData.leaveBalance !== undefined ? empData.leaveBalance : 2.33));
+            baseLivePL = parseFloat(empData.pl !== undefined ? empData.pl : 2.33);
             baseLiveSL = parseFloat(empData.sl !== undefined ? empData.sl : 1.00);
             baseLiveCL = parseFloat(empData.cl !== undefined ? empData.cl : 1.33);
 
-            if (month === "03" && baseLivePL > 28) {
-                baseLivePL = 28; 
-            }
             document.getElementById("lblLeaveBalance").innerText = baseLivePL.toFixed(2);
             document.getElementById("lblSickBalance").innerText = baseLiveSL.toFixed(2);
             document.getElementById("lblCasualBalance").innerText = baseLiveCL.toFixed(2);
@@ -652,33 +689,44 @@ async function openAttendanceEditor(docId, empName) {
 
             for(let d = 1; d <= totalDaysInMonth; d++) {
                 const dayStr = String(d).padStart(2, '0');
-                const fullDateKey = `${year}-${month}-${dayStr}`;
+                const reverseDateKeyMatch = `${dayStr}-${month}-${year}`;
                 
                 const currentDayOfWeek = new Date(year, parseInt(month) - 1, d).getDay();
                 if(currentDayOfWeek === 0) {
-                    tempAttendanceData[fullDateKey] = "SUNDAY"; 
+                    tempAttendanceData[reverseDateKeyMatch] = "SUNDAY"; 
                 } else {
-                    tempAttendanceData[fullDateKey] = "ABSENT"; 
+                    tempAttendanceData[reverseDateKeyMatch] = "ABSENT"; 
                 }
             }
 
             logsSnap.docs.forEach(lDoc => {
                 const logData = lDoc.data();
-                if (logData.date && logData.date.includes(`-${month}-${year}`) && logData.type === "IN") {
-                    const logDayStr = logData.date.split('-')[0];
-                    const fullDateKey = `${year}-${month}-${logDayStr}`;
-                    
-                    if((logData.id === displayId || logData.id === cleanId)) {
-                        const targetDayOfWeek = new Date(year, parseInt(month) - 1, parseInt(logDayStr)).getDay();
-                        if(targetDayOfWeek !== 0) {
-                            const rawStatus = String(logData.status || "").toUpperCase().trim();
-                            // 🆕 SYNC REAL-TIME BIOMETRIC LOGS MAP FOR WFH STATUS
-                            if(logData.isWFH === true || logData.wfhStatus === "Approved" || rawStatus === "WFH") {
-                                tempAttendanceData[fullDateKey] = "WFH";
-                            } else if (rawStatus === "LATE" || logData.isLate === true || logData.late === true) {
-                                tempAttendanceData[fullDateKey] = "LATE";
-                            } else {
-                                tempAttendanceData[fullDateKey] = "PRESENT";
+                if (!logData.date) return;
+                
+                const rawAct = String(logData.punchType || logData.type || logData.activity || "").toUpperCase().trim();
+                const logStatus = String(logData.status || "").toUpperCase().trim();
+                const isInPunch = (rawAct === "IN" || rawAct === "PUNCH IN") && logStatus !== "SHIFT END";
+
+                if (isInPunch) {
+                    const isUser = (String(logData.id) === displayId || String(logData.id) === cleanId || String(logData.username) === displayId || String(logData.empId) === displayId || String(logData.empId) === cleanId);
+                    if (isUser) {
+                        const parts = String(logData.date).trim().split('-');
+                        if (parts.length === 3) {
+                            const logDay = String(parseInt(parts[0])).padStart(2, '0');
+                            const logMonth = String(parseInt(parts[1])).padStart(2, '0');
+                            const logYear = String(parseInt(parts[2]));
+
+                            if (logMonth === currentSelectedMonthStr && logYear === currentSelectedYearStr) {
+                                const reverseDateKeyMatch = `${logDay}-${currentSelectedMonthStr}-${currentSelectedYearStr}`;
+                                const targetDayOfWeek = new Date(parseInt(logYear), parseInt(logMonth) - 1, parseInt(logDay)).getDay();
+                                
+                                if(targetDayOfWeek !== 0) {
+                                    if(logStatus === "LATE MARK" || logData.late === true || logData.isLate === true) {
+                                        tempAttendanceData[reverseDateKeyMatch] = "LATE";
+                                    } else {
+                                        tempAttendanceData[reverseDateKeyMatch] = "PRESENT";
+                                    }
+                                }
                             }
                         }
                     }
@@ -697,54 +745,46 @@ async function openAttendanceEditor(docId, empName) {
                 let currentMonthLeavesCount = 0;
                 leaveSnap.forEach(lDoc => {
                     const lv = lDoc.data();
-                    
-                    if (lv.startDate && lv.startDate.startsWith(`${year}-${month}`)) {
-                        const targetDayStr = lv.startDate.split('-')[2];
+                    if (lv.startDate && lv.startDate.includes(`-${month}-`)) {
+                        const parts = lv.startDate.split('-');
+                        const targetDayStr = String(parseInt(parts[2] || parts[0])).padStart(2, '0');
+                        const reverseDateKeyMatch = `${targetDayStr}-${month}-${year}`;
                         const targetDayOfWeek = new Date(year, parseInt(month) - 1, parseInt(targetDayStr)).getDay();
                         
                         if(targetDayOfWeek !== 0) { 
                             currentMonthLeavesCount++;
                             leaveHtml += `
                                 <tr>
-                                    <td style="padding: 6px; border-bottom:1px solid #f1f5f9; font-weight:700;">${targetDayStr}-${month}-${year}</td>
+                                    <td style="padding: 6px; border-bottom:1px solid #f1f5f9; font-weight:700;">${reverseDateKeyMatch}</td>
                                     <td style="padding: 6px; border-bottom:1px solid #f1f5f9;"><span class="status-badge" style="background:#eff6ff; color:#2563eb; border:1px solid #bfdbfe; font-size:8px;">${lv.leaveType || 'Casual Leave'}</span></td>
-                                    <td style="padding: 6px; border-bottom:1px solid #f1f5f9; color:#64748b; font-weight:700;">${lv.reason || 'Personal Work'}</td>
+                                    <td style="padding: 6px; border-bottom:1px solid #f1f5f9; color:#64748b; font-weight:700;">${lv.reason || 'Personal'}</td>
                                 </tr>`;
-                            tempAttendanceData[`${year}-${month}-${targetDayStr}`] = "PRESENT";
+                            tempAttendanceData[reverseDateKeyMatch] = "PRESENT";
                         }
                     }
                 });
                 
-                if(currentMonthLeavesCount > 0) {
-                    leaveTbody.innerHTML = leaveHtml;
-                } else {
-                    leaveTbody.innerHTML = `<tr><td colspan="3" align="center" style="padding: 12px; color: #94a3b8;">No approved leaves for this month.</td></tr>`;
-                }
+                if(currentMonthLeavesCount > 0) leaveTbody.innerHTML = leaveHtml;
+                else leaveTbody.innerHTML = `<tr><td colspan="3" align="center" style="padding: 12px; color: #94a3b8;">No approved leaves for this month.</td></tr>`;
             } else {
                 leaveTbody.innerHTML = `<tr><td colspan="3" align="center" style="padding: 12px; color: #94a3b8;">No leave history records found.</td></tr>`;
             }
 
             if (empData.attendance_manual_logs) {
                 Object.keys(empData.attendance_manual_logs).forEach(key => {
-                    if(key.startsWith(`${year}-${month}-`)) {
-                        const mDayStr = key.split('-')[2];
-                        const mDayOfWeek = new Date(year, parseInt(month) - 1, parseInt(mDayStr)).getDay();
-                        if(mDayOfWeek !== 0) { 
-                            tempAttendanceData[key] = empData.attendance_manual_logs[key];
-                        }
+                    if(key.includes(`-${month}-${year}`)) {
+                        tempAttendanceData[key] = empData.attendance_manual_logs[key];
                     }
                 });
             }
 
             originalAttendanceData = JSON.parse(JSON.stringify(tempAttendanceData));
-        } else {
-            document.getElementById("modTargetMonth").innerText = `Target Period: ${month}-${year}`;
         }
         
         document.getElementById("attendanceModal").style.display = "flex";
         generateCalendar();
     } catch(err) {
-        alert("Failed to load employee configuration maps: " + err.message);
+        alert("Failed to bind model configurations: " + err.message);
     }
 }
 
@@ -767,13 +807,12 @@ function generateCalendar() {
     }
     
     for(let day = 1; day <= totalDays; day++) {
-        const dateStr = `${yVal}-${String(currentSelectedMonthStr).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+        const dateStr = `${String(day).padStart(2,'0')}-${currentSelectedMonthStr}-${yVal}`;
         const currentStatus = tempAttendanceData[dateStr] || "ABSENT";
         
         let statusClass = "status-absent"; 
         if(currentStatus === "PRESENT") statusClass = "status-present";
-        if(currentStatus === "WFH") statusClass = "status-wfh"; // 🆕 Map color nodes for WFH
-        if(currentStatus === "ABSENT") statusClass = "status-absent";
+        if(currentStatus === "WFH") statusClass = "status-wfh"; 
         if(currentStatus === "LATE") statusClass = "status-late";
         if(currentStatus === "SUNDAY") statusClass = "status-sunday"; 
         
@@ -794,7 +833,6 @@ function toggleDateStatus(element, dateStr) {
     element.classList.remove("status-present", "status-absent", "status-late", "status-wfh");
     let newState = "ABSENT";
 
-    // 🆕 UPDATED REVOLVING ACCUMULATOR TOGGLE MATRIX CYCLE WITH WFH CHANNELS
     if(oldState === "ABSENT") {
         newState = "PRESENT";
         element.classList.add("status-present");
@@ -811,7 +849,6 @@ function toggleDateStatus(element, dateStr) {
     
     tempAttendanceData[dateStr] = newState;
 
-    // Leave Kitty Adjustments configuration
     if (oldState !== newState) {
         if ((oldState === "PRESENT" || oldState === "WFH") && newState === "ABSENT") {
             baseLivePL -= 1.33; baseLiveCL -= 1.33;
@@ -838,23 +875,23 @@ function toggleDateStatus(element, dateStr) {
 }
 
 function calculateLiveMetrics() {
-    const prefix = `${currentSelectedYearStr}-${currentSelectedMonthStr}-`;
+    const suffix = `-${currentSelectedMonthStr}-${currentSelectedYearStr}`;
     let p = 0, a = 0, l = 0, w = 0;
     
     Object.keys(tempAttendanceData).forEach(date => {
-        if(date.startsWith(prefix)) {
+        if(date.endsWith(suffix)) {
             const status = tempAttendanceData[date];
             if(status === "PRESENT") p++;
             if(status === "ABSENT") a++;
             if(status === "LATE") l++;
-            if(status === "WFH") w++; // 🆕 Accumulate live count parameters
+            if(status === "WFH") w++; 
         }
     });
     
     document.getElementById("countPresent").innerText = p;
     document.getElementById("countAbsent").innerText = a;
     document.getElementById("countLate").innerText = l;
-    document.getElementById("countWFH").innerText = w; // Sync into layout cell text
+    document.getElementById("countWFH").innerText = w; 
 }
 
 async function saveCalendarAttendance() {
@@ -864,16 +901,15 @@ async function saveCalendarAttendance() {
         await docRef.update({
             attendance_manual_logs: tempAttendanceData,
             pl: parseFloat(baseLivePL.toFixed(2)),
-            leaveBalance: parseFloat(baseLivePL.toFixed(2)),
             cl: parseFloat(baseLiveCL.toFixed(2)),
             sl: parseFloat(baseLiveSL.toFixed(2))
         });
 
-        alert("✅ ATTENDANCE & LEAVE KITTY SYNCED SUCCESSFULLY!\nAll components auto-updated in real-time.");
+        alert("✅ ATTENDANCE & LEAVE RE-CALCULATED SUCCESSFULLY!");
         closeAttendanceModal();
         calculatePayroll(); 
     } catch(err) {
-        alert("Failed to update matrix block: " + err.message);
+        alert("Failed to finalize matrix synchronization layout: " + err.message);
     }
 }
 </script>

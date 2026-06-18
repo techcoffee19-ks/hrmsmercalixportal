@@ -14,7 +14,7 @@
         body, html { margin: 0; padding: 0; height: 100%; font-family: 'Inter', sans-serif; background: var(--bg); color: var(--dark); overflow-x: hidden; }
         .wrapper { display: flex; flex-direction: column; min-height: 100vh; }
         
-        .top-nav { width: 100%; padding: 0 20px; height: 70px; display: flex; justify-content: space-between; align-items: center; background: #ffffff; border-bottom: 3px solid var(--primary); position: sticky; top: 0; z-index: 1000; box-shadow: 0 2px 10px rgba(0,0,0,0.05); box-shadow: 0 2px 10px rgba(0,0,0,0.05); box-sizing: border-box; }
+        .top-nav { width: 100%; padding: 0 20px; height: 70px; display: flex; justify-content: space-between; align-items: center; background: #ffffff; border-bottom: 3px solid var(--primary); position: sticky; top: 0; z-index: 1000; box-shadow: 0 2px 10px rgba(0,0,0,0.05); box-sizing: border-box; }
         .logo-text { font-size: 18px; font-weight: 800; color: var(--dark); text-decoration: none; }
         .logo-text span { color: var(--primary); }
 
@@ -67,7 +67,6 @@
         .status-l { background: #fef3c7 !important; color: #b45309 !important; border-color: #fde68a !important; }
         .status-h { background: #e0f2fe !important; color: #0369a1 !important; border-color: #bae6fd !important; }
         .status-s { background: #f1f5f9 !important; color: #94a3b8 !important; border-color: #e2e8f0 !important; font-weight: 600; }
-        /* ─── 🆕 NEW THEME CSS INTERACTION MATRICES FOR WFH CHANNELS ─── */
         .status-wfh { background: #f3e8ff !important; color: var(--wfh) !important; border-color: #e9d5ff !important; }
         .day-empty { background: transparent !important; border: none !important; pointer-events: none; }
 
@@ -300,7 +299,9 @@ function handleModalMonthChange() {
 }
 
 async function fetchAndPopulateModalMatrix(yearStr, monthStr) {
-    const monthYearSuffix = `${monthStr}-${yearStr}`;
+    const targetMonthInt = parseInt(monthStr);
+    const targetYearInt = parseInt(yearStr);
+    
     const container = document.getElementById("calendarDays");
     container.innerHTML = '<div style="grid-column: 1/-1; text-align:center; padding:30px; font-size:11px; color:#94a3b8; font-weight:700;">🔄 Syncing calculations...</div>';
 
@@ -308,23 +309,32 @@ async function fetchAndPopulateModalMatrix(yearStr, monthStr) {
         const empDoc = await db.collection("employees").doc(currentActiveDocId).get();
         if(!empDoc.exists) return;
         const empData = empDoc.data();
-        const displayId = empData.id || currentActiveDocId;
+        const displayId = String(empData.id || empData.username || currentActiveDocId);
         const cleanId = displayId.replace(/\//g, '');
         
         document.getElementById("modalEmpId").innerText = "STAFF ID: " + displayId;
 
         const logsSnap = await db.collection("vc_logs").get();
-        const allLogs = logsSnap.docs.map(d => d.data()).filter(l => 
-            (l.id === displayId || l.id === cleanId) && l.date.endsWith(`-${monthYearSuffix}`)
-        );
+        const allLogs = logsSnap.docs.map(d => d.data()).filter(l => {
+            if (!l.date) return false;
+            const isTargetUser = (String(l.id) === displayId || String(l.id) === cleanId || String(l.empId) === displayId || String(l.empId) === cleanId || String(l.username) === displayId);
+            if (!isTargetUser) return false;
+            
+            const parts = String(l.date).trim().split('-');
+            if (parts.length === 3) {
+                return parseInt(parts[1]) === targetMonthInt && parseInt(parts[2]) === targetYearInt;
+            }
+            return false;
+        });
 
         const leaveSnap = await db.collection("emp_leaves").where("name", "==", currentActiveEmpName).where("status", "==", "Approved").get();
-        const allLeaves = leaveSnap.docs.map(d => d.data()).filter(lv => lv.startDate && lv.startDate.startsWith(`${yearStr}-${monthStr}`));
+        const allLeaves = leaveSnap.docs.map(d => d.data()).filter(lv => lv.startDate && lv.startDate.includes(`-${monthStr}-`));
 
-        renderModalCalendarMatrix(parseInt(yearStr), parseInt(monthStr), empData, allLogs, allLeaves);
+        renderModalCalendarMatrix(targetYearInt, targetMonthInt, empData, allLogs, allLeaves);
 
     } catch (e) {
         console.error(e);
+        container.innerHTML = '<div style="grid-column: 1/-1; text-align:center; padding:30px; font-size:11px; color:red;">Error processing logs.</div>';
     }
 }
 
@@ -341,15 +351,17 @@ function renderModalCalendarMatrix(year, month, empData, logs, leaves) {
         container.innerHTML += `<div class="calendar-day day-empty"></div>`;
     }
 
-    let pCount = 0, aCount = 0, lCount = 0, hCount = 0, wfhCount = 0; // Initialize WFH counter node
+    let pCount = 0, aCount = 0, lCount = 0, hCount = 0, wfhCount = 0; 
     const manualLogs = empData.attendance_manual_logs || {};
     const monthStrPad = String(month).padStart(2, '0');
-    const monthPrefix = `${year}-${monthStrPad}-`;
+
+    const nowServer = new Date();
+    const isCurrentMonthLoop = (year === nowServer.getFullYear() && month === (nowServer.getMonth() + 1));
+    const evaluationsLimitDay = isCurrentMonthLoop ? nowServer.getDate() : daysInMonth;
 
     for (let d = 1; d <= daysInMonth; d++) {
         const dayPad = String(d).padStart(2, '0');
-        const dateKey = `${monthPrefix}${dayPad}`;
-        const biometricDateStr = `${dayPad}-${monthStrPad}-${year}`;
+        const reverseDateKeyMatch = `${dayPad}-${monthStrPad}-${year}`;
         const dayOfWeek = new Date(year, month - 1, d).getDay();
 
         let statusClass = "status-a"; 
@@ -358,9 +370,13 @@ function renderModalCalendarMatrix(year, month, empData, logs, leaves) {
         if (dayOfWeek === 0) {
             statusClass = "status-s";
             titleText = "Sunday (Weekly Off)";
+        } else if (d > evaluationsLimitDay) {
+            statusClass = "status-s";
+            titleText = "Future Day";
         } else {
-            if (manualLogs[dateKey]) {
-                const mStatus = String(manualLogs[dateKey]).toUpperCase().trim();
+            // Priority 1: Manual Regularized Logs Match Layer
+            if (manualLogs[reverseDateKeyMatch] || manualLogs[`${year}-${monthStrPad}-${dayPad}`]) {
+                const mStatus = String(manualLogs[reverseDateKeyMatch] || manualLogs[`${year}-${monthStrPad}-${dayPad}`]).toUpperCase().trim();
                 if (mStatus === "PRESENT") { statusClass = "status-p"; pCount++; titleText = "Present (Regularized)"; }
                 else if (mStatus === "WFH" || mStatus === "WORK FROM HOME") { statusClass = "status-wfh"; wfhCount++; titleText = "WFH Approved (Regularized)"; }
                 else if (mStatus === "LATE") { statusClass = "status-l"; lCount++; pCount++; titleText = "Late Mark (Regularized)"; }
@@ -368,23 +384,42 @@ function renderModalCalendarMatrix(year, month, empData, logs, leaves) {
                 else { statusClass = "status-a"; aCount++; }
             } 
             else {
-                const bioLog = logs.find(l => l.date === biometricDateStr && l.type === "IN");
+                // Priority 2: Biometric Raw Logs Extraction (Unrestricted log existence match for calendar integrity)
+                const bioLog = logs.find(l => {
+                    if(!l.date) return false;
+                    const parts = String(l.date).trim().split('-');
+                    if(parts.length === 3) {
+                        const logDayStr = String(parseInt(parts[0])).padStart(2, '0');
+                        const logMonthStr = String(parseInt(parts[1])).padStart(2, '0');
+                        const logYearStr = String(parseInt(parts[2]));
+                        
+                        return (logDayStr === dayPad && logMonthStr === monthStrPad && logYearStr === String(year));
+                    }
+                    return false;
+                });
+
                 if (bioLog) {
                     const bioStatus = String(bioLog.status || "").toUpperCase().trim();
-                    const isWFHApproved = bioLog.isWFH === true || bioLog.wfhStatus === "Approved" || bioStatus === "WFH" || bioStatus === "WFH APPROVED";
+                    const bioType = String(bioLog.punchType || bioLog.type || bioLog.activity || "").toUpperCase().trim();
+                    const isWFHApproved = bioLog.isWFH === true || bioLog.wfhStatus === "Approved" || bioStatus.includes("WFH") || bioStatus.includes("AWAITING");
                     
                     if (isWFHApproved) {
                         statusClass = "status-wfh"; wfhCount++; titleText = `WFH Approved - ${bioLog.time || ''}`;
                     } else if (bioStatus === "HALF" || bioStatus === "HALF_DAY" || bioStatus === "HALF DAY") {
                         statusClass = "status-h"; hCount++; pCount += 0.5; titleText = `Half Day - ${bioLog.time || ''}`;
-                    } else if (bioStatus === "LATE" || bioLog.isLate === true || bioLog.late === true) {
+                    } else if (bioStatus === "LATE MARK" || bioStatus === "LATE" || bioLog.isLate === true || bioLog.late === true) {
                         statusClass = "status-l"; lCount++; pCount++; titleText = `Late Mark - ${bioLog.time || ''}`;
                     } else {
                         statusClass = "status-p"; pCount++; titleText = `Present - ${bioLog.time || ''}`;
                     }
                 } 
                 else {
-                    const matchedLeave = leaves.find(lv => lv.startDate === `${year}-${monthStrPad}-${dayPad}`);
+                    // Priority 3: Leaves Management Hook
+                    const matchedLeave = leaves.find(lv => {
+                        if(!lv.startDate) return false;
+                        return lv.startDate.includes(`-${monthStrPad}-${dayPad}`) || lv.startDate === `${year}-${monthStrPad}-${dayPad}`;
+                    });
+                    
                     if (matchedLeave) {
                         statusClass = "status-p"; 
                         pCount++; 
@@ -402,7 +437,7 @@ function renderModalCalendarMatrix(year, month, empData, logs, leaves) {
 
     document.getElementById("statTotal").innerText = daysInMonth;
     document.getElementById("statPresent").innerText = pCount;
-    document.getElementById("statWFH").innerText = wfhCount; // 🆕 Sync count parameters into layout rows
+    document.getElementById("statWFH").innerText = wfhCount; 
     document.getElementById("statAbsent").innerText = aCount;
     document.getElementById("statLate").innerText = lCount;
     document.getElementById("statHalf").innerText = hCount;
@@ -412,7 +447,9 @@ function filterTable() {
     const term = document.getElementById("staffSearch").value.toLowerCase();
     const dept = document.getElementById("deptFilter").value;
     const filtered = allStaff.filter(s => {
-        const matchSearch = s.name.toLowerCase().includes(term) || (s.id && s.id.toLowerCase().includes(term));
+        const nameMatch = (s.name || "").toLowerCase().includes(term);
+        const idMatch = (s.id && String(s.id).toLowerCase().includes(term));
+        const matchSearch = nameMatch || idMatch;
         const matchDept = (dept === "All" || s.dept === dept);
         return matchSearch && matchDept;
     });

@@ -143,12 +143,27 @@ async function initCloudAttendance() {
         if(clock) clock.innerText = new Date().toLocaleTimeString(); 
     }, 1000);
 
-    db.collection("vc_logs")
-      .onSnapshot((snapshot) => {
-        allMyLogs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
-            .filter(l => l.id === empId || l.id === cleanId || l.empId === empId);
+    db.collection("vc_logs").onSnapshot((snapshot) => {
+        allMyLogs = snapshot.docs.map(doc => ({ logDocId: doc.id, ...doc.data() }))
+            .filter(l => {
+                const targetId = String(l.id || "").trim();
+                const targetEmpId = String(l.empId || "").trim();
+                const sessionCleanId = String(cleanId).trim();
+                const sessionEmpId = String(empId).trim();
+                
+                return (targetId === sessionEmpId || 
+                        targetId === sessionCleanId || 
+                        targetEmpId === sessionEmpId || 
+                        targetEmpId === sessionCleanId ||
+                        l.logDocId === sessionEmpId ||
+                        l.logDocId === sessionCleanId);
+            });
         
-        allMyLogs.sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
+        allMyLogs.sort((a, b) => {
+            const timeA = a.timestamp?.seconds || (a.timestamp?.toMillis ? a.timestamp.toMillis() / 1000 : 0);
+            const timeB = b.timestamp?.seconds || (b.timestamp?.toMillis ? b.timestamp.toMillis() / 1000 : 0);
+            return timeB - timeA;
+        });
         
         applyFilters();
     });
@@ -165,35 +180,46 @@ function applyFilters() {
     }
 
     tbody.innerHTML = filtered.map(log => {
+        // Strict Cross checking fallback to support raw insertions
+        let activityType = String(log.punchType || log.type || "IN").toUpperCase().trim();
+        
+        // Dynamic detection wrapper if admin panel completely messed up strings during insert
+        if(log.status === "SHIFT END" || log.time === "19:30" && log.locationTag === "Manual Punch") {
+             activityType = "OUT";
+        }
+
         const isLate = log.late === true || log.status === "LATE MARK";
         const cleanStatus = String(log.status || "").toUpperCase().trim();
+        const isWFHRequest = log.isWFH === true || cleanStatus.includes("WFH") || log.location === "Work From Home";
         
-        // 1. Updated Status Badge Multi-logic for WFH & Office Status Elements
         let statusHTML = '--';
-        if (log.type === "IN") {
-            if (log.wfhStatus === "Pending" || cleanStatus === "PENDING WFH APPROVAL") {
-                statusHTML = `<span class="status-badge" style="background:#f3e8ff; color:#7e22ce; border:1px solid #a855f7;"><i class="fas fa-hourglass-half"></i> PENDING WFH</span>`;
-            } else if (log.wfhStatus === "Approved" || cleanStatus === "WFH" || log.isWFH === true) {
-                statusHTML = `<span class="status-badge" style="background:#a855f7; color:white;"><i class="fas fa-home"></i> WFH APPROVED</span>`;
-            } else if (isLate) {
-                statusHTML = `<span class="status-badge" style="background:#fff7ed; color:#f59e0b; border:1px solid #f59e0b;">LATE MARK</span>`;
+        if (activityType === "IN") {
+            if (isWFHRequest) {
+                if (log.wfhStatus === "Pending" || cleanStatus.includes("PENDING")) {
+                    statusHTML = `<span class="status-badge" style="background:#f3e8ff; color:#7e22ce; border:1px solid #a855f7;"><i class="fas fa-hourglass-half"></i> PENDING WFH</span>`;
+                } else {
+                    statusHTML = `<span class="status-badge" style="background:#a855f7; color:white;"><i class="fas fa-home"></i> WFH APPROVED</span>`;
+                }
             } else {
-                statusHTML = `<span class="status-badge bg-ontime">ON TIME</span>`;
+                if (isLate) {
+                    statusHTML = `<span class="status-badge" style="background:#fff7ed; color:#f59e0b; border:1px solid #f59e0b;">LATE MARK</span>`;
+                } else {
+                    statusHTML = `<span class="status-badge bg-ontime">ON TIME</span>`;
+                }
             }
+        } else if (activityType === "OUT") {
+            statusHTML = `<span class="status-badge" style="background:#fee2e2; color:#ef4444; border:1px solid #ef4444;">SHIFT END</span>`;
         }
         
-        const activityType = log.type ? log.type : "DATA";
-        const activityClass = log.type === 'IN' ? 'punch-in' : 'punch-out';
-
-        // 2. Updated Geo-tagging Matrix for Manual Punch / WFH Logs Elements
+        const activityClass = activityType === 'IN' ? 'punch-in' : 'punch-out';
         let locHTML = '<span style="color:#94a3b8; font-size:10px;">GPS Restricted</span>';
         
-        if (log.locationTag === "Manual Punch" || log.location === "Manual Punch") {
+        if (log.locationTag === "Manual Punch" || log.location === "Manual Punch" || cleanStatus.includes("MANUAL")) {
             locHTML = `<span style="font-size:11px; color:var(--wfh); font-weight:800;"><i class="fas fa-fingerprint"></i> ✨ Manual Punch</span>`;
-        } else if (log.isWFH === true || log.location === "Work From Home") {
+        } else if (isWFHRequest) {
             locHTML = `<span style="font-size:11px; color:#7e22ce; font-weight:700;"><i class="fas fa-house-user"></i> Remote Home Log</span>`;
         } else if (log.lat && log.lat !== 0) {
-            locHTML = `<a href="https://www.google.com/maps?q=${log.lat},${log.lng}" target="_blank" class="btn-map"><i class="fas fa-map-marker-alt"></i> View on Map</a>`;
+            locHTML = `<a href="http://maps.google.com/?q=${log.lat},${log.lng}" target="_blank" class="btn-map"><i class="fas fa-map-marker-alt"></i> View on Map</a>`;
         } else if (log.location && log.location !== "Location Restricted") {
             locHTML = `<span title="${log.location}" style="font-size:9px; color:var(--dark); cursor:help;"><i class="fas fa-map-pin"></i> Fixed: ${log.location.substring(0,15)}...</span>`;
         }

@@ -385,7 +385,7 @@ let monthlyLeavesStore = [];
 let presentDaysCount = 0;
 let absentDaysCount = 0;
 let lateDaysCount = 0;
-let wfhDaysCount = 0; // 🆕 Track WFH range elements
+let wfhDaysCount = 0; 
 let totalLeavesCount = 0;
 
 let monthWiseBifurcationMap = {};
@@ -437,7 +437,7 @@ function streamCoreEmployeeFile() {
                 let famText = data.family.map(f => `${f.name} (${f.relation})`).join(", ");
                 document.getElementById("detFather").innerText = famText;
             } else {
-                document.getElementById("detFather").innerText = data.family?.fatherName || data.fatherName || "---";
+                document.getElementById("detFather").innerText = data.family?.fatherName || data.family?.fatherName || "---";
             }
             
             document.getElementById("detRelation").innerText = data.general?.emergencycontact || "Guardian Head";
@@ -465,7 +465,7 @@ function syncMonthlyMetrics() {
     presentDaysCount = 0;
     absentDaysCount = 0;
     lateDaysCount = 0;
-    wfhDaysCount = 0; // Reset counters
+    wfhDaysCount = 0; 
     let effectiveWorkdays = 0;
     let combinedProductiveHours = 0;
 
@@ -512,18 +512,20 @@ function syncMonthlyMetrics() {
     const attendanceRowContainer = document.getElementById("attendanceLogRows");
     attendanceRowContainer.innerHTML = `<tr><td colspan="5" style="text-align:center; color: var(--slate-400);"><i class="fas fa-spinner fa-spin"></i> Merging Range Ledgers...</td></tr>`;
 
-    // Fetch live logs sync structure
-    db.collection("vc_logs").where("id", "==", globalEmpIdClean).get().then(snapshot => {
+    // Supporting all flexible multi references lookup strings
+    db.collection("vc_logs").get().then(snapshot => {
         monthlyLogsStore = [];
         let organizedDailyLogsMap = {};
-        let isWFHActiveToday = false;
 
-        snapshot.forEach(doc => {
-            const logData = doc.data();
+        const filteredDocs = snapshot.docs.map(doc => doc.data()).filter(l => {
+            return (l.id === globalEmpIdClean || l.id === globalRawEmpId || l.empId === globalEmpIdClean || l.empId === globalRawEmpId);
+        });
+
+        filteredDocs.forEach(logData => {
             if (logData.date) {
                 const dateParts = logData.date.split('-'); 
                 if(dateParts.length === 3) {
-                    const currentLogYear = parseInt(dateParts[2]);
+                    const currentLogYear = parseInt(dateParts[2].length === 4 ? dateParts[2] : dateParts[0]);
                     const currentLogMonth = parseInt(dateParts[1]);
                     const uniqueKey = `${currentLogYear}-${String(currentLogMonth).padStart(2, '0')}`;
                     
@@ -541,33 +543,38 @@ function syncMonthlyMetrics() {
                                 rawHours: 0, 
                                 yearSort: currentLogYear,
                                 monthSort: currentLogMonth, 
-                                daySort: parseInt(dateParts[0]),
+                                daySort: parseInt(dateParts[0].length === 4 ? dateParts[2] : dateParts[0]),
                                 monthKey: uniqueKey
                             };
                         }
                         
-                        const logStatusClean = String(logData.status || "").toUpperCase();
+                        const logStatusClean = String(logData.status || "").toUpperCase().trim();
+                        const currentType = String(logData.punchType || logData.type || "IN").toUpperCase().trim();
                         
-                        if (logData.type === "IN") {
+                        /* ─── 🌟 STABLE COMPLIANCE MECHANISM: INTELLIGENT FIELD CHECK INTERCEPTOR ─── */
+                        if (currentType === "IN") {
                             organizedDailyLogsMap[targetDay].in = logData.time;
                             organizedDailyLogsMap[targetDay].geo = logData.location || "Office Base Desk";
                             
-                            // Detect WFH validation state parameters
-                            if(logData.isWFH === true || logData.wfhStatus === "Approved" || logStatusClean === "WFH") {
+                            if(logData.isWFH === true || logStatusClean.includes("WFH") || logData.wfhStatus === "Approved") {
                                 organizedDailyLogsMap[targetDay].isWFH = true;
                             }
-                            // Detect Manual punch logging references
-                            if(logData.locationTag === "Manual Punch" || logData.location === "Manual Punch") {
+                            
+                            if(logData.locationTag === "Manual Punch" || logData.location === "Manual Punch" || logStatusClean.includes("MANUAL")) {
                                 organizedDailyLogsMap[targetDay].isManual = true;
                                 organizedDailyLogsMap[targetDay].geo = "Manual Punch";
                             }
 
-                            if (logData.late === true || logData.late === "true" || logData.status === "LATE" || logStatusClean === "LATE MARK") {
+                            if (logData.late === true || logData.late === "true" || logStatusClean === "LATE" || logStatusClean === "LATE MARK") {
                                 organizedDailyLogsMap[targetDay].late = true;
                             }
                         }
-                        if (logData.type === "OUT") {
+                        
+                        if (currentType === "OUT" || logStatusClean === "SHIFT END" || logData.time === "19:30" && logData.locationTag === "Manual Punch") {
                             organizedDailyLogsMap[targetDay].out = logData.time;
+                            if(logData.locationTag === "Manual Punch" || logData.location === "Manual Punch" || logStatusClean.includes("MANUAL")) {
+                                organizedDailyLogsMap[targetDay].isManual = true;
+                            }
                         }
                     }
                 }
@@ -582,7 +589,6 @@ function syncMonthlyMetrics() {
             return organizedDailyLogsMap[a].daySort - organizedDailyLogsMap[b].daySort;
         });
 
-        // Today's validation engine for profile photo badge
         const todayStringStr = new Date().toLocaleDateString('en-GB').replace(/\//g, '-');
         if(organizedDailyLogsMap[todayStringStr]) {
             const todayObj = organizedDailyLogsMap[todayStringStr];
@@ -603,7 +609,6 @@ function syncMonthlyMetrics() {
         } else {
             sortedDaysKeys.forEach(dayKey => {
                 const dayObj = organizedDailyLogsMap[dayKey];
-                
                 effectiveWorkdays++;
                 
                 if(monthWiseBifurcationMap[dayObj.monthKey]) {
@@ -635,7 +640,6 @@ function syncMonthlyMetrics() {
 
                 monthlyLogsStore.push(dayObj);
 
-                // Origin tag style processing parameters
                 let locationBadgeHTML = `<small style="font-size:11px; font-weight:600;"><i class="fas fa-map-marker-alt text-danger"></i> ${dayObj.geo}</small>`;
                 if(dayObj.isManual) {
                     locationBadgeHTML = `<span class="badge" style="background:#e0e7ff; color:#4f46e5; font-size:10px;"><i class="fas fa-fingerprint"></i> ✨ Manual Punch</span>`;
@@ -655,10 +659,9 @@ function syncMonthlyMetrics() {
             });
         }
 
-        // Set layout metric components text fields
         document.getElementById("metricWorkdays").innerText = presentDaysCount + wfhDaysCount + absentDaysCount;
         document.getElementById("metricPresent").innerText = presentDaysCount;
-        document.getElementById("metricWFH").innerText = wfhDaysCount; // 🆕 Sync into card UI elements
+        document.getElementById("metricWFH").innerText = wfhDaysCount; 
         document.getElementById("metricAbsent").innerText = absentDaysCount;
         document.getElementById("metricLates").innerText = lateDaysCount;
         document.getElementById("metricHours").innerText = `${combinedProductiveHours.toFixed(1)} Hrs`;
@@ -825,7 +828,6 @@ function exportDataToExcel() {
     });
     matrix.push(presentRow);
 
-    // 🆕 Inject multi-month WFH mapping parameters row to Excel file arrays
     let wfhExcelRow = ["Work From Home Days"];
     Object.keys(monthWiseBifurcationMap).forEach(key => {
         wfhExcelRow.push(monthWiseBifurcationMap[key].wfh);
@@ -892,7 +894,7 @@ function exportDataToExcel() {
         { wch: 32 }, { wch: 25 }, { wch: 22 }, { wch: 25 }, { wch: 20 }, { wch: 65 }
     ];
 
-    const workbookInstance = workbook_Instance = XLSX.utils.book_new();
+    const workbookInstance = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbookInstance, worksheetInstance, "Consolidated Summary");
 
     const exportFileNameStr = `HRMS_Consolidated_Audit_${globalEmpIdClean}_${fromText}_to_${toText}.xlsx`;

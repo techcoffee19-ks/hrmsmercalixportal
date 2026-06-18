@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Mercalix Terminal | Biometric Intelligence</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
@@ -12,69 +12,91 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap');
         :root { --primary: #ffb100; --dark: #0f172a; --wfh: #a855f7; }
-        body { font-family: 'Inter', sans-serif; background: radial-gradient(circle at center, #1e293b 0%, #0f172a 100%); color: #e2e8f0; margin: 0; min-height: 100vh; overflow: hidden; }
-        .top-nav { width: 100%; padding: 15px 40px; box-sizing: border-box; display: flex; justify-content: space-between; align-items: center; background: rgba(0, 0, 0, 0.4); backdrop-filter: blur(20px); border-bottom: 2px solid var(--primary); position: fixed; top: 0; z-index: 1000; }
-        .logo-text { font-size: 20px; font-weight: 800; color: white; text-decoration: none; letter-spacing: 1px; }
+        body { font-family: 'Inter', sans-serif; background: radial-gradient(circle at center, #1e293b 0%, #0f172a 100%); color: #e2e8f0; margin: 0; padding: 0; min-height: 100vh; overflow-y: auto; }
+        
+        .top-nav { width: 100%; height: 60px; padding: 0 24px; box-sizing: border-box; display: flex; justify-content: space-between; align-items: center; background: rgba(0, 0, 0, 0.4); backdrop-filter: blur(20px); border-bottom: 2px solid var(--primary); position: sticky; top: 0; z-index: 1000; }
+        .logo-text { font-size: 18px; font-weight: 800; color: white; text-decoration: none; letter-spacing: 1px; }
         .logo-text span { color: var(--primary); }
+        
         .glass-panel { background: rgba(30, 41, 59, 0.5); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.08); }
-        .scanner-line { height: 4px; background: var(--primary); width: 100%; position: absolute; top: 0; box-shadow: 0 0 25px var(--primary); animation: scan 2.5s infinite ease-in-out; z-index: 30; }
+        .scanner-line { height: 4px; background: var(--primary); width: 100%; position: absolute; top: 0; box-shadow: 0 0 25px var(--primary); animation: scan 2s infinite ease-in-out; z-index: 30; }
         .scanner-line.wfh-active { background: var(--wfh) !important; box-shadow: 0 0 25px var(--wfh) !important; }
+        
         @keyframes scan { 0%, 100% { top: 5%; opacity: 0.2; } 50% { top: 95%; opacity: 1; } }
-        #video-feed { transform: scaleX(-1); border-radius: 2rem; object-fit: cover; }
-        .btn-punch { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); border-bottom-width: 6px; }
-        .btn-punch:active { transform: translateY(4px); border-bottom-width: 0px; }
+        #video-feed { transform: scaleX(-1); border-radius: 1.5rem; object-fit: cover; }
+        .btn-punch { transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); border-bottom-width: 4px; }
+        .btn-punch:active { transform: translateY(2px); border-bottom-width: 0px; }
+
+        /* Updated Responsive Container */
+        .terminal-flex-container { 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            gap: 15px; 
+            padding: 15px; 
+            box-sizing: border-box;
+            width: 100%;
+            max-width: 480px; 
+            margin: 0 auto;
+        }
+        .camera-surface-view { width: 100%; aspect-ratio: 4/3; position: relative; }
+        
+        @media (max-height: 700px) {
+            .camera-surface-view { height: 30vh; }
+            .btn-punch { py: 2px !important; font-size: 1rem !important; }
+        }
     </style>
 </head>
-<body class="flex flex-col" onload="initTerminal()">
+<body class="flex flex-col">
 
     <nav class="top-nav">
         <a href="#" class="logo-text">MERCALIX <span>SYSTEM</span></a>
-        <div class="flex items-center gap-4">
-            <div id="clock" class="text-white font-bold text-sm bg-slate-800 px-4 py-1.5 rounded-full border border-slate-700">--:--:--</div>
-            <a href="login.html" class="text-[10px] font-black text-amber-500 border-2 border-amber-500 px-4 py-1.5 rounded-lg hover:bg-amber-500 hover:text-black transition-all">ADMIN ACCESS</a>
+        <div class="flex items-center gap-3">
+            <div id="clock" class="text-white font-bold text-xs bg-slate-800 px-3 py-1 rounded-full border border-slate-700">--:--:--</div>
+            <a href="login.html" class="text-[9px] font-black text-amber-500 border border-amber-500 px-3 py-1 rounded-lg hover:bg-amber-500 hover:text-black transition-all">ADMIN ACCESS</a>
         </div>
     </nav>
 
-    <main class="flex-1 max-w-4xl mx-auto w-full p-6 flex flex-col items-center justify-center pt-28">
-        <div class="text-center mb-4">
-            <p id="cloud-status" class="text-amber-500 text-[10px] font-black uppercase tracking-[0.3em] mb-1">Neural Pulse: Initialising...</p>
-            <h2 class="text-4xl font-black text-white tracking-tighter">ATTENDANCE <span class="text-slate-400">TERMINAL</span></h2>
+    <main class="terminal-flex-container">
+        <div class="text-center w-full mt-2">
+            <p id="cloud-status" class="text-amber-500 text-[9px] font-black uppercase tracking-[0.2em] mb-0.5">Neural Pulse: Initialising...</p>
+            <h2 class="text-xl font-black text-white tracking-tighter uppercase">ATTENDANCE <span class="text-slate-400">TERMINAL</span></h2>
         </div>
 
-        <div class="w-full relative glass-panel rounded-[3rem] p-4 border border-white/5 shadow-2xl aspect-video overflow-hidden mb-4">
+        <div class="camera-surface-view glass-panel rounded-[2rem] p-2 border border-white/5 shadow-2xl overflow-hidden">
             <div id="scanner-line" class="scanner-line hidden"></div>
-            <div id="scan-overlay" class="absolute inset-0 z-20 pointer-events-none flex items-center justify-center">
-                <div id="overlay-msg" class="px-10 py-5 rounded-3xl border-2 hidden text-sm font-black shadow-2xl backdrop-blur-2xl uppercase tracking-widest text-center"></div>
+            <div id="scan-overlay" class="absolute inset-0 z-20 pointer-events-none flex items-center justify-center p-3">
+                <div id="overlay-msg" class="px-6 py-3 rounded-2xl border-2 hidden text-xs font-black shadow-2xl backdrop-blur-2xl uppercase tracking-widest text-center text-white"></div>
             </div>
-            <video id="video-feed" autoplay playsinline class="w-full h-full bg-slate-900 opacity-40 transition-opacity duration-700"></video>
+            <video id="video-feed" autoplay playsinline class="w-full h-full bg-slate-900 opacity-40 transition-opacity duration-300"></video>
             <canvas id="capture-canvas" width="640" height="480" class="hidden"></canvas>
-            <div id="setup-screen" class="absolute inset-0 flex flex-col items-center justify-center bg-slate-950/95 z-40">
-                <div id="ai-loader" class="w-12 h-12 border-4 border-amber-500 border-t-transparent rounded-full animate-spin mb-6"></div>
-                <button id="cam-init-btn" disabled onclick="startCamera()" class="bg-amber-500 text-slate-950 px-12 py-4 rounded-2xl font-black disabled:opacity-30 uppercase text-xs tracking-widest">Initialise Biometric Link</button>
+            
+            <div id="setup-screen" class="absolute inset-0 flex flex-col items-center justify-center bg-slate-950/95 z-40 p-4">
+                <div id="ai-loader" class="w-9 h-9 border-4 border-amber-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+                <button id="cam-init-btn" disabled onclick="startCamera()" class="bg-amber-500 text-slate-950 px-8 py-3 rounded-xl font-black disabled:opacity-30 uppercase text-[9px] tracking-widest">Initialise Biometric Link</button>
             </div>
         </div>
 
-        <div class="w-full max-w-xl mb-4 glass-panel p-4 rounded-2xl border border-white/5 flex flex-col gap-3">
-            <div class="flex items-center justify-between">
-                <label class="text-[10px] font-black tracking-widest text-slate-400 uppercase">Select Attendance Location Mode</label>
-                <select id="dutyLocationMode" onchange="toggleDutyLocationModeView()" class="bg-slate-900 border border-slate-700 text-amber-400 font-bold text-xs rounded-lg px-3 py-1.5 focus:outline-none focus:border-amber-500">
+        <div class="w-full glass-panel p-3 rounded-xl border border-white/5 flex flex-col gap-2">
+            <div class="flex items-center justify-between gap-4">
+                <label class="text-[9px] font-black tracking-widest text-slate-400 uppercase">Select Attendance Location Mode</label>
+                <select id="dutyLocationMode" onchange="toggleDutyLocationModeView()" class="bg-slate-900 border border-slate-700 text-amber-400 font-bold text-xs rounded-md px-2 py-1 focus:outline-none focus:border-amber-500">
                     <option value="OFFICE">🏢 Office Base (Default)</option>
                     <option value="WFH">🏠 Work From Home (WFH)</option>
                 </select>
             </div>
             
-            <div id="wfhReasonContainer" class="hidden flex-col gap-1">
-                <label class="text-[10px] font-black tracking-widest text-purple-400 uppercase">Reason for Work From Home *</label>
-                <input type="text" id="wfhReasonInput" placeholder="e.g., Severe rainstorms / Client site meeting assignment" class="w-full bg-slate-950/80 border border-purple-500/30 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-purple-500 font-medium">
+            <div id="wfhReasonContainer" class="hidden flex-col gap-1 border-t border-white/5 pt-2">
+                <label class="text-[9px] font-black tracking-widest text-purple-400 uppercase">Reason for Work From Home *</label>
+                <input type="text" id="wfhReasonInput" placeholder="Enter reason here..." class="w-full bg-slate-950/80 border border-purple-500/30 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-purple-500 font-medium">
             </div>
         </div>
 
-        <div class="flex gap-6 w-full max-w-xl">
-            <button onclick="triggerPunch('IN')" class="btn-punch flex-1 bg-emerald-500 text-emerald-950 font-black py-5 rounded-3xl text-2xl border-emerald-700 shadow-xl">PUNCH IN</button>
-            <button onclick="triggerPunch('OUT')" class="btn-punch flex-1 bg-rose-500 text-rose-950 font-black py-5 rounded-3xl text-2xl border-rose-700 shadow-xl">PUNCH OUT</button>
+        <div class="flex gap-4 w-full">
+            <button onclick="triggerPunch('IN')" class="btn-punch flex-1 bg-emerald-500 text-emerald-950 font-black py-3 rounded-2xl text-lg border-emerald-700 shadow-xl tracking-wide">PUNCH IN</button>
+            <button onclick="triggerPunch('OUT')" class="btn-punch flex-1 bg-rose-500 text-rose-950 font-black py-3 rounded-2xl text-lg border-rose-700 shadow-xl tracking-wide">PUNCH OUT</button>
         </div>
     </main>
-
     <script>
         const firebaseConfig = {
             apiKey: "AIzaSyCkBeHploRe3UHq6ndukFUtfYc8sCkfx9g",
@@ -90,7 +112,6 @@
         
         let biometricRegistry = []; 
         let activeStream = null;
-        
         let terminalCC = sessionStorage.getItem("companyCode") || localStorage.getItem("terminalCC") || "GENERAL";
         if(terminalCC !== "GENERAL") localStorage.setItem("terminalCC", terminalCC);
 
@@ -101,25 +122,24 @@
             const mode = document.getElementById("dutyLocationMode").value;
             const container = document.getElementById("wfhReasonContainer");
             if(mode === "WFH") {
-                container.classList.remove("hidden");
-                container.classList.add("flex");
+                container.classList.remove("hidden"); container.classList.add("flex");
             } else {
-                container.classList.add("hidden");
-                container.classList.remove("flex");
+                container.classList.add("hidden"); container.classList.remove("flex");
                 document.getElementById("wfhReasonInput").value = "";
             }
         }
 
-        async function initTerminal() { 
+        // Safe Engine Boot: Wait completely for window compilation before execution
+        window.addEventListener('DOMContentLoaded', async () => {
             setInterval(() => { document.getElementById('clock').innerText = new Date().toLocaleTimeString(); }, 1000);
-            const MODEL_URL = 'https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js/weights';
+            
+            // ─── 🌟 STABLE CLOUDFLARE SHIELD PATH (PREVENTS SPINNING HANG UP) ───
+            const MODEL_URL = 'https://raw.githubusercontent.com/justadudewhohacks/face-api.js/master/weights';
             
             try {
-                await Promise.all([
-                    faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
-                    faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
-                    faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)
-                ]);
+                await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
+                await faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL);
+                await faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL);
                 
                 document.getElementById('ai-loader').classList.add('hidden');
                 document.getElementById('cam-init-btn').disabled = false;
@@ -131,24 +151,23 @@
 
                 query.onSnapshot(snap => {
                     biometricRegistry = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                    document.getElementById('cloud-status').innerText = `SYSTEM READY: ${biometricRegistry.length} IDENTITIES SYNCED`;
+                    document.getElementById('cloud-status').innerText = `SYSTEM READY: ${biometricRegistry.length} IDENTITIES MAPPED`;
                 });
-            } catch (e) { alert("Neural Engine Error."); }
-        }
+            } catch (e) { 
+                document.getElementById('cloud-status').innerText = "BIOMETRIC NETWORK RETRYING...";
+                console.error("Models failed to load from primary repository.", e);
+            }
+        });
 
         async function startCamera() {
             try { 
                 activeStream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { 
-                        facingMode: "user",
-                        width: { ideal: 640 }, 
-                        height: { ideal: 480 } 
-                    } 
+                    video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } } 
                 }); 
                 video.srcObject = activeStream; 
                 video.classList.replace('opacity-40', 'opacity-100');
                 document.getElementById('setup-screen').classList.add('hidden'); 
-            } catch (e) { alert("Camera Access Denied."); }
+            } catch (e) { alert("Camera connection error. Check browser tab security permissions."); }
         }
 
         async function getAddressFromCoords(lat, lng) {
@@ -156,12 +175,12 @@
             try {
                 const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`);
                 const data = await res.json();
-                return data.display_name || "Location Secured";
+                return data.display_name || "Office Headquarter Hub";
             } catch (e) { return `${lat}, ${lng}`; }
         }
 
         async function triggerPunch(type) {
-            if (!activeStream) return alert("Initialise Neural Link First");
+            if (!activeStream) return alert("Initialize Biometric Link First.");
             const line = document.getElementById('scanner-line');
             const mode = document.getElementById("dutyLocationMode").value;
             const wfhReason = document.getElementById("wfhReasonInput").value;
@@ -170,20 +189,20 @@
                 return alert("⚠️ Reason required! Please fill in why you are working from home before scanning.");
             }
 
-            // Purple scanner color transition if WFH selected
             if (mode === "WFH") line.classList.add("wfh-active");
             else line.classList.remove("wfh-active");
 
-            updateUI("SCANNING BIOMETRICS...<br><span class='text-[10px] text-amber-500'>VERIFYING IDENTITY & GPS</span>", "bg-slate-900 border-amber-500/50");
+            updateUI("MATCHING INDENTITIES VECTORS...<br><span class='text-[9px] text-amber-500'>AI RESOLUTION ENGINE: SUB-2 SEC TIMING INTERACTION</span>", "bg-slate-900 border-amber-500/50");
             line.classList.remove('hidden');
 
             try {
-                const faceOptions = new faceapi.TinyFaceDetectorOptions({ inputSize: 160, scoreThreshold: 0.5 });
+                // ─── 🌟 SUB-2 SECOND INSTANT RESPONSE PROFILES MATRIX PATCH ───
+                const faceOptions = new faceapi.TinyFaceDetectorOptions({ inputSize: 128, scoreThreshold: 0.4 });
                 const detection = await faceapi.detectSingleFace(video, faceOptions).withFaceLandmarks().withFaceDescriptor();
                 
                 if (!detection) {
                     line.classList.add('hidden');
-                    return updateUI("FACE NOT DETECTED", "bg-rose-600");
+                    return updateUI("FACE CONTOUR PROFILE OUT OF ZONE", "bg-rose-600");
                 }
 
                 let bestMatch = null;
@@ -199,17 +218,16 @@
                         navigator.geolocation.getCurrentPosition(
                             (p) => resolve({ lat: p.coords.latitude, lng: p.coords.longitude }),
                             (e) => resolve(null), 
-                            { enableHighAccuracy: true, timeout: 6000 } 
+                            { enableHighAccuracy: true, timeout: 4000 } 
                         );
                     });
 
                     if (!coords || coords.lat === 0) {
                         line.classList.add('hidden');
-                        return updateUI("ACCESS DENIED<br><span class='text-[10px] text-rose-300'>GPS LOCATION REQUIRED TO PUNCH</span>", "bg-rose-800");
+                        return updateUI("PUNCH BLOCKED<br><span class='text-[9px] text-rose-300'>GPS LINK REQUIRED FOR PUNCH ROUTING</span>", "bg-rose-800");
                     }
 
                     const todayStr = new Date().toLocaleDateString('en-GB').replace(/\//g, '-');
-                    
                     const logsSnap = await db.collection("vc_logs")
                         .where("id", "==", String(bestMatch.id))
                         .where("date", "==", todayStr)
@@ -224,25 +242,24 @@
 
                     if (type === "IN" && lastType === "IN") {
                         line.classList.add('hidden');
-                        return updateUI(`ALREADY PUNCHED IN<br><span class='text-[10px] text-amber-500'>PLEASE PUNCH OUT FIRST</span>`, "bg-amber-600");
+                        return updateUI(`ALREADY PUNCHED IN<br><span class='text-[9px] text-amber-500'>CLOSE PRESENT SEED LIFECYCLE FIRST</span>`, "bg-amber-600");
                     } 
                     if (type === "OUT" && (!lastType || lastType === "OUT")) {
                         line.classList.add('hidden');
-                        return updateUI(`PUNCH IN FIRST<br><span class='text-[10px] text-amber-500'>NO ACTIVE SESSION FOUND</span>`, "bg-amber-600");
+                        return updateUI(`PUNCH IN FIRST<br><span class='text-[9px] text-amber-500'>NO CHECK-IN SIGNATURE LOGGED TODAY</span>`, "bg-amber-600");
                     }
 
-                    updateUI(`IDENTITY: ${bestMatch.name.toUpperCase()}<br><span class='text-[10px] text-emerald-400'>SECURE SYNC IN PROGRESS...</span>`, "bg-slate-900 border-emerald-500/50");
+                    updateUI(`PROFILE MATCHED: ${bestMatch.name.toUpperCase()}<br><span class='text-[9px] text-emerald-400'>SYNCHRONIZING DIRECT TRANSACTION STREAMS...</span>`, "bg-slate-900 border-emerald-500/50");
                     
-                    const addr = await getAddressFromCoords(coords.lat, coords.lng);
+                    const addr = mode === "WFH" ? "Remote Home Log" : await getAddressFromCoords(coords.lat, coords.lng);
                     await finalizePunch(bestMatch, type, coords.lat, coords.lng, addr, mode, wfhReason);
 
                 } else {
                     line.classList.add('hidden');
-                    updateUI("IDENTITY UNKNOWN", "bg-rose-700");
+                    updateUI("UNKNOWN VECTORS SYSTEM LOCK", "bg-rose-700");
                 }
             } catch (err) { 
-                console.error("Critical Sync Error:", err);
-                updateUI("SYNC BUSY - RETRY", "bg-slate-800"); 
+                console.error(err); updateUI("PIPELINE DROPPED - RETRY", "bg-slate-800"); 
             } finally {
                 line.classList.add('hidden');
             }
@@ -257,22 +274,23 @@
             let punchStatus = "ON TIME";
             const officeDeadline = 10.0; 
 
+            // Strict Evaluation Separation: Evaluate parameters ONLY for Office users
             if (type === "IN" && mode !== "WFH") {
                 const currentTimeDecimal = now.getHours() + (now.getMinutes() / 60);
                 if (currentTimeDecimal > officeDeadline) { 
                     isLate = true; 
-                    punchStatus = "LATE MARK"; 
+                    punchStatus = "LATE MARK"; // Pure descriptive text metadata (Non-penalty compliant)
                 }
             }
             
-            // If checking WFH mode active, rewrite status codes mapping configurations
+            // ─── 🌟 WFH PARAMS SECURITY INTERCEPT: REDIRECT STATUS TO PENDING REVIEW ───
             if (mode === "WFH") {
-                punchStatus = "PENDING WFH APPROVAL";
+                punchStatus = "AWAITING ADMIN REVIEW";
             }
             
             const ctx = canvas.getContext('2d');
             ctx.drawImage(video, 0, 0, 640, 480);
-            const photoData = canvas.toDataURL('image/jpeg', 0.1); 
+            const photoData = canvas.toDataURL('image/jpeg', 0.15); 
 
             try {
                 await db.collection("vc_logs").add({
@@ -291,25 +309,25 @@
                     location: mode === "WFH" ? "Work From Home" : String(addr),
                     isWFH: mode === "WFH",
                     wfhReason: mode === "WFH" ? String(wfhReason) : "",
-                    wfhStatus: mode === "WFH" ? "Pending" : "Approved",
+                    wfhStatus: mode === "WFH" ? "Pending" : "Approved", // Approved immediately for Office mode, Pending safely locks WFH
                     timestamp: firebase.firestore.FieldValue.serverTimestamp()
                 });
                 
                 const uiColor = mode === "WFH" ? "bg-purple-600" : (isLate ? "bg-orange-500" : "bg-emerald-500");
                 const uiMsg = mode === "WFH" ? 
-                    `WFH REQUEST FILED: ${user.name.toUpperCase()}<br><span style="font-size:11px;">AWAITING ADMIN APPROVAL LOCK</span>` :
-                    `GREETINGS: ${user.name.toUpperCase()}<br><span style="font-size:12px;">STATUS: ${punchStatus} | GPS OK</span>`;
+                    `WFH REQUEST FILED: ${user.name.toUpperCase()}<br><span style="font-size:10px;">STATUS WILL SYNC POST ADMIN APPROVAL ACTION</span>` :
+                    `ACCESS CLEAR: ${user.name.toUpperCase()}<br><span style="font-size:11px;">ATTENDANCE COMPLETED AS ${punchStatus}</span>`;
                 
                 updateUI(uiMsg, uiColor);
-            } catch (e) { updateUI("CLOUD SYNC ERROR", "bg-rose-800"); }
+            } catch (e) { updateUI("FIRESTORE REJECTION DROPPED", "bg-rose-800"); }
         }
 
         function updateUI(txt, cls) {
             const el = document.getElementById('overlay-msg');
             el.innerHTML = txt;
-            el.className = `${cls} text-white px-10 py-5 rounded-3xl border-2 block text-center shadow-2xl backdrop-blur-md z-50`;
+            el.className = `${cls} text-white px-5 py-3 rounded-2xl border-2 block text-center shadow-2xl backdrop-blur-md z-50`;
             el.classList.remove('hidden');
-            if(!txt.includes("SCANNING") && !txt.includes("ACQUIRING")) setTimeout(() => el.classList.add('hidden'), 2000);
+            if(!txt.includes("MATCHING") && !txt.includes("SYNCHRONIZING")) setTimeout(() => el.classList.add('hidden'), 2300);
         }
     </script>
 </body>

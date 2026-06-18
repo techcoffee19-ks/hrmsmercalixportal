@@ -14,7 +14,7 @@
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap');
         :root { --primary: #ffb100; --dark: #1e293b; --success: #10b981; --danger: #ef4444; --warning: #f59e0b; --info: #3b82f6; --bg: #f1f5f9; --border: #e2e8f0; --wfh: #a855f7; }
         
-        body, html { margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', sans-serif; background: var(--bg); overflow-x: hidden; height: 100vh; }
+        body, html { margin: 0; padding: 0; height: 100vh; font-family: 'Plus Jakarta Sans', sans-serif; background: var(--bg); overflow-x: hidden; }
         .p-container { display: flex; height: 100vh; width: 100%; }
 
         .sidebar { width: 250px; background: var(--dark); flex-shrink: 0; display: flex; flex-direction: column; height: 100vh; position: sticky; top: 0; }
@@ -42,7 +42,7 @@
         .stat-card h3 { margin: 0; font-size: 9px; color: #64748b; text-transform: uppercase; }
         .stat-card p { font-size: 22px; margin: 5px 0 0 0; font-weight: 800; }
         .budget-card { background: var(--dark); color: white; border-left: 5px solid var(--success); }
-        /* ─── 🆕 EXTRA CSS PROPERTY MATRICES FOR DYNAMIC WFH ANCHOR CARDS ─── */
+        
         .wfh-card { border-left: 5px solid var(--wfh) !important; }
         .wfh-card:hover { border-color: var(--wfh) !important; }
 
@@ -59,7 +59,6 @@
 
         .admin-module { background: white; padding: 20px; border-radius: 15px; border: 1.5px solid var(--border); margin-bottom: 15px; }
         .data-panel { display: none; background: white; border: 1.5px solid var(--primary); border-radius: 12px; padding: 15px; margin-bottom: 15px; }
-        /* Style adjustments for custom panels overrides */
         .data-panel.wfh-panel-style { border-color: var(--wfh) !important; }
         table { width: 100%; border-collapse: collapse; font-size: 12px; }
         table th { text-align: left; padding: 10px; background: #f8fafc; }
@@ -220,7 +219,7 @@
         setInterval(() => {
             document.getElementById("liveClock").innerText = new Date().toLocaleTimeString();
             let diff = Math.floor((Date.now() - loginStartTime) / 1000);
-            document.getElementById("loginTimer").innerText = `Login: ${Math.floor(diff/3600).toString().padStart(2,'0')}:${Math.floor((diff%3600)/60).toString().padStart(2,'0')}:${(diff%60).toString().padStart(2,'0')}`;
+            document.getElementById("loginTimer").innerText = `Login: ${Math.floor(diff/3600).toString().padStart(2, '0')}:${Math.floor((diff%3600)/60).toString().padStart(2, '0')}:${(diff%60).toString().padStart(2, '0')}`;
         }, 1000);
 
         initCharts();
@@ -242,8 +241,9 @@
         db.collection("emp_leaves").onSnapshot(s => { allLeaves = s.docs.map(d => d.data()); refreshData(); });
         db.collection("tasks").onSnapshot(s => { allTasks = s.docs.map(d => d.data()); refreshData(); });
 
+        // STRICT FILTER: Pura birthday wish bypass logic block configured
         db.collection("global_thoughts").orderBy("timestamp", "desc").onSnapshot(s => {
-            allThoughts = s.docs.map(d => d.data()).filter(t => !myCC || t.companyCode === myCC);
+            allThoughts = s.docs.map(d => d.data()).filter(t => t.text && !t.text.includes("BIRTHDAY WISH") && !t.text.includes("CONGRATULATIONS") && (!myCC || t.companyCode === myCC));
             if(allThoughts.length > 0) startMotivationSlider();
         });
 
@@ -350,43 +350,67 @@
         );
         
         document.getElementById("cStaff").innerText = filtered.length;
-        const todayStr = new Date().toLocaleDateString('en-GB').replace(/\//g, '-');
         
-        // ─── 🆕 1. CORE SEARCH LOGIC STRINGS PARSING FOR REAL-TIME WFH STAFF ───
+        const todayObj = new Date();
+        const dStr = String(todayObj.getDate());
+        const mStr = String(todayObj.getMonth() + 1);
+        const yStr = String(todayObj.getFullYear());
+        
+        const formatA = `${dStr.padStart(2,'0')}-${mStr.padStart(2,'0')}-${yStr}`;
+        const formatB = `${dStr}-${mStr}-${yStr}`;
+
+        // ─── 🌟 STRICTOR LOGIC MATRIX FOR TRUE APPROVED WFH ISOLATION VECTORS ───
         const wfhStaff = filtered.filter(e => {
             const cleanId = e.id.replace(/\//g, '');
-            return allLogs.some(l => 
-                l.date === todayStr && 
-                l.type === "IN" && 
-                (l.id === e.id || l.id === cleanId) &&
-                (l.isWFH === true || l.wfhStatus === "Approved" || String(l.status).toUpperCase().trim() === "WFH")
-            );
+            return allLogs.some(l => {
+                if(!l.date) return false;
+                const matchDate = (l.date === formatA || l.date === formatB);
+                const isUser = (l.id === e.id || l.id === cleanId || l.empId === e.id || l.empId === cleanId);
+                
+                if(matchDate && isUser && (String(l.type || l.activity).toUpperCase().trim() === "IN" || String(l.type || l.activity).toUpperCase().trim() === "PUNCH IN")) {
+                    const cleanStatus = String(l.status || "").toUpperCase().trim();
+                    // MANDATORY OVERRIDE CRITERIA: Strictly only approved remote punches are counted in WFH box!
+                    return (l.isWFH === true && l.wfhStatus === "Approved") || cleanStatus === "WFH APPROVED";
+                }
+                return false;
+            });
         });
 
         const presentStaff = filtered.filter(e => {
             const cleanId = e.id.replace(/\//g, '');
-            return allLogs.some(l => 
-                l.date === todayStr && 
-                l.type === "IN" && 
-                (l.id === e.id || l.id === cleanId)
-            );
+            return allLogs.some(l => {
+                if(!l.date) return false;
+                const matchDate = (l.date === formatA || l.date === formatB);
+                const isUser = (l.id === e.id || l.id === cleanId || l.empId === e.id || l.empId === cleanId);
+                
+                if(matchDate && isUser && (String(l.type || l.activity).toUpperCase().trim() === "IN" || String(l.type || l.activity).toUpperCase().trim() === "PUNCH IN")) {
+                    const cleanStatus = String(l.status || "").toUpperCase().trim();
+                    const isStrictWFH = (l.isWFH === true && l.wfhStatus === "Approved") || cleanStatus === "WFH APPROVED";
+                    // Default configuration mapping layer
+                    return !isStrictWFH; 
+                }
+                return false;
+            });
         });
 
         const wfhCount = wfhStaff.length;
         const presentCount = presentStaff.length;
-        // Restructure absent matrix: employees who didn't punch in anywhere (neither Office nor WFH)
-        const absentCount = Math.max(0, filtered.length - presentCount);
+        const absentCount = Math.max(0, filtered.length - presentCount - wfhCount);
 
         document.getElementById("cPresent").innerText = presentCount;
-        document.getElementById("cWFH").innerText = wfhCount; // 🆕 Sync counter variable to WFH card node
+        document.getElementById("cWFH").innerText = wfhCount; 
         document.getElementById("cAbsent").innerText = absentCount;
         
-        const lateCount = allLogs.filter(l => 
-            l.date === todayStr && 
-            l.type === "IN" && 
-            (l.late === true || l.status === "LATE") &&
-            filtered.some(e => (e.id === l.id || e.id.replace(/\//g, '') === l.id))
-        ).length;
+        const lateCount = allLogs.filter(l => {
+            if(!l.date) return false;
+            const matchDate = l.date === formatA || l.date === formatB;
+            if(!matchDate) return false;
+            if(String(l.type || l.activity).toUpperCase().trim() !== "IN" && String(l.type || l.activity).toUpperCase().trim() !== "PUNCH IN") return false;
+            
+            const bioStatus = String(l.status || "").toUpperCase().trim();
+            const isLateMark = bioStatus === "LATE" || l.isLate === true || l.late === true || bioStatus === "LATE MARK";
+            return isLateMark && filtered.some(e => (e.id === l.id || e.id.replace(/\//g, '') === l.id || e.id === l.empId || e.id.replace(/\//g, '') === l.empId));
+        }).length;
         document.getElementById("cLate").innerText = lateCount;
 
         let budget = filtered.reduce((total, e) => {
@@ -408,7 +432,7 @@
 
         updateCharts(filtered, presentCount, absentCount);
         renderTable(filtered);
-        renderWFHTable(wfhStaff); // 🆕 Fire rendering grid for newly added panel mapping
+        renderWFHTable(wfhStaff); 
     }
 
     function organizationSearch() {
@@ -468,13 +492,12 @@
             filtered.slice(0,5).map(e => `<tr><td>${e.id}</td><td>${e.name}</td><td>${e.dept || 'N/A'}</td><td>${e.branch || 'N/A'}</td></tr>`).join("");
     }
 
-    // ─── 🆕 2. NEW INTERACTIVE LIVE DRAW DOM RENDER ENGINE FOR WFH SUB-PANEL ───
     function renderWFHTable(wfhList) {
         const wfhTable = document.getElementById("tWFH");
         if(!wfhTable) return;
         
         if (wfhList.length === 0) {
-            wfhTable.innerHTML = '<tr><td align="center" style="padding:20px; color:gray; font-weight:700;">No one is working today</td></tr>';
+            wfhTable.innerHTML = '<tr><td align="center" style="padding:20px; color:gray; font-weight:700;">No one is working from home today</td></tr>';
             return;
         }
         

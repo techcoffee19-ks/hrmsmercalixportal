@@ -47,7 +47,6 @@
             min-height: 100vh;
         }
 
-        /* Sidebar Profile CSS */
         .side-profile {
             background: var(--white);
             border-right: 1px solid var(--border);
@@ -113,7 +112,6 @@
         .spec-item span { color: var(--slate-400); font-weight: 500; }
         .spec-item b { color: var(--slate-700); font-weight: 600; }
 
-        /* Main Dashboard Panels */
         .dashboard-main { padding: 35px; }
 
         .top-navbar {
@@ -179,7 +177,6 @@
         }
         .btn-export:hover { opacity: 0.9; }
 
-        /* ─── 🆕 UPGRADED STRUCTURAL GRID FROM 6 TO 7 COLUMNS FOR WFH CARD INJECTION ─── */
         .grid-7 {
             display: grid;
             grid-template-columns: repeat(7, 1fr);
@@ -199,7 +196,6 @@
         .metric-card .val { font-size: 22px; font-weight: 800; color: var(--dark); }
         .metric-card i { position: absolute; right: 10px; bottom: 10px; font-size: 24px; color: #f1f5f9; z-index: 1; }
 
-        /* Module Split Layout */
         .content-grid {
             display: grid;
             grid-template-columns: 1.6fr 1fr;
@@ -234,7 +230,6 @@
             letter-spacing: 0.3px;
         }
 
-        /* Profile Details Tabs */
         .tabs-nav {
             display: flex;
             gap: 5px;
@@ -267,7 +262,6 @@
         .tab-content { display: none; }
         .tab-content.active { display: block; }
 
-        /* Tables Formatting */
         .table-responsive {
             width: 100%;
             overflow-x: auto;
@@ -298,7 +292,6 @@
             font-weight: 500;
         }
 
-        /* Badges */
         .badge {
             padding: 4px 10px;
             border-radius: 20px;
@@ -323,7 +316,6 @@
             font-weight: 700;
         }
 
-        /* Gauge Center Widget */
         .gauge-block {
             display: flex;
             flex-direction: column;
@@ -580,7 +572,6 @@
 </div>
 
 <script>
-// Firebase Configurations
 const firebaseConfig = {
   apiKey: "AIzaSyCkBeHploRe3UHq6ndukFUtfYc8sCkfx9g",
   authDomain: "hrmsmercalixportal.firebaseapp.com",
@@ -603,9 +594,8 @@ let presentDaysCount = 0;
 let absentDaysCount = 0;
 let lateDaysCount = 0;
 let totalLeavesCount = 0;
-let wfhDaysCount = 0; // 🆕 WFH Global Counter Initialization Node
+let wfhDaysCount = 0; 
 
-// Dynamic Object structure for month-wise bifurcation inside Javascript memory
 let monthWiseBifurcationMap = {};
 const monthNamesIndex = ["", "January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
@@ -682,7 +672,7 @@ function syncMonthlyMetrics() {
     presentDaysCount = 0;
     absentDaysCount = 0;
     lateDaysCount = 0;
-    wfhDaysCount = 0; // 🆕 Reset counter loops parameter
+    wfhDaysCount = 0; 
     let effectiveWorkdays = 0;
     let combinedProductiveHours = 0;
 
@@ -697,7 +687,7 @@ function syncMonthlyMetrics() {
             present: 0,
             absent: 0,
             late: 0,
-            wfh: 0 // 🆕 Add structure mapping into memory arrays
+            wfh: 0 
         };
         currentM++;
         if (currentM > 12) {
@@ -720,7 +710,7 @@ function syncMonthlyMetrics() {
                     if(statusValue === "ABSENT") {
                         absentDaysCount++;
                         monthWiseBifurcationMap[uniqueKey].absent++;
-                    } else if(statusValue === "WFH" || statusValue === "WORK FROM HOME") {
+                    } else if(statusValue === "WFH APPROVED" || statusValue === "WFH") {
                         wfhDaysCount++;
                         monthWiseBifurcationMap[uniqueKey].wfh++;
                     }
@@ -741,8 +731,8 @@ function syncMonthlyMetrics() {
             if (logData.date) {
                 const dateParts = logData.date.split('-');
                 if(dateParts.length === 3) {
-                    const currentLogYear = parseInt(dateParts[2]);
-                    const currentLogMonth = parseInt(dateParts[1]);
+                    const currentLogYear = dateParts[2].length === 4 ? parseInt(dateParts[2]) : parseInt(dateParts[0]);
+                    const currentLogMonth = dateParts[2].length === 4 ? parseInt(dateParts[1]) : parseInt(dateParts[1]);
                     const uniqueKey = `${currentLogYear}-${String(currentLogMonth).padStart(2, '0')}`;
                     
                     if (monthWiseBifurcationMap[uniqueKey]) {
@@ -753,30 +743,30 @@ function syncMonthlyMetrics() {
                                 in: "---", 
                                 out: "---", 
                                 late: false, 
-                                isWFHLog: false, // 🆕 Add WFH logical flag inside memory objects
+                                isWFHLog: false, 
                                 geo: "N/A", 
                                 rawHours: 0, 
                                 yearSort: currentLogYear,
                                 monthSort: currentLogMonth, 
-                                daySort: parseInt(dateParts[0]),
+                                daySort: dateParts[2].length === 4 ? parseInt(dateParts[0]) : parseInt(dateParts[2]),
                                 monthKey: uniqueKey
                             };
                         }
                         
                         const rawStatus = String(logData.status || "").toUpperCase().trim();
-                        // 🆕 Validate remote punch in states tracking pointers
-                        if (logData.isWFH === true || logData.wfhStatus === "Approved" || rawStatus === "WFH") {
+                        // ─── 🌟 STRICTOR SECURITY FILTER: ONLY EXPLICIT APPROVED MATCHES WFH ───
+                        if ((logData.isWFH === true && logData.wfhStatus === "Approved") || rawStatus === "WFH APPROVED") {
                             organizedDailyLogsMap[targetDay].isWFHLog = true;
                         }
 
-                        if (logData.type === "IN") {
+                        if (String(logData.type || logData.activity).toUpperCase().trim() === "IN") {
                             organizedDailyLogsMap[targetDay].in = logData.time;
-                            organizedDailyLogsMap[targetDay].geo = logData.location || (organizedDailyLogsMap[targetDay].isWFHLog ? "Remote Location" : "Office Desk Area");
-                            if (logData.late === true || logData.late === "true" || logData.status === "LATE") {
+                            organizedDailyLogsMap[targetDay].geo = logData.location || (organizedDailyLogsMap[targetDay].isWFHLog ? "Remote Approved Area" : "Office Desk Area");
+                            if (logData.late === true || logData.late === "true" || rawStatus === "LATE" || rawStatus === "LATE MARK") {
                                 organizedDailyLogsMap[targetDay].late = true;
                             }
                         }
-                        if (logData.type === "OUT") {
+                        if (String(logData.type || logData.activity).toUpperCase().trim() === "OUT") {
                             organizedDailyLogsMap[targetDay].out = logData.time;
                         }
                     }
@@ -802,7 +792,6 @@ function syncMonthlyMetrics() {
             sortedDaysKeys.forEach(dayKey => {
                 const dayObj = organizedDailyLogsMap[dayKey];
                 
-                // 🆕 IF DETECTED BIOMETRIC REMOTE WFH PUNCH INCREMENT CORRESPONDING COMPONENT BOARDS
                 if (dayObj.isWFHLog) {
                     wfhDaysCount++;
                     if(monthWiseBifurcationMap[dayObj.monthKey]) monthWiseBifurcationMap[dayObj.monthKey].wfh++;
@@ -811,8 +800,6 @@ function syncMonthlyMetrics() {
                     if(monthWiseBifurcationMap[dayObj.monthKey]) monthWiseBifurcationMap[dayObj.monthKey].present++;
                 }
 
-                effectiveWorkdays++;
-                
                 if(monthWiseBifurcationMap[dayObj.monthKey] && !dayObj.isWFHLog) {
                     if (dayObj.late) {
                         lateDaysCount++;
@@ -834,7 +821,6 @@ function syncMonthlyMetrics() {
 
                 monthlyLogsStore.push(dayObj);
 
-                // UI Table Row creation with custom localization badges for WFH entries
                 const row = document.createElement("tr");
                 let inBadgeClass = dayObj.isWFHLog ? "badge-wfh" : "badge-success";
                 let inBadgeText = dayObj.isWFHLog ? `<i class="fa fa-home"></i> ${dayObj.in}` : dayObj.in;
@@ -850,12 +836,11 @@ function syncMonthlyMetrics() {
             });
         }
 
-        // Restructure dynamic total parameters: Effective matching calculation blocks
         effectiveWorkdays = presentDaysCount + wfhDaysCount + absentDaysCount;
 
         document.getElementById("metricWorkdays").innerText = effectiveWorkdays;
         document.getElementById("metricPresent").innerText = presentDaysCount;
-        document.getElementById("metricWFH").innerText = wfhDaysCount; // 🆕 Flush value into live viewport cards
+        document.getElementById("metricWFH").innerText = wfhDaysCount; 
         document.getElementById("metricAbsent").innerText = absentDaysCount;
         document.getElementById("metricLates").innerText = lateDaysCount;
         document.getElementById("metricHours").innerText = `${combinedProductiveHours.toFixed(1)} Hrs`;
@@ -996,7 +981,6 @@ function exportDataToExcel() {
     matrix.push([]); 
 
     matrix.push(["2. AGGREGATED RANGE ATTENDANCE METRICS COUNTER SUMMARY"]);
-    // ─── 🆕 INJECT WFH EXTRACTOR CELL VALUES INTO EXCEL SHEET DATA MATRIX ARRAY ───
     matrix.push(["Effective Workdays", "Office Present Days", "WFH Approved Days", "Total Absent Days", "Total Late Mark Marks", "Productive Duty Hours Worked", "Net Calculated Disbursed Salary"]);
     matrix.push([
         document.getElementById("metricWorkdays").innerText,
@@ -1023,7 +1007,6 @@ function exportDataToExcel() {
     });
     matrix.push(presentRow);
 
-    // ─── 🆕 RENDER WFH DATA SUB SECTION ROW SPLIT CHANNELS FOR SHEETS EXPORT ───
     let wfhRow = ["WFH Approved Days"];
     Object.keys(monthWiseBifurcationMap).forEach(key => {
         wfhRow.push(monthWiseBifurcationMap[key].wfh);

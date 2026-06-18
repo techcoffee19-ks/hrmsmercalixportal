@@ -54,6 +54,18 @@
             }
         }
 
+        function toggleCollapsibleCard(bodyId, iconId) {
+            const body = document.getElementById(bodyId);
+            const icon = document.getElementById(iconId);
+            if(body.style.display === "none" || body.style.display === "") {
+                body.style.display = "block";
+                if(icon) icon.className = "fas fa-chevron-up ml-auto transition-transform text-purple-400";
+            } else {
+                body.style.display = "none";
+                if(icon) icon.className = "fas fa-chevron-down ml-auto transition-transform text-slate-400";
+            }
+        }
+
         function validateAccess(moduleId, targetPage) {
             if (userRole === "super_admin" || userRole === "Main Admin") { 
                 window.location.href = targetPage; 
@@ -72,7 +84,7 @@
             document.getElementById("notifyDot").style.display = "none";
         }
 
-        function openHolidayModal() { document.getElementById("hModal").style.display = "flex"; }
+        function openHolidayModal() { document.getElementById("hModal").style.display = "flex"; resetHolidayForm(); }
         function closeHolidayModal() { document.getElementById("hModal").style.display = "none"; }
         function openBdayWishModal() { document.getElementById("bdayModal").style.display = "flex"; }
         function closeBdayModal() { document.getElementById("bdayModal").style.display = "none"; }
@@ -227,12 +239,20 @@
         .btn-action { width: 100%; padding: 12px; border: none; border-radius: 10px; font-weight: 800; cursor: pointer; transition: 0.3s; text-transform: uppercase; }
         .btn-task { background: var(--dark); color: var(--primary); }
         .btn-thought { background: var(--dark); color: var(--success); }
-        .holiday-professional-card { background: white; padding: 20px; border-radius: 15px; border: 1px solid var(--border); border-top: 5px solid var(--danger); margin-top: 30px; margin-bottom: 25px; }
         
+        /* Holidays Registry System Styles Updates */
+        .holiday-professional-card { background: white; padding: 20px; border-radius: 15px; border: 1px solid var(--border); border-top: 5px solid var(--danger); margin-top: 30px; margin-bottom: 25px; }
         .holiday-list-grid { display: flex; gap: 15px; overflow-x: auto; padding: 10px 5px; width: 100%; max-width: 100%; box-sizing: border-box; white-space: nowrap; -webkit-overflow-scrolling: touch; }
         .holiday-item { min-width: 140px; background: #fff5f5; border: 1px dashed var(--danger); padding: 12px; border-radius: 12px; text-align: center; cursor: pointer; display: inline-block; vertical-align: top; white-space: normal; }
+        .holiday-table-view th { background:#f8fafc; font-size:10px; padding:10px; color:#64748b; border-bottom:2px solid #e2e8f0; text-transform:uppercase; font-weight:800; }
+        .holiday-table-view td { padding:10px; border-bottom:1px solid #f1f5f9; font-size:12px; font-weight:600; }
+        .holiday-btn-action { border:none; background:none; cursor:pointer; font-size:12px; margin:0 4px; transition:0.2s; }
+        .holiday-btn-action:hover { transform: scale(1.15); }
+        
         @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
         #topThought { transition: opacity 0.5s ease-in-out; min-height: 1.5em; }
+
+        .wfh-compact-card { max-height: 280px; overflow-y: auto; border: 1px solid #f1f5f9; border-radius: 12px; padding: 5px; }
     </style>
 </head>
 <body onload="initDashboard()">
@@ -248,12 +268,31 @@
 </div>
 
 <div id="hModal" class="bday-modal" style="display:none;">
-    <div style="background:white; padding:25px; border-radius:20px; width:450px;">
-        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #eee; padding-bottom:10px;">
-            <h3><i class="fas fa-calendar-alt"></i> Yearly Holidays 2026</h3>
-            <span onclick="closeHolidayModal()" style="cursor:pointer; font-size:24px;">&times;</span>
+    <div style="background:white; padding:25px; border-radius:20px; width:480px; max-height:85vh; display:flex; flex-direction:column; overflow:hidden;">
+        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #f1f5f9; padding-bottom:10px; flex-shrink:0;">
+            <h3 style="margin:0; font-size:14px; font-weight:800; color:var(--dark);"><i class="fas fa-calendar-alt text-amber-500"></i> Corporate Calendar Scheduled Holidays Suite</h3>
+            <span onclick="closeHolidayModal()" style="cursor:pointer; font-size:24px; font-weight:700; color:#94a3b8;">&times;</span>
         </div>
-        <div id="fullHolidayList" style="margin-top:15px; max-height:300px; overflow-y:auto;"></div>
+        
+        <div style="background:#f8fafc; padding:12px; border-radius:12px; margin:12px 0; border:1px dashed #cbd5e1; flex-shrink:0;">
+            <input type="hidden" id="holidayDocIdField">
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:8px;">
+                <div>
+                    <label style="display:block; font-size:8px; font-weight:800; color:#64748b; text-transform:uppercase; margin-bottom:3px;">Holiday Name</label>
+                    <input type="text" id="holidayNameField" placeholder="e.g., Independence Day" style="width:100%; padding:8px; border:1px solid var(--border); border-radius:6px; font-size:11px; font-weight:600; outline:none;">
+                </div>
+                <div>
+                    <label style="display:block; font-size:8px; font-weight:800; color:#64748b; text-transform:uppercase; margin-bottom:3px;">Target Date</label>
+                    <input type="date" id="holidayDateField" style="width:100%; padding:7px; border:1px solid var(--border); border-radius:6px; font-size:11px; font-weight:600; outline:none;">
+                </div>
+            </div>
+            <div style="display:flex; gap:10px; justify-content:flex-end;">
+                <button id="cancelHolidayEditBtn" onclick="resetHolidayForm()" style="display:none; padding:6px 12px; font-size:10px; font-weight:800; background:#94a3b8; color:white; border:none; border-radius:5px; cursor:pointer;">CANCEL</button>
+                <button onclick="saveHolidayRecord()" style="padding:6px 15px; font-size:10px; font-weight:800; background:var(--success); color:white; border:none; border-radius:5px; cursor:pointer; text-transform:uppercase;">Save Entry 🚀</button>
+            </div>
+        </div>
+
+        <div id="fullHolidayList" style="flex:1; overflow-y:auto; margin-bottom:10px;"></div>
     </div>
 </div>
 
@@ -384,20 +423,21 @@
         <div id="v8" class="detail-container"><h3>Rejected History (Today)</h3><table id="t8"></table></div>
 
         <div class="professional-card" style="margin-top:20px; border-top: 4px solid var(--wfh);">
-            <div class="card-header-thought" style="background: var(--dark); color: var(--wfh); border-bottom-color: var(--wfh);">
-                <i class="fas fa-laptop-house"></i> <b>Work From Home (WFH) Attendance Approval Matrix</b>
+            <div class="card-header-thought" style="background: var(--dark); color: var(--wfh); border-bottom-color: var(--wfh); display:flex; align-items:center; cursor:pointer; user-select:none; padding:10px 18px;" onclick="toggleCollapsibleCard('wfhCollapseBodyBox', 'wfhToggleIconIndicator')">
+                <i class="fas fa-laptop-house" style="font-size:13px;"></i> <b style="font-size:12px; margin-left:5px;">Work From Home (WFH) Attendance Approval Matrix</b>
+                <i id="wfhToggleIconIndicator" class="fas fa-chevron-down ml-auto transition-transform text-slate-400" style="margin-left: auto;"></i>
             </div>
-            <div class="card-body">
-                <div style="overflow-x: auto;">
+            <div class="card-body" id="wfhCollapseBodyBox" style="display:none; transition:0.3s ease-out; padding:12px;">
+                <div class="wfh-compact-card">
                     <table id="tWFHApprovalQueueTable">
                         <thead>
                             <tr>
-                                <th>Emp ID</th>
-                                <th>Name</th>
-                                <th>Date Requested</th>
-                                <th>Face Log Time</th>
-                                <th>Reason For WFH</th>
-                                <th style="text-align:center;">Action Actions</th>
+                                <th style="font-size:9.5px; padding:8px;">Emp ID</th>
+                                <th style="font-size:9.5px; padding:8px;">Name</th>
+                                <th style="font-size:9.5px; padding:8px;">Date</th>
+                                <th style="font-size:9.5px; padding:8px;">Time</th>
+                                <th style="font-size:9.5px; padding:8px;">Reason</th>
+                                <th style="font-size:9.5px; padding:8px; text-align:center;">Actions</th>
                             </tr>
                         </thead>
                         <tbody id="wfhApprovalQueueBody">
@@ -482,7 +522,7 @@
         </div>
 
         <div class="holiday-professional-card" onclick="openHolidayModal()" style="cursor:pointer;">
-            <h3 style="margin:0 0 15px 0;"><i class="fas fa-umbrella-beach" style="color:var(--danger)"></i> Upcoming Holidays (Click to View List)</h3>
+            <h3 style="margin:0 0 15px 0;"><i class="fas fa-umbrella-beach" style="color:var(--danger)"></i> Upcoming Holidays (Click to View / Manage List)</h3>
             <div id="holidayGrid" class="holiday-list-grid"></div>
         </div>
     </main>
@@ -521,10 +561,10 @@ async function initDashboard() {
     
     const filterBar = document.getElementById("hrFilterBar");
     if(userRole === "hr_admin" || userRole === "Main Admin" || userRole === "super_admin") {
-        filterBar.style.display = "grid"; 
+        if(filterBar) filterBar.style.display = "grid"; 
         loadOrgFilterOptions(); 
     } else {
-        filterBar.style.display = "none"; 
+        if(filterBar) filterBar.style.display = "none"; 
     }
 
     loadManagedData();
@@ -560,7 +600,7 @@ function loadOrgFilterOptions() {
     db.collection("branches").where("companyCode", "==", activeCC).onSnapshot(snap => {
         let h = '<option value="All">All Branches</option>';
         snap.forEach(doc => h += `<option value="${doc.data().name}">${doc.data().name}</option>`);
-        document.getElementById("fBranch").innerHTML = h;
+        if(document.getElementById("fBranch")) document.getElementById("fBranch").innerHTML = h;
     });
 
     db.collection("org_structure")
@@ -569,7 +609,7 @@ function loadOrgFilterOptions() {
       .onSnapshot(snap => {
         let h = '<option value="All">All Departments</option>';
         snap.forEach(doc => h += `<option value="${doc.data().name}">${doc.data().name}</option>`);
-        document.getElementById("fDept").innerHTML = h;
+        if(document.getElementById("fDept")) document.getElementById("fDept").innerHTML = h;
     });
 
     db.collection("org_structure")
@@ -578,14 +618,14 @@ function loadOrgFilterOptions() {
       .onSnapshot(snap => {
         let h = '<option value="All">All Reporting Managers</option>';
         snap.forEach(doc => h += `<option value="${doc.data().name}">${doc.data().name}</option>`);
-        document.getElementById("fManager").innerHTML = h;
+        if(document.getElementById("fManager")) document.getElementById("fManager").innerHTML = h;
     });
 }
 
 function resetFilters() {
-    document.getElementById("fBranch").value = "All";
-    document.getElementById("fManager").value = "All";
-    document.getElementById("fDept").value = "All";
+    if(document.getElementById("fBranch")) document.getElementById("fBranch").value = "All";
+    if(document.getElementById("fManager")) document.getElementById("fManager").value = "All";
+    if(document.getElementById("fDept")) document.getElementById("fDept").value = "All";
     loadManagedData();
 }
 
@@ -633,10 +673,19 @@ async function loadManagedData() {
             
             const pres = staff.filter(s => {
                 const sClean = s.id.replace(/\//g, '');
-                return logsData.some(l => (l.id === s.id || l.id === sClean) && l.type === "IN" && l.wfhStatus !== "Pending" && l.status !== "PENDING WFH APPROVAL");
+                return logsData.some(l => {
+                    const cleanStatus = String(l.status || "").toUpperCase().trim();
+                    const currentType = String(l.type || l.punchType || "IN").toUpperCase().trim();
+                    const isWFHLog = l.isWFH === true || cleanStatus.includes("WFH") || l.location === "Work From Home";
+                    return (l.id === s.id || l.id === sClean) && currentType === "IN" && !isWFHLog;
+                });
             });
 
-            const activeWFHList = logsData.filter(l => l.type === "IN" && (l.wfhStatus === "Approved" || l.isWFH === true));
+            const activeWFHList = logsData.filter(l => {
+                const cleanStatus = String(l.status || "").toUpperCase().trim();
+                const currentType = String(l.type || l.punchType || "IN").toUpperCase().trim();
+                return currentType === "IN" && (l.isWFH === true || cleanStatus.includes("WFH") || l.location === "Work From Home");
+            });
             const wfhStaffArray = staff.filter(s => activeWFHList.some(w => w.id === s.id || w.id === s.id.replace(/\//g, '')));
             
             document.getElementById("cWFHCount").innerText = wfhStaffArray.length;
@@ -644,7 +693,11 @@ async function loadManagedData() {
 
             const abs = staff.filter(s => !pres.some(p => p.id === s.id) && !wfhStaffArray.some(w => w.id === s.id));
 
-            const late = logsData.filter(l => (l.status === "LATE" || l.status === "late" || l.isLate === true) && l.type === "IN").map(l => {
+            const late = logsData.filter(l => {
+                const cleanStatus = String(l.status || "").toUpperCase().trim();
+                const currentType = String(l.type || l.punchType || "IN").toUpperCase().trim();
+                return (l.status === "LATE MARK" || l.status === "LATE" || l.isLate === true) && currentType === "IN";
+            }).map(l => {
                 const s = staff.find(st => st.id === l.id || st.id.replace(/\//g,'') === l.id);
                 return s ? {...s, punchTime: l.time} : null;
             }).filter(x => x !== null);
@@ -699,7 +752,7 @@ async function loadManagedData() {
 
     db.collection("tasks").orderBy("timestamp","desc").limit(10).onSnapshot(snap => {
         let h = ""; snap.forEach(doc => { const t = doc.data(); h += `<tr><td>${t.empName}</td><td>${t.title}</td><td><span style="color:${t.status==='Pending'?'orange':'green'}">${t.status}</span></td></tr>`; });
-        document.getElementById("taskMonitor").innerHTML = h;
+        if(document.getElementById("taskMonitor")) document.getElementById("taskMonitor").innerHTML = h;
     });
 }
 
@@ -757,18 +810,21 @@ function listenManualPunchPipelineQueue() {
         const tbody = document.getElementById("tManualPunchTable");
         if(!tbody) return;
         
-        let h = `<tr><th>Emp ID</th><th>Name</th><th>Missed Date</th><th>Punched Time</th><th>Action Elements</th></tr>`;
+        let h = `<tr><th>Emp ID</th><th>Name</th><th>Type</th><th>Missed Date</th><th>Punched Time</th><th>Action Elements</th></tr>`;
         if(snap.empty) {
-            h += `<tr><td colspan="5" align="center" style="color:#94a3b8; padding:20px;">No pending manual punch cards.</td></tr>`;
+            h += `<tr><td colspan="6" align="center" style="color:#94a3b8; padding:20px;">No pending manual punch cards.</td></tr>`;
             tbody.innerHTML = h;
             return;
         }
 
         snap.forEach(doc => {
             const d = doc.data();
+            const pType = String(d.punchType || d.type || "IN").toUpperCase();
+            const badgeColor = pType === "IN" ? "var(--success)" : "var(--danger)";
             h += `<tr>
                 <td><b>${d.empId}</b></td>
                 <td>${d.name}</td>
+                <td><span style="color:${badgeColor}; font-weight:800;">${pType}</span></td>
                 <td style="color:#4f46e5; font-weight:700;">${d.date}</td>
                 <td>${d.time}</td>
                 <td>
@@ -781,6 +837,7 @@ function listenManualPunchPipelineQueue() {
     });
 }
 
+/* ─── 🌟 SECURED DYNAMIC FLOW: PROCESSES IN & OUT SEPARATELY BASE ON REQUESTS ─── */
 async function processManualPunchApproval(docId, isApproved) {
     try {
         const docRef = db.collection("manual_punch_requests").doc(docId);
@@ -790,7 +847,7 @@ async function processManualPunchApproval(docId, isApproved) {
 
         if(!isApproved) {
             await docRef.update({ status: "Rejected" });
-            alert("Manual punch request rejected. Attendance remains Absent.");
+            alert("Manual punch request rejected. Attendance remains unchanged.");
             return;
         }
 
@@ -804,28 +861,32 @@ async function processManualPunchApproval(docId, isApproved) {
         const diffTime = Math.abs(today - selectedDateObject);
         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-        if(diffDays > 5) {
+        if(diffDays > 29) {
             await docRef.update({ status: "Rejected" });
-            alert(`❌ STRATIFIED POLICY BLOCK:\nThis request is ${diffDays} days old. Max 5 days window timeline exceeded. Document automatically marked ABSENT.`);
+            alert(`❌ STRATIFIED POLICY BLOCK:\nThis request is ${diffDays} days old. Max 29 days window timeline exceeded. Document automatically rejected.`);
             return;
         }
+
+        const targetPunchType = String(reqData.punchType || reqData.type || "IN").toUpperCase().trim();
+        const computedStatus = targetPunchType === "OUT" ? "SHIFT END" : "ON TIME";
 
         await db.collection("vc_logs").add({
             id: String(reqData.empId),
             empId: String(reqData.empId),
             name: String(reqData.name),
-            type: "IN",
+            type: targetPunchType,
+            punchType: targetPunchType,
             date: String(reqData.date),
             time: String(reqData.time),
             location: "Manual Punch",
             locationTag: "Manual Punch",
-            status: "ON TIME",
+            status: computedStatus,
             late: false,
             timestamp: firebase.firestore.FieldValue.serverTimestamp()
         });
 
         await docRef.update({ status: "Approved" });
-        alert("✔ Manual punch attendance approved successfully! Real data updated across reports.");
+        alert(`✔ Manual ${targetPunchType} punch attendance approved successfully!`);
 
     } catch(e) {
         alert("Transaction block crash: " + e.message);
@@ -925,13 +986,13 @@ function loadGlobalContent() {
 
         const box = document.getElementById("bdayName");
         if (bdayStaff.length > 0) {
-            box.innerHTML = `<span style="color:var(--success); cursor:pointer; font-weight:800; animation: blink 1.5s infinite;" onclick="openBdayWishModal()">🎂 Today: ${bdayStaff.length} Birthdays (Click to Wish)</span>`;
+            if(box) box.innerHTML = `<span style="color:var(--success); cursor:pointer; font-weight:800; animation: blink 1.5s infinite;" onclick="openBdayWishModal()">🎂 Today: ${bdayStaff.length} Birthdays (Click to Wish)</span>`;
             let listH = ""; 
             bdayStaff.forEach(s => listH += `<div class="bday-card" onclick="startWishing('${s.id}', '${s.name}')"><img src="${s.photo}"><div><b>${s.name}</b><br><small>${s.dept}</small></div></div>`);
-            document.getElementById("bdayPopupList").innerHTML = listH;
+            if(document.getElementById("bdayPopupList")) document.getElementById("bdayPopupList").innerHTML = listH;
             if (typeof bdayTone !== 'undefined' && !bdayProcessed) { bdayTone.play(); bdayProcessed = true; }
         } else { 
-            box.innerText = "No Birthdays Today"; 
+            if(box) box.innerText = "No Birthdays Today"; 
             bdayProcessed = false; 
         }
     });
@@ -963,23 +1024,92 @@ function listenHolidays() {
         if(grid) grid.innerHTML = "";
         
         const todayISO = new Date().toISOString().split('T')[0]; 
-        let listH = "<table><tr><th>Date</th><th>Holiday Name</th></tr>";
+        
+        let tableH = `
+            <table class="holiday-table-view" style="width:100%; border-collapse:collapse;">
+                <thead>
+                    <tr>
+                        <th>Date Key</th>
+                        <th>Holiday Occasion Label</th>
+                        <th style="text-align:center;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+        
         let counter = 0;
 
         snap.forEach(doc => { 
             const d = doc.data();
+            const docId = doc.id;
+            
             if (d.date >= todayISO) {
                 if(grid) grid.innerHTML += `<div class="holiday-item"><b>${d.name}</b><br><small>${d.date}</small></div>`;
                 counter++;
             }
-            listH += `<tr><td>${d.date}</td><td>${d.name}</td></tr>`;
+            
+            tableH += `
+                <tr>
+                    <td style="font-weight:700; color:var(--dark);">${d.date}</td>
+                    <td style="font-weight:700; color:#475569;">${d.name}</td>
+                    <td align="center">
+                        <button class="holiday-btn-action" onclick="loadHolidayForEdit('${docId}','${d.name}','${d.date}')" title="Edit Holiday">✏️</button>
+                        <button class="holiday-btn-action" onclick="deleteHolidayRecord('${docId}')" title="Delete Holiday">❌</button>
+                    </td>
+                </tr>
+            `;
         });
+        
+        tableH += `</tbody></table>`;
         
         if(grid && counter === 0) {
             grid.innerHTML = "<small style='color:#94a3b8; font-weight:700; padding:10px;'>NO UPCOMING HOLIDAYS</small>";
         }
-        if(fullList) fullList.innerHTML = listH + "</table>";
+        if(fullList) fullList.innerHTML = tableH;
     });
+}
+
+async function saveHolidayRecord() {
+    const docId = document.getElementById("holidayDocIdField").value;
+    const name = document.getElementById("holidayNameField").value;
+    const date = document.getElementById("holidayDateField").value;
+
+    if(!name.trim() || !date) return alert("⚠️ Holiday Name and Target Date are compulsory fields!");
+
+    try {
+        if(docId) {
+            await db.collection("holidays").doc(docId).update({ name: name.trim(), date: date });
+            alert("✔ Holiday occasion updated successfully!");
+        } else {
+            await db.collection("holidays").add({ name: name.trim(), date: date });
+            alert("🚀 New Holiday created and broadcasted to employee registry dashboard panels!");
+        }
+        resetHolidayForm();
+    } catch(e) {
+        alert("Firestore transaction bottleneck: " + e.message);
+    }
+}
+
+function loadHolidayForEdit(docId, name, date) {
+    document.getElementById("holidayDocIdField").value = docId;
+    document.getElementById("holidayNameField").value = name;
+    document.getElementById("holidayDateField").value = date;
+    if(document.getElementById("cancelHolidayEditBtn")) document.getElementById("cancelHolidayEditBtn").style.display = "inline-block";
+}
+
+function resetHolidayForm() {
+    document.getElementById("holidayDocIdField").value = "";
+    document.getElementById("holidayNameField").value = "";
+    document.getElementById("holidayDateField").value = "";
+    if(document.getElementById("cancelHolidayEditBtn")) document.getElementById("cancelHolidayEditBtn").style.display = "none";
+}
+
+async function deleteHolidayRecord(docId) {
+    if(!confirm("❌ Are you absolutely sure you want to remove this holiday from the corporate logs registry?")) return;
+    try {
+        await db.collection("holidays").doc(docId).delete();
+        alert("🗑 Holiday entry removed from databases successfully.");
+    } catch(e) { alert("Deletion crashed: " + e.message); }
 }
 
 async function assignTask() {

@@ -156,7 +156,6 @@
     </div>
 
     <script>
-        // Your Verified Live Database Routing Token
         const firebaseConfig = {
           apiKey: "AIzaSyCkBeHploRe3UHq6ndukFUtfYc8sCkfx9g",
           authDomain: "hrmsmercalixportal.firebaseapp.com",
@@ -175,7 +174,6 @@
         let compiledCSVString = ""; 
         let activeDownloadName = "";
 
-        // 🧠 AUTOMATIC LIFETIME CALENDAR POPULATION TRACKER ENGINE
         function generateDynamicTimeDropdowns() {
             const dropdown = document.getElementById("monthYearSelect");
             dropdown.innerHTML = "";
@@ -193,7 +191,7 @@
                     const opt = document.createElement("option");
                     opt.value = valueStr;
                     opt.innerText = textStr;
-                    if (valueStr === "05-2026") opt.selected = true;
+                    if (valueStr === "06-2026") opt.selected = true;
                     dropdown.appendChild(opt);
                 }
             }
@@ -202,11 +200,11 @@
         async function compileAndPreviewData() {
             const statusDiv = document.getElementById("status");
             const tbody = document.getElementById("tableBody");
-            const selectedVal = document.getElementById('monthYearSelect').value; // "MM-YYYY"
+            const selectedVal = document.getElementById('monthYearSelect').value; 
             const [monthStr, yearStr] = selectedVal.split('-');
             
-            const month = parseInt(monthStr);
-            const year = parseInt(yearStr);
+            const targetMonthInt = parseInt(monthStr);
+            const targetYearInt = parseInt(yearStr);
             
             statusDiv.style.display = "block";
             statusDiv.style.color = "#3b82f6";
@@ -216,7 +214,6 @@
             document.getElementById("downloadBtn").style.display = "none";
 
             try {
-                // 1. Fetch data aggregates
                 const empSnap = await db.collection('employees').where('status', '==', 'Active').get();
                 if (empSnap.empty) {
                     statusDiv.style.color = "red";
@@ -233,11 +230,10 @@
                 const allLeaves = [];
                 leavesSnap.forEach(d => allLeaves.push(d.data()));
 
-                // 2. Sundays calculation framework
-                const totalDaysInMonth = new Date(year, month, 0).getDate();
+                const totalDaysInMonth = new Date(targetYearInt, targetMonthInt, 0).getDate();
                 let netWorkingDaysInMonth = 0;
                 for (let d = 1; d <= totalDaysInMonth; d++) {
-                    if (new Date(year, month - 1, d).getDay() !== 0) {
+                    if (new Date(targetYearInt, targetMonthInt - 1, d).getDay() !== 0) {
                         netWorkingDaysInMonth++;
                     }
                 }
@@ -245,12 +241,10 @@
                 document.getElementById("workingDaysBadge").style.display = "block";
                 document.getElementById("workingDaysBadge").innerText = `Net Target Working Days: ${netWorkingDaysInMonth} Days`;
 
-                // 3. Initiate spreadsheet string building structures with approved/pending leaves
                 let csvContent = "data:text/csv;charset=utf-8,";
                 csvContent += `MERCALIX ENTERPRISE CORPORATE AUDIT REPORT - TRACKING PERIOD: ${selectedVal}\n`;
                 csvContent += `Calculated Net Working Days in Month (Excluding Sundays): ${netWorkingDaysInMonth} Days\n\n`;
-                // ─── 🆕 INJECT WFH HEADERS COLUMN INTO SPREADSHEET LAYOUT METRIC ───
-                csvContent += "Employee ID,Employee Name,Branch,Total Month Working Days,Office Present Days,WFH Approved Days,Absent Days,Late Marks Count,Remaining Leave Balance (PL Account),Half Days,Approved Leaves,Pending Leaves\n";
+                csvContent += "Employee ID,Employee Name,Branch,Total Month Working Days,Office Present Days,WFH Approved Days,Absent Days,Half Days,Late Marks Count,Remaining Leave Balance (PL Account),Approved Leaves,Pending Leaves\n";
 
                 let htmlContent = "";
                 let processedCount = 0;
@@ -267,14 +261,13 @@
 
                     let actualWorkedDaysSet = new Set();
                     let halfDaysSet = new Set();
-                    let wfhDaysSet = new Set(); // 🆕 WFH Accumulator Set node
+                    let wfhDaysSet = new Set(); 
                     let lateMarks = 0;
                     const manualLogs = emp.attendance_manual_logs || {};
 
-                    // A. Manual panel calculations sync from run-payroll
-                    const monthPrefix = `${year}-${monthStr}-`;
+                    const monthPrefix = `${targetYearInt}-${monthStr}-`;
                     for (let d = 1; d <= totalDaysInMonth; d++) {
-                        if (new Date(year, month - 1, d).getDay() === 0) continue; 
+                        if (new Date(targetYearInt, targetMonthInt - 1, d).getDay() === 0) continue; 
                         const dayPad = String(d).padStart(2, '0');
                         const dateKey = `${monthPrefix}${dayPad}`;
                         
@@ -292,42 +285,44 @@
                         }
                     }
 
-                    // B. Biometric sync rules integration
+                    // ─── 🌟 ROBUST SPLIT STRING DATE MATCHING ENGINE INTERCEPT ───
                     allLogs.forEach(l => {
                         const logId = l.id || "";
                         const logDate = l.date || ""; 
                         const logType = l.type || ""; 
 
-                        if ((logId === empId || logId === cleanId) && logDate.includes(`-${selectedVal}`) && logType === "IN") {
-                            const logDay = parseInt(logDate.split('-')[0]);
-                            const logDayOfWeek = new Date(year, month - 1, logDay).getDay();
-                            
-                            if (logDayOfWeek !== 0 && !actualWorkedDaysSet.has(logDay) && !wfhDaysSet.has(logDay)) { 
-                                const rawStatus = String(l.status || "").toUpperCase().trim();
-                                const isBioWFH = l.isWFH === true || l.wfhStatus === "Approved" || rawStatus === "WFH" || rawStatus === "WFH APPROVED";
+                        if ((logId === empId || logId === cleanId) && logType === "IN" && logDate) {
+                            const parts = logDate.split('-');
+                            if(parts.length === 3 && parseInt(parts[1]) === targetMonthInt && parseInt(parts[2]) === targetYearInt) {
+                                const logDay = parseInt(parts[0]);
+                                const logDayOfWeek = new Date(targetYearInt, targetMonthInt - 1, logDay).getDay();
                                 
-                                if (isBioWFH) {
-                                    wfhDaysSet.add(logDay);
-                                } else if (rawStatus === "HALF" || rawStatus === "HALF_DAY" || rawStatus === "HALF DAY") {
-                                    halfDaysSet.add(logDay);
-                                    actualWorkedDaysSet.add(logDay);
-                                } else {
-                                    actualWorkedDaysSet.add(logDay);
-                                    if (rawStatus === "LATE" || l.isLate === true || l.late === true) lateMarks++;
+                                if (logDayOfWeek !== 0 && !actualWorkedDaysSet.has(logDay) && !wfhDaysSet.has(logDay)) { 
+                                    const rawStatus = String(l.status || "").toUpperCase().trim();
+                                    const isBioWFH = l.isWFH === true || l.wfhStatus === "Approved" || rawStatus.includes("WFH");
+                                    
+                                    if (isBioWFH) {
+                                        wfhDaysSet.add(logDay);
+                                    } else if (rawStatus === "HALF" || rawStatus === "HALF_DAY" || rawStatus === "HALF DAY") {
+                                        halfDaysSet.add(logDay);
+                                        actualWorkedDaysSet.add(logDay);
+                                    } else {
+                                        actualWorkedDaysSet.add(logDay);
+                                        if (rawStatus === "LATE" || l.isLate === true || l.late === true || rawStatus === "LATE MARK") lateMarks++;
+                                    }
                                 }
                             }
                         }
                     });
 
-                    // C. Leave Requests Calculations Matching Target Selector Month
                     let approvedLeavesCount = 0;
                     let pendingLeavesCount = 0;
 
                     allLeaves.forEach(lv => {
                         const lvName = lv.name || "";
-                        if (lvName.toLowerCase().trim() === empName.toLowerCase().trim() && lv.startDate && lv.startDate.startsWith(`${year}-${monthStr}`)) {
+                        if (lvName.toLowerCase().trim() === empName.toLowerCase().trim() && lv.startDate && lv.startDate.startsWith(`${targetYearInt}-${monthStr}`)) {
                             const dayPart = parseInt(lv.startDate.split('-')[2]);
-                            const logDayOfWeek = new Date(year, month - 1, dayPart).getDay();
+                            const logDayOfWeek = new Date(targetYearInt, targetMonthInt - 1, dayPart).getDay();
 
                             if (logDayOfWeek !== 0) { 
                                 const leaveStatus = String(lv.status || "").toUpperCase().trim();
@@ -340,20 +335,17 @@
                         }
                     });
 
-                    // D. CORE MATH ENGINE FOR HYBRID WFH NET ACCUMULATOR PERIODS
                     let totalRawDaysCalculated = actualWorkedDaysSet.size;
                     let halfDaysCount = halfDaysSet.size;
-                    let wfhDaysCount = wfhDaysSet.size; // Get real total size count of WFH days
+                    let wfhDaysCount = wfhDaysSet.size; 
                     
                     let presentDaysFinal = totalRawDaysCalculated - (halfDaysCount * 0.5);
                     
-                    // WFH Approved is considered as Paid Active Present Duty Day block
                     let netPresentWithLeaves = presentDaysFinal + wfhDaysCount + approvedLeavesCount;
                     if (netPresentWithLeaves > netWorkingDaysInMonth) netPresentWithLeaves = netWorkingDaysInMonth;
 
                     const totalAbsents = Math.max(0, netWorkingDaysInMonth - netPresentWithLeaves);
 
-                    // Inject to live UI Preview Row with added WFH columns
                     htmlContent += `
                         <tr>
                             <td><b>${empId}</b></td>
@@ -371,12 +363,10 @@
                         </tr>
                     `;
 
-                    // Inject parameters directly into CSV matrix array tracking indexes
-                    csvContent += `"${empId}","${empName}","${branch}","${netWorkingDaysInMonth}","${presentDaysFinal}","${wfhDaysCount}","${totalAbsents}","${lateMarks}","${remainingLeaveBalance.toFixed(2)}","${halfDaysCount}","${approvedLeavesCount}","${pendingLeavesCount}"\n`;
+                    csvContent += `"${empId}","${empName}","${branch}","${netWorkingDaysInMonth}","${presentDaysFinal}","${wfhDaysCount}","${totalAbsents}","${halfDaysCount}","${lateMarks}","${remainingLeaveBalance.toFixed(2)}","${approvedLeavesCount}","${pendingLeavesCount}"\n`;
                     processedCount++;
                 });
 
-                // Update viewport components
                 tbody.innerHTML = htmlContent;
                 compiledCSVString = csvContent;
                 activeDownloadName = `Mercalix_Corporate_Audit_${selectedVal}.csv`;

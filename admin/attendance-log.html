@@ -249,26 +249,42 @@ function renderTable() {
             String(l.empId) === rawId || String(l.empId) === cleanId
         ).sort((a, b) => b.timestamp - a.timestamp);
 
-        const latestIn = logs.find(l => String(l.type || l.activity).toUpperCase().trim() === "IN" || String(l.type || l.activity).toUpperCase().trim() === "PUNCH IN");
-        const latestOut = logs.find(l => String(l.type || l.activity).toUpperCase().trim() === "OUT" || String(l.type || l.activity).toUpperCase().trim() === "PUNCH OUT");
+        // ─── 🌟 STABLE CROSS ANALYSIS INTERCEPTOR MAP LAYER FOR REALTIME PUNCHOUT SYNC ───
+        const latestIn = logs.find(l => {
+            const rawAct = String(l.type || l.punchType || l.activity || "IN").toUpperCase().trim();
+            const logStatus = String(l.status || "").toUpperCase().trim();
+            return (rawAct === "IN" || rawAct === "PUNCH IN") && logStatus !== "SHIFT END";
+        });
+
+        const latestOut = logs.find(l => {
+            const rawAct = String(l.punchType || l.type || l.activity || "").toUpperCase().trim();
+            const logStatus = String(l.status || "").toUpperCase().trim();
+            return (rawAct === "OUT" || rawAct === "PUNCH OUT" || logStatus === "SHIFT END" || l.time === "19:30" && l.locationTag === "Manual Punch");
+        });
         
         const photo = (latestIn && latestIn.photo) ? latestIn.photo : 
                       (emp.general?.profilephoto || emp.profilePhotoUrl || 'https://cdn-icons-png.flaticon.com/512/3135/3135715.png');
 
-        // 1. UPDATED STATUS BADGES REAL-TIME BINDING MATRIX FOR WFH & LATE RECORDS
         let statusHTML = '<span class="status-pill pill-absent">ABSENT</span>';
         if (latestIn) {
             const isLate = latestIn.late === true || latestIn.isLate === true || latestIn.status === "LATE MARK";
-            const logStatusUpper = String(latestIn.status || "").toUpperCase();
+            const logStatusUpper = String(latestIn.status || "").toUpperCase().trim();
+            const isTrueWFH = latestIn.isWFH === true || logStatusUpper.includes("WFH") || latestIn.location === "Work From Home";
             
-            if (latestIn.wfhStatus === "Pending" || logStatusUpper === "PENDING WFH APPROVAL") {
-                statusHTML = `<span style="font-size:9px; color:#a855f7; border:1.5px solid #a855f7; padding:2px 6px; border-radius:4px; font-weight:800; background:rgba(168,85,247,0.05);"><i class="fas fa-hourglass-half"></i> WFH PENDING</span>`;
-            } else if (latestIn.wfhStatus === "Approved" || latestIn.isWFH === true || logStatusUpper === "WFH" || logStatusUpper === "WFH APPROVED") {
-                statusHTML = `<span style="font-size:9px; color:white; background:#a855f7; padding:3px 8px; border-radius:4px; font-weight:800;"><i class="fas fa-home"></i> WFH APPROVED</span>`;
-            } else if (isLate) {
-                statusHTML = `<span style="font-size:9px; color:#f59e0b; border:1.5px solid #f59e0b; padding:2px 6px; border-radius:4px; font-weight:800; background:rgba(0,0,0,0.02);">LATE MARK</span>`;
+            if (latestOut) {
+                statusHTML = `<span style="font-size:9px; color:#fff; background:var(--primary); padding:3px 8px; border-radius:4px; font-weight:800;"><i class="fas fa-check-double"></i> LOG OUT APPROVED</span>`;
+            } else if (isTrueWFH) {
+                if (latestIn.wfhStatus === "Pending" || logStatusUpper.includes("PENDING") || logStatusUpper.includes("AWAITING")) {
+                    statusHTML = `<span style="font-size:9px; color:#a855f7; border:1.5px solid #a855f7; padding:2px 6px; border-radius:4px; font-weight:800; background:rgba(168,85,247,0.05);"><i class="fas fa-hourglass-half"></i> WFH PENDING</span>`;
+                } else {
+                    statusHTML = `<span style="font-size:9px; color:white; background:#a855f7; padding:3px 8px; border-radius:4px; font-weight:800;"><i class="fas fa-home"></i> WFH APPROVED</span>`;
+                }
             } else {
-                statusHTML = `<span style="font-size:9px; color:#10b981; border:1.5px solid #10b981; padding:2px 6px; border-radius:4px; font-weight:800; background:rgba(0,0,0,0.02);">ON TIME</span>`;
+                if (isLate) {
+                    statusHTML = `<span style="font-size:9px; color:#f59e0b; border:1.5px solid #f59e0b; padding:2px 6px; border-radius:4px; font-weight:800; background:rgba(0,0,0,0.02);">LATE MARK</span>`;
+                } else {
+                    statusHTML = `<span style="font-size:9px; color:#10b981; border:1.5px solid #10b981; padding:2px 6px; border-radius:4px; font-weight:800; background:rgba(0,0,0,0.02);">ON TIME</span>`;
+                }
             }
         }
 
@@ -320,9 +336,14 @@ async function viewFullHistory(id) {
         allLogs.forEach(l => {
             if(!groupedByDate[l.date]) groupedByDate[l.date] = { inputs: [], outputs: [] };
             
-            const typeStr = String(l.type || l.activity).toUpperCase().trim();
-            if(typeStr === "IN" || typeStr === "PUNCH IN") groupedByDate[l.date].inputs.push(l);
-            if(typeStr === "OUT" || typeStr === "PUNCH OUT") groupedByDate[l.date].outputs.push(l);
+            const typeStr = String(l.punchType || l.type || l.activity).toUpperCase().trim();
+            const logStatus = String(l.status || "").toUpperCase().trim();
+            
+            if((typeStr === "IN" || typeStr === "PUNCH IN") && logStatus !== "SHIFT END") {
+                groupedByDate[l.date].inputs.push(l);
+            } else if(typeStr === "OUT" || typeStr === "PUNCH OUT" || logStatus === "SHIFT END" || l.time === "19:30" && l.locationTag === "Manual Punch") {
+                groupedByDate[l.date].outputs.push(l);
+            }
         });
 
         const sortedDates = Object.keys(groupedByDate).sort((a,b) => {
@@ -360,16 +381,18 @@ async function viewFullHistory(id) {
             const combinedLogs = [...dayBlock.inputs, ...dayBlock.outputs].sort((a,b) => a.timestamp - b.timestamp);
 
             dayHtml += combinedLogs.map(log => {
-                const typeStr = String(log.type || log.activity).toUpperCase().trim();
-                const isIn = (typeStr === "IN" || typeStr === "PUNCH IN");
-                const colorVar = isIn ? "var(--success)" : "var(--danger)";
-                const isLate = log.status === "LATE MARK" || log.late === true || log.isLate === true;
+                const typeStr = String(log.punchType || log.type || log.activity).toUpperCase().trim();
+                const logStatusUpper = String(log.status || "").toUpperCase().trim();
                 
-                // 2. UPDATED GEO/ORIGIN TRACKING PIPELINE (MANUAL PUNCH & WFH BYPASS)
+                const isIn = (typeStr === "IN" || typeStr === "PUNCH IN") && logStatusUpper !== "SHIFT END";
+                const colorVar = isIn ? "var(--success)" : "var(--danger)";
+                const isLate = logStatusUpper === "LATE MARK" || log.late === true || log.isLate === true;
+                const isTrueWFH = log.isWFH === true || logStatusUpper.includes("WFH") || log.location === "Work From Home";
+                
                 let locationTrackingHTML = "";
-                if (log.locationTag === "Manual Punch" || log.location === "Manual Punch") {
+                if (log.locationTag === "Manual Punch" || log.location === "Manual Punch" || logStatusUpper.includes("MANUAL")) {
                     locationTrackingHTML = `<span style="font-size:10px; color:#4f46e5; font-weight:800;"><i class="fas fa-fingerprint"></i> ✨ Manual Punch Approved</span>`;
-                } else if (log.isWFH === true || log.location === "Work From Home") {
+                } else if (isTrueWFH) {
                     locationTrackingHTML = `<span style="font-size:10px; color:var(--wfh); font-weight:800;"><i class="fas fa-house-user"></i> Work From Home Log</span>`;
                 } else if (log.lat && log.lat !== 0) {
                     locationTrackingHTML = `<a href="https://maps.google.com/?q=${log.lat},${log.lng}" target="_blank" style="font-size:10px; color:var(--info); font-weight:800; text-decoration:none;"><i class="fas fa-map-marker-alt"></i> VIEW ON MAP</a>`;

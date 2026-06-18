@@ -18,137 +18,191 @@
             --primary: #00d4ff; --dark: #002b3d; --bg: #f3f7f9;
             --header: #1a1a1a; --white: #ffffff; --border: #e2e8f0;
             --success: #10b981; --danger: #ef4444; --orange: #fcc419;
-            --holiday: #94a3b8; --wfh: #a855f7;
+            --holiday: #94a3b8; --wfh: #a855f7; --indigo: #4338ca;
         }
 
         body, html { font-family: 'Plus Jakarta Sans', sans-serif; background: var(--bg); margin: 0; padding: 0; height: 100vh; overflow: hidden; }
         .p-container { display: flex; height: 100vh; width: 100%; }
 
-        /* Sidebar */
+        /* Sidebar Navigation Design Layout mapping */
         .sidebar { width: 260px; background: var(--dark); flex-shrink: 0; display: flex; flex-direction: column; }
         .sidebar-logo { padding: 25px; color: white; font-weight: 800; font-size: 18px; border-bottom: 1px solid rgba(255,255,255,0.1); text-transform: uppercase; }
         .sidebar a { padding: 18px 25px; text-decoration: none; color: #94a3b8; font-weight: 700; font-size: 11px; text-transform: uppercase; border-left: 4px solid transparent; transition: 0.3s; cursor: pointer; display: flex; align-items: center; gap: 10px; }
         .sidebar a:hover, .sidebar a.active { background: rgba(0, 212, 255, 0.08); color: var(--primary); border-left-color: var(--primary); }
 
-        /* Top Nav */
-        .main { flex: 1; display: flex; flex-direction: column; overflow-y: auto; }
-        .top-nav { height: 60px; background: var(--header); display: flex; justify-content: space-between; align-items: center; padding: 0 30px; position: sticky; top: 0; z-index: 1000; border-bottom: 2px solid var(--primary); }
+        /* Main Workspace Content Core Box */
+        .main { flex: 1; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+        .top-nav { height: 60px; background: var(--header); display: flex; justify-content: space-between; align-items: center; padding: 0 30px; border-bottom: 2px solid var(--primary); flex-shrink: 0; }
 
-        /* Birthday Flip Card Styles */
-        .bday-flip-card { background-color: transparent; width: 100%; height: 130px; perspective: 1000px; }
+        /* Dashboard Scannable Layout Matrix Grid */
+        .dashboard-grid { padding: 20px; display: grid; grid-template-columns: repeat(12, 1fr); gap: 15px; height: calc(100vh - 60px); box-sizing: border-box; overflow-y: auto; align-content: start; }
+        .card { background: white; border-radius: 18px; padding: 18px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); border: 1px solid var(--border); box-sizing: border-box; }
+        .section-title { font-size: 11.5px; font-weight: 800; text-transform: uppercase; color: #475569; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+
+        /* Welcome Dashboard Card Element */
+        .welcome-card { grid-column: span 8; background: linear-gradient(135deg, #004e92, #000428); color: white; display: flex; justify-content: space-between; align-items: center; padding: 25px 30px; position: relative; overflow: hidden; height: 180px; }
+        .thought-badge { position: absolute; top: 0; left: 0; width: 100%; background: rgba(0, 212, 255, 0.25); backdrop-filter: blur(10px); padding: 8px 20px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid rgba(255,255,255,0.1); z-index: 5; box-sizing: border-box; }
+        #thoughtSlider { font-size: 10.5px; font-weight: 800; text-transform: uppercase; color: #fff; transition: opacity 0.5s ease; white-space: nowrap; overflow: hidden; }
+
+        .late-status-container { position: absolute; right: 20px; bottom: 15px; text-align: center; display: none; }
+        .status-circle { width: 50px; height: 50px; border-radius: 50%; border: 4px solid var(--orange); display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 800; background: rgba(255,255,255,0.1); }
+
+        /* Quick Action Cards Fitted Flex Setup Grid */
+        .quick-actions { grid-column: span 8; }
+        .action-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; }
+        .action-box { background: #f8fafc; padding: 14px 6px; border-radius: 15px; text-align: center; cursor: pointer; border: 1px solid var(--border); transition: 0.3s; box-sizing: border-box; }
+        .action-box:hover { transform: translateY(-2px); border-color: var(--primary); background: white; }
+        .action-box i { font-size: 20px; margin-bottom: 6px; display: block; }
+        .action-box b { font-size: 10px; display: block; line-height: 1.2; }
+
+        /* Counter Metric Panels Grid Group */
+        .stat-group { grid-column: span 8; display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; }
+        .stat-mini { background: white; padding: 15px; border-radius: 15px; border: 1px solid var(--border); display: flex; flex-direction: column; justify-content: space-between; cursor: pointer; transition: 0.3s; min-height: 95px; box-sizing: border-box; }
+        .stat-mini:hover { border-color: var(--primary); transform: translateY(-2px); }
+        .stat-mini .val { font-size: 22px; font-weight: 800; margin: 3px 0; }
+
+        /* Birthday Card Elements */
+        .bday-flip-card { background-color: transparent; width: 100%; height: 120px; perspective: 1000px; }
         .bday-flip-inner { position: relative; width: 100%; height: 100%; text-align: center; transition: transform 0.6s; transform-style: preserve-3d; }
         .bday-flip-card.flipped .bday-flip-inner { transform: rotateY(180deg); }
         .bday-front, .bday-back { position: absolute; width: 100%; height: 100%; -webkit-backface-visibility: hidden; backface-visibility: hidden; border-radius: 15px; display: flex; flex-direction: column; justify-content: center; align-items: center; }
         .bday-back { background: #f0f9ff; transform: rotateY(180deg); padding: 10px; border: 1px solid var(--primary); overflow-y: auto; }
         .bday-icons-list { display: flex; gap: 8px; overflow-x: auto; padding: 5px; width: 100%; justify-content: center; }
-        .bday-avatar-item { cursor: pointer; transition: 0.3s; border: 2px solid transparent; border-radius: 50%; padding: 2px; width: 38px; height: 38px; object-fit: cover; }
+        .bday-avatar-item { cursor: pointer; transition: 0.3s; border: 2px solid transparent; border-radius: 50%; padding: 2px; width: 36px; height: 36px; object-fit: cover; }
         .bday-avatar-item.active { border-color: var(--primary); transform: scale(1.1); }
         .wish-item { border-bottom: 1px solid #e2e8f0; padding: 6px 0; font-size: 10px; text-align: left; width: 100%; }
 
-        /* Grid Layout */
-        .dashboard-grid { padding: 20px; display: grid; grid-template-columns: repeat(12, 1fr); gap: 20px; }
-        .card { background: white; border-radius: 18px; padding: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); border: 1px solid var(--border); }
-        .section-title { font-size: 12px; font-weight: 800; text-transform: uppercase; color: #475569; margin-bottom: 15px; display: flex; align-items: center; gap: 8px; }
-
-        /* Welcome Card */
-        .welcome-card { grid-column: span 8; background: linear-gradient(135deg, #004e92, #000428); color: white; display: flex; justify-content: space-between; align-items: center; padding: 30px; position: relative; overflow: hidden; height: 220px; box-sizing: border-box; }
-        .thought-badge { position: absolute; top: 0; left: 0; width: 100%; background: rgba(0, 212, 255, 0.25); backdrop-filter: blur(10px); padding: 10px 20px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid rgba(255,255,255,0.1); z-index: 5; }
-        #thoughtSlider { font-size: 11px; font-weight: 800; text-transform: uppercase; color: #fff; transition: opacity 0.5s ease; white-space: nowrap; overflow: hidden; }
-
-        /* Late Status Circle */
-        .late-status-container { position: absolute; right: 20px; bottom: 20px; text-align: center; display: none; }
-        .status-circle { width: 50px; height: 50px; border-radius: 50%; border: 4px solid var(--orange); display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 800; background: rgba(255,255,255,0.1); }
-        .status-label { font-size: 8px; text-transform: uppercase; margin-top: 5px; font-weight: 800; }
-
-        /* Quick Actions */
-        .quick-actions { grid-column: span 8; }
-        .action-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; }
-        .action-box { background: #f8fafc; padding: 12px 8px; border-radius: 15px; text-align: center; cursor: pointer; border: 1px solid var(--border); transition: 0.3s; }
-        .action-box i { font-size: 22px; margin-bottom: 6px; display: block; }
-        .action-box b { font-size: 10.5px; display: block; line-height: 1.2; }
-
-        /* Stats Group */
-        .stat-group { grid-column: span 8; display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; }
-        .stat-mini { background: white; padding: 15px; border-radius: 15px; border: 1px solid var(--border); display: flex; flex-direction: column; justify-content: space-between; cursor: pointer; transition: 0.3s; }
-        .stat-mini:hover { border-color: var(--primary); transform: translateY(-2px); }
-        .stat-mini .val { font-size: 24px; font-weight: 800; margin: 5px 0; }
-
-        /* Holiday Card */
-        .holiday-card { background: #8bc34a; color: white; padding: 15px; border-radius: 18px; display: flex; align-items: center; justify-content: space-between; position: relative; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.1); height: 95px; box-sizing: border-box; }
-        .h-info { z-index: 2; }
-        .view-all-link { color: white; font-size: 9px; font-weight: 800; cursor: pointer; text-decoration: underline; }
-
-        /* Performance Gauges */
-        .engagement-area { grid-column: span 4; display: flex; flex-direction: column; gap: 20px; }
-        .gauge-container { height: 140px; position: relative; }
+        .holiday-card { background: #8bc34a; color: white; padding: 15px; border-radius: 18px; display: flex; align-items: center; justify-content: space-between; position: relative; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.1); height: 85px; box-sizing: border-box; }
+        .engagement-area { grid-column: span 4; display: flex; flex-direction: column; gap: 15px; }
+        .gauge-container { height: 110px; position: relative; }
         .gauge-text { position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); text-align: center; }
 
-        /* Modals */
+        /* Window Overlay Containers */
         .modal { display: none; position: fixed; z-index: 4000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); backdrop-filter: blur(8px); }
-        .modal-content { background: white; margin: 5% auto; padding: 30px; border-radius: 24px; width: 450px; max-height: 80vh; overflow-y: auto; }
+        .modal-content { background: white; margin: 4% auto; padding: 25px; border-radius: 24px; width: 450px; max-height: 88vh; overflow-y: auto; box-sizing: border-box; }
         
-        /* Form Styles */
-        .form-group { margin-bottom: 15px; }
-        .form-group label { display: block; font-size: 10px; font-weight: 800; margin-bottom: 5px; color: var(--dark); }
-        .form-control { width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 12px; box-sizing: border-box; }
-        
-        /* Password Change Modal Specific Styles */
-       .pwd-modal { display: none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); backdrop-filter: blur(10px); }
-       .pwd-content { background: white; margin: 10% auto; padding: 30px; border-radius: 20px; width: 380px; box-shadow: 0 20px 40px rgba(0,0,0,0.2); }
-       .pwd-header { text-align: center; margin-bottom: 20px; }
-       .pwd-header i { font-size: 40px; color: var(--primary); margin-bottom: 10px; }
-       .pwd-input { width: 100%; padding: 12px; margin: 8px 0; border: 1.5px solid #eee; border-radius: 10px; font-size: 13px; outline: none; box-sizing: border-box; }
-       .pwd-input:focus { border-color: var(--primary); }
-       .pwd-btn { width: 100%; padding: 12px; background: var(--dark); color: var(--primary); border: none; border-radius: 10px; font-weight: 800; cursor: pointer; margin-top: 15px; }
-       .pwd-later { width: 100%; background: none; border: none; color: #94a3b8; font-size: 11px; margin-top: 15px; cursor: pointer; font-weight: 700; text-transform: uppercase; }
-        
-        /* Yearly Calendar Styles */
-        .calendar-container { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 15px; }
-        .month-box { border: 1px solid #eee; padding: 10px; border-radius: 12px; }
-        .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; margin-top: 5px; }
-        .cal-day { font-size: 8px; padding: 4px; text-align: center; border-radius: 3px; background: #f8fafc; font-weight: 700; color: #000; position: relative; }
-        .day-present { background: var(--success) !important; color: white !important; }
-        .day-absent { background: var(--danger) !important; color: white !important; }
-        .day-late { background: var(--orange) !important; color: white !important; }
-        .day-half { background: var(--primary) !important; color: white !important; }
-        .day-holiday { background: var(--holiday) !important; color: white !important; }
-        .day-wfh { background: var(--wfh) !important; color: white !important; }
-        .day-sunday { background: #e2e2f0 !important; color: #94a3b8 !important; font-weight: 500; }
-        
-        .cal-day .wfh-home-icon { font-size: 6px; position: absolute; bottom: 1px; right: 1px; color: white; }
-
         .footer-cards { grid-column: span 8; display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; }
         textarea { width: 100%; border: 1px solid #eee; border-radius: 10px; padding: 10px; font-size: 12px; background: #f9f9f9; resize: none; box-sizing: border-box; }
-        
-        .task-item { background: #f8fafc; padding: 10px; border-radius: 10px; border-left: 4px solid var(--primary); margin-bottom: 10px; }
-
-        /* Duty Tracker Table */
         .duty-tracker-table { width: 100%; border-collapse: collapse; font-size: 10.5px; margin-top: 5px; }
         .duty-tracker-table th { background: #f8fafc; color: #64748b; padding: 4px 6px; font-weight: 800; text-align: left; border-bottom: 1px solid var(--border); text-transform: uppercase; }
         .duty-tracker-table td { padding: 4px 6px; border-bottom: 1px solid #f1f5f9; font-weight: 600; color: var(--dark); }
 
-        /* WINNERS GRID LIST LAYOUT STYLE */
-        .winners-showcase-card { grid-column: span 8; background: white; border-radius: 18px; padding: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); border: 1px solid var(--border); }
-        .winner-list-wrapper { display: flex; flex-direction: column; gap: 12px; max-height: 250px; overflow-y: auto; padding-right: 5px; }
-        .single-winner-row { background: linear-gradient(135deg, #ffffff, #f8fafc); border: 1px solid #e2e8f0; border-left: 5px solid #ea580c; border-radius: 12px; padding: 12px 18px; display: flex; align-items: center; justify-content: space-between; transition: 0.2s; }
-        .single-winner-row:hover { transform: translateX(2px); box-shadow: 0 4px 10px rgba(0,0,0,0.03); }
-        .winner-meta-side { display: flex; align-items: center; gap: 12px; }
-        .winner-icon-box { background: #fff7ed; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #ea580c; font-size: 18px; }
-        
-        /* Like button style */
-        .like-action-btn { background: #f1f5f9; border: none; padding: 6px 14px; border-radius: 20px; font-size: 11px; font-weight: 800; color: #475569; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: 0.2s; }
-        .like-action-btn:hover { background: #ffe4e6; color: #e11d48; }
-        .like-action-btn.liked { background: #e11d48; color: white; }
+        .form-group { margin-bottom: 12px; }
+        .form-group label { display: block; font-size: 10px; font-weight: 800; margin-bottom: 5px; color: var(--dark); text-transform: uppercase; }
+        .form-control { width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 12px; box-sizing: border-box; }
 
-        .award-slider-box { width: 100%; height: 220px; position: relative; overflow: hidden; border-radius: 18px; border: 1px solid var(--border); background: #000; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
-        .award-slide-img { width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0; opacity: 0; transition: opacity 0.8s ease-in-out; }
+        .winners-showcase-card { grid-column: span 8; background: white; border-radius: 18px; padding: 18px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); border: 1px solid var(--border); }
+        .winner-list-wrapper { display: flex; flex-direction: column; gap: 10px; max-height: 180px; overflow-y: auto; }
+        .single-winner-row { background: linear-gradient(135deg, #ffffff, #f5f3ff); border: 1px solid #e0e7ff; border-left: 5px solid var(--indigo); border-radius: 12px; padding: 10px 15px; display: flex; align-items: center; justify-content: space-between; }
+        .winner-icon-box { background: #e0e7ff; width: 35px; height: 35px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--indigo); font-size: 16px; }
+        .winner-meta-side { display: flex; align-items: center; gap: 10px; }
+        .like-action-btn { background: #fff; border: 1px solid #e2e8f0; padding: 6px 12px; border-radius: 20px; font-size: 10.5px; font-weight: 800; color: #475569; cursor: pointer; display: flex; align-items: center; gap: 6px; }
+        .like-action-btn.liked { background: #e11d48; color: white; border-color: #e11d48; }
+
+        .award-slider-box { width: 100%; height: 180px; position: relative; overflow: hidden; border-radius: 18px; background: #000; }
+        .award-slide-img { width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0; opacity: 0; transition: opacity 0.8s ease; }
         .award-slide-img.active { opacity: 1; }
-        .award-caption-overlay { position: absolute; bottom: 0; left: 0; width: 100%; background: linear-gradient(transparent, rgba(0,0,0,0.9)); color: white; padding: 15px 20px; box-sizing: border-box; z-index: 5; }
-        
-        .interaction-tracker-card { background: #fff1f2; border: 1px solid #fecdd3; border-radius: 15px; padding: 15px; margin-top: 10px; }
+        .award-caption-overlay { position: absolute; bottom: 0; left: 0; width: 100%; background: linear-gradient(transparent, rgba(0,0,0,0.9)); color: white; padding: 12px 15px; box-sizing: border-box; z-index: 5; }
+
+        /* Biometric Camera View Ports layouts mapping */
+        #regCameraFeedContainer { position: relative; width: 100%; height: 240px; background: #000; border-radius: 12px; overflow: hidden; margin: 15px 0; }
+        #regVideo { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
+        #regScannerLine { position: absolute; top: 0; left: 0; width: 100%; height: 2px; background: #10b981; box-shadow: 0 0 10px #10b981; animation: scanAnim 2s infinite linear; display: none; }
+        @keyframes scanAnim { 0% { top: 0%; } 50% { top: 100%; } 100% { top: 0%; } }
+
+        /* Multi Year Dynamic Continuous Grid Maps Calendar Framework CSS Layouts */
+        .calendar-container { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-top: 15px; }
+        .month-box { border: 1px solid #e2e8f0; padding: 10px; border-radius: 12px; background: #fff; }
+        .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-top: 8px; }
+        .cal-day { font-size: 9px; padding: 6px 2px; text-align: center; border-radius: 6px; background: #f8fafc; font-weight: 700; color: #1e293b; position: relative; }
+        .day-present { background: var(--success) !important; color: white !important; }
+        .day-absent { background: var(--danger) !important; color: white !important; }
+        .day-late { background: var(--orange) !important; color: white !important; }
+        .day-half { background: var(--primary) !important; color: var(--dark) !important; }
+        .day-holiday { background: var(--holiday) !important; color: white !important; }
+        .day-wfh { background: var(--wfh) !important; color: white !important; }
+        .day-sunday { background: #e2e8f0 !important; color: #64748b !important; }
+        .cal-day .wfh-home-icon { font-size: 6px; position: absolute; bottom: 1px; right: 1px; color: white; }
+
+        /* Professional Holiday Table Container layout formatting mapping */
+        .professional-holiday-table { width: 100%; border-collapse: collapse; font-size: 11.5px; margin-top: 10px; }
+        .professional-holiday-table th { background: #f1f5f9; padding: 10px; font-weight: 800; text-align: left; color: var(--dark); border-bottom: 2px solid var(--border); }
+        .professional-holiday-table td { padding: 10px; border-bottom: 1px solid #f1f5f9; font-weight: 600; color: #334155; }
     </style>
 </head>
 <body onload="initDashboard()">
+
+<div id="regModal" class="modal">
+    <div class="modal-content" style="width: 440px;">
+        <h3 style="margin-top:0;"><i class="fas fa-user-shield" style="color:#10b981;"></i> Face Enrolment Terminal</h3>
+        <p id="regStatus" style="font-size:11px; font-weight:800; color:var(--orange); margin:-5px 0 10px 0;">Initializing parameters...</p>
+        
+        <div id="regCameraFeedContainer">
+            <video id="regVideo" autoplay playsinline></video>
+            <div id="regScannerLine"></div>
+        </div>
+        
+        <button id="captureBtn" onclick="captureFace()" disabled style="width:100%; padding:12px; background:var(--dark); color:var(--primary); border:none; border-radius:10px; font-weight:800; cursor:pointer; text-transform:uppercase;">Scan & Map Neural Face Vectors</button>
+        <button onclick="closeRegModal()" style="width:100%; margin-top:10px; background:none; border:none; color:var(--danger); font-size:11px; font-weight:800; cursor:pointer; text-transform:uppercase;">Cancel Connection</button>
+    </div>
+</div>
+
+<div id="manualPunchModal" class="modal">
+    <div class="modal-content" style="width:480px; padding:25px; border-radius:24px; background:#fff; box-sizing:border-box;">
+        <h3 style="margin-top:0; font-size:16px; font-weight:800; color:var(--dark);"><i class="fas fa-fingerprint" style="color:var(--wfh);"></i> Request Manual Punch</h3>
+        <p style="font-size:10.5px; color:#64748b; margin-top:-8px; margin-bottom:15px;">Note: Requests are sent to Admin review workspace directory for security authorization status.</p>
+        
+        <div class="modal-tabs" style="display:flex; gap:6px; background:#f1f5f9; padding:4px; border-radius:10px; margin-bottom:15px; box-sizing:border-box;">
+            <button id="tabInBtn" style="flex:1; border:none; padding:8px; font-size:11px; font-weight:800; text-transform:uppercase; border-radius:8px; cursor:pointer; background:#fff; color:var(--dark); box-shadow:0 2px 4px rgba(0,0,0,0.05); transition:0.2s;" onclick="switchManualPunchTab('IN')">Punch In</button>
+            <button id="tabOutBtn" style="flex:1; border:none; padding:8px; font-size:11px; font-weight:800; text-transform:uppercase; border-radius:8px; cursor:pointer; background:transparent; color:#64748b; transition:0.2s;" onclick="switchManualPunchTab('OUT')">Punch Out</button>
+        </div>
+
+        <div class="form-group">
+            <label>Select Target Date</label>
+            <input type="date" id="mpDate" class="form-control" onchange="verifyManualPunchEligibility()">
+        </div>
+        <div class="form-group">
+            <label>Select Attendance Timestamp</label>
+            <input type="time" id="mpTime" class="form-control" value="09:30">
+        </div>
+
+        <div id="mpStatusLogger" style="font-size:11.5px; font-weight:800; color:var(--orange); margin-bottom:12px; min-height:18px;">Select a date parameter...</div>
+
+        <div id="mpCameraContainer" style="display:none; position:relative; width:100%; height:220px; background:#000; border-radius:12px; overflow:hidden; margin:15px 0;">
+            <video id="mpVideo" autoplay playsinline style="width:100%; height:100%; object-fit:cover; transform:scaleX(-1);"></video>
+            <div id="mpScannerLine" style="position:absolute; top:0; left:0; width:100%; height:2px; background:var(--wfh); box-shadow:0 0 10px var(--wfh); animation: scanAnim 2s infinite linear;"></div>
+        </div>
+
+        <button id="mpSubmitBtn" onclick="processManualPunchRequest()" disabled style="width:100%; padding:12px; background:var(--dark); color:var(--primary); border:none; border-radius:10px; font-weight:800; cursor:pointer; text-transform:uppercase;">Scan Face & Dispatch Admin Request</button>
+        
+        <div style="margin-top: 20px; border-top: 1px solid #e2e8f0; padding-top: 15px;">
+            <div class="section-title" style="color:var(--dark); margin-bottom: 8px;"><i class="fas fa-history"></i> Request History & Status Updates</div>
+            <div style="max-height: 140px; overflow-y: auto; border: 1px solid #f1f5f9; border-radius: 10px;">
+                <table class="duty-tracker-table" style="margin-top:0;">
+                    <thead>
+                        <tr><th>Date</th><th>Type</th><th>Time</th><th>Status</th></tr>
+                    </thead>
+                    <tbody id="manualPunchHistoryBody">
+                        <tr><td colspan="4" align="center" style="color:#94a3b8; padding:8px; font-size:9px;">Syncing history logs...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <button onclick="closeManualPunchModal()" style="width:100%; margin-top:15px; background:none; border:none; color:var(--danger); font-size:11px; font-weight:800; cursor:pointer; text-transform:uppercase;">Cancel Request</button>
+    </div>
+</div>
+
+<div id="allHolidaysModal" class="modal">
+    <div class="modal-content" style="width: 520px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border); padding-bottom:10px; margin-bottom:15px;">
+            <h3 style="margin:0; font-size:14px; font-weight:800;"><i class="fas fa-calendar-star" style="color:#8bc34a;"></i> Corporate Scheduled Holidays Registry</h3>
+            <span onclick="closeModal('allHolidaysModal')" style="cursor:pointer; font-size:22px; font-weight:700; color:#94a3b8;">&times;</span>
+        </div>
+        <div style="max-height: 320px; overflow-y:auto;" id="professionalHolidayContainerTableBlock"></div>
+        <button onclick="closeModal('allHolidaysModal')" style="width:100%; margin-top:15px; padding:10px; background:var(--dark); color:white; border:none; border-radius:10px; font-weight:700; cursor:pointer;">CLOSE REGISTRY</button>
+    </div>
+</div>
 
 <div id="lateArrivalModal" class="modal">
     <div class="modal-content">
@@ -166,47 +220,19 @@
     </div>
 </div>
 
-<!-- 🆕 NEW DYNAMIC MANUAL PUNCH REQUEST MODAL ENGINE WITH FACE SCAN AND 5-DAYS FILTER CHECK -->
-<div id="manualPunchModal" class="modal">
-    <div class="modal-content" style="width:460px; padding:25px;">
-        <h3 style="margin-top:0;"><i class="fas fa-fingerprint" style="color:var(--wfh);"></i> Request Manual Punch</h3>
-        <p style="font-size:10.5px; color:#64748b; margin-top:-10px;">Note: Submission allowed strictly within a 5-day timeline window and only applicable for verified absent dates.</p>
-        
-        <div class="form-group">
-            <label>SELECT MISSED ATTENDANCE DATE</label>
-            <input type="date" id="mpDate" class="form-control" onchange="verifyManualPunchEligibility()">
-        </div>
-        <div class="form-group">
-            <label>SELECT TIME</label>
-            <input type="time" id="mpTime" class="form-control" value="09:30">
-        </div>
-
-        <div id="mpStatusLogger" style="font-size:11.5px; font-weight:800; color:var(--danger); margin-bottom:12px; min-height:18px;">Select a date to check availability status...</div>
-
-        <!-- Hidden Face Camera Stream Block that unlocks only if eligible -->
-        <div id="mpCameraContainer" style="display:none; position:relative; width:100%; height:240px; background:#000; border-radius:12px; overflow:hidden; margin:15px 0;">
-            <video id="mpVideo" autoplay playsinline style="width:100%; height:100%; object-fit:cover; transform:scaleX(-1);"></video>
-            <div id="mpScannerLine" style="position:absolute; top:0; left:0; width:100%; height:2px; background:var(--wfh); box-shadow:0 0 10px var(--wfh); animation: scanAnim 2s infinite linear;"></div>
-        </div>
-
-        <button id="mpSubmitBtn" onclick="processManualPunchRequest()" disabled style="width:100%; padding:12px; background:var(--dark); color:var(--primary); border:none; border-radius:10px; font-weight:800; cursor:pointer; text-transform:uppercase;">Scan Face & Dispatch Request</button>
-        <button onclick="closeManualPunchModal()" style="width:100%; margin-top:10px; background:none; border:none; color:var(--danger); font-size:11px; font-weight:800; cursor:pointer; text-transform:uppercase;">Cancel Request</button>
-    </div>
-</div>
-
 <div id="attendanceModal" class="modal">
-    <div class="modal-content" style="width: 600px;">
-        <div style="display:flex; justify-content:space-between; align-items:center;">
-            <h3 style="margin:0;"><i class="fas fa-calendar-alt"></i> Yearly Attendance 2026</h3>
-            <span onclick="closeModal('attendanceModal')" style="cursor:pointer; font-size:24px;">&times;</span>
+    <div class="modal-content" style="width: 650px; max-width: 95vw;">
+        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 1px solid var(--border); padding-bottom:10px;">
+            <h3 style="margin:0; font-size: 15px;"><i class="fas fa-calendar-alt" style="color:var(--primary);"></i> Dynamic Attendance Tracker Panel</h3>
+            <span onclick="closeModal('attendanceModal')" style="cursor:pointer; font-size:22px; color:#64748b; font-weight:700;">&times;</span>
         </div>
-        <div style="display:flex; gap:10px; margin: 15px 0; justify-content:center; font-size:10px; font-weight:800; flex-wrap:wrap;">
+        <div style="display:flex; gap:12px; margin: 12px 0; justify-content:center; font-size:9.5px; font-weight:800; flex-wrap:wrap; background: #f8fafc; padding: 10px; border-radius: 10px;">
             <span><i class="fas fa-square" style="color:var(--success)"></i> PRESENT</span>
             <span><i class="fas fa-square" style="color:var(--danger)"></i> ABSENT</span>
             <span><i class="fas fa-square" style="color:var(--orange)"></i> LATE</span>
             <span><i class="fas fa-square" style="color:var(--primary)"></i> HALF DAY</span>
             <span><i class="fas fa-square" style="color:var(--holiday)"></i> HOLIDAY</span>
-            <span><i class="fas fa-square" style="color:var(--wfh)"></i> WORK FROM HOME (🏠)</span>
+            <span><i class="fas fa-square" style="color:var(--wfh)"></i> WFH APPROVED (🏠)</span>
         </div>
         <div id="yearCalendar" class="calendar-container"></div>
     </div>
@@ -247,7 +273,7 @@
                     <div id="thoughtSlider">Syncing Latest Thoughts...</div>
                 </div>
                 <div style="margin-top: 25px;">
-                    <h1 style="margin:0; font-size: 26px; font-weight:300;">Welcome, <span id="wName" style="font-weight:800;">...</span></h1>
+                    <h1 style="margin:0; font-size: 24px; font-weight:300;">Welcome, <span id="wName" style="font-weight:800;">...</span></h1>
                     <p style="opacity:0.7; font-size:11px; margin-top:4px; font-weight:600;">
                         Employee ID: <span id="wId" style="font-weight:700;">...</span>
                     </p>
@@ -262,16 +288,16 @@
                 </div>
             </div>
 
-            <div class="card" style="grid-column: span 4; border: 1px solid var(--orange); background: #fffdf5; height: 220px; overflow: hidden; display: flex; flex-direction: column; box-sizing: border-box; padding: 15px 20px;">
-                <div class="section-title" style="color: #b45309; margin-bottom: 8px;"><i class="fas fa-stopwatch"></i> Duty Tracker</div>
+            <div class="card" style="grid-column: span 4; border: 1px solid var(--orange); background: #fffdf5; height: 180px; overflow: hidden; display: flex; flex-direction: column; box-sizing: border-box; padding: 12px 18px;">
+                <div class="section-title" style="color: #b45309; margin-bottom: 6px;"><i class="fas fa-stopwatch"></i> Duty Tracker</div>
                 <div style="text-align: center; margin: 2px 0;">
-                    <div id="liveWorkClock" style="font-size: 26px; font-weight: 800; color: var(--dark); font-family: monospace; letter-spacing: 0.5px;">00:00:00</div>
+                    <div id="liveWorkClock" style="font-size: 24px; font-weight: 800; color: var(--dark); font-family: monospace; letter-spacing: 0.5px;">00:00:00</div>
                     <span id="liveWorkStatusBadge" style="font-size: 7.5px; font-weight: 800; color: white; background: #94a3b8; padding: 2px 6px; border-radius: 4px; text-transform: uppercase; margin-top: 2px; display: inline-block;">OFF DUTY</span>
                 </div>
-                <div style="flex: 1; overflow-y: auto; max-height: 100px; border-top: 1px dashed #fde68a; padding-top: 3px;">
+                <div style="flex: 1; overflow-y: auto; max-height: 80px; border-top: 1px dashed #fde68a; padding-top: 3px;">
                     <table class="duty-tracker-table">
                         <thead>
-                            <tr><th>Date</th><th>In</th><th>Out</th><th>Hrs</th></tr>
+                            <tr><th>Date</th><th>In</th><th>Out</th><th>Status</th></tr>
                         </thead>
                         <tbody id="dutyTrackerLogsBody">
                             <tr><td colspan="4" align="center" style="color:#94a3b8; font-size:9px; padding:8px;">Syncing cycle shifts...</td></tr>
@@ -281,7 +307,7 @@
             </div>
 
             <div id="saturdayWinnersShowcase" class="winners-showcase-card">
-                <div class="section-title" style="color: #ea580c; margin-bottom: 12px;">
+                <div class="section-title" style="color: var(--indigo); margin-bottom: 12px;">
                     <i class="fas fa-trophy"></i> Fun-Time Event Celebrations & Weekly Winners
                 </div>
                 <div id="winnersListContainer" class="winner-list-wrapper">
@@ -306,13 +332,12 @@
                     <div class="action-box" onclick="location.href='payslip.html'"><i class="fas fa-file-download" style="color:#f97316"></i><b>Download Payslip</b></div>
                     <div class="action-box" onclick="openRegModal()" style="border: 1px solid var(--primary); background: #f0f9ff;"><i class="fas fa-user-circle" style="color:#10b981"></i><b>Face Registration</b></div>
                     <div class="action-box" onclick="location.href='advance_salary.html'"><i class="fa-regular fa-money-check-dollar" style="color:#01a703"></i><b>Advance Salary</b></div>
-                    <!-- 🆕 NEW SYSTEM CARD TAB ATTACHMENT POSITION: MANUAL PUNCH HANDLER ACTION -->
                     <div class="action-box" onclick="openManualPunchModal()" style="border: 2px solid var(--wfh); background: #faf5ff;"><i class="fas fa-fingerprint" style="color:var(--wfh);"></i><b>Manual Punch</b></div>
                 </div>
             </div>
             
             <div class="engagement-area">
-                <div class="card" style="border: 1px solid var(--primary); position: relative; min-height: 220px; overflow: hidden;">
+                <div class="card" style="border: 1px solid var(--primary); position: relative; min-height: 180px; overflow: hidden; padding: 15px;">
                     <div class="section-title">
                         <i class="fas fa-birthday-cake" style="color: #ed64a6;"></i> Birthdays 
                         <button onclick="flipBdayCard()" style="margin-left: auto; background: none; border: none; font-size: 10px; color: var(--primary); cursor: pointer; font-weight: 800;">VIEW WISHES</button>
@@ -321,33 +346,33 @@
                         <div class="bday-flip-inner">
                             <div class="bday-front">
                                 <div id="bdayIcons" class="bday-icons-list"></div>
-                                <div id="bdayDetails" style="margin-top: 5px;">
-                                    <p id="bdayName" style="font-size: 13px; font-weight: 800; margin: 0; color: var(--dark);">Checking...</p>
+                                <div id="bdayDetails" style="margin-top: 3px;">
+                                    <p id="bdayName" style="font-size: 12.5px; font-weight: 800; margin: 0; color: var(--dark);">Checking...</p>
                                     <p id="bdayMeta" style="font-size: 9px; color: #64748b; margin: 2px 0;">Dept: -- | Branch: --</p>
                                 </div>
-                                <div id="wishBar" style="display: none; margin-top: 10px; gap: 5px; width: 100%; align-items: center;">
-                                    <input type="text" id="wishInp" placeholder="Send a wish..." style="flex: 1; padding: 8px; border-radius: 8px; border: 1px solid #e2e8f0; font-size: 11px; outline: none; background: white;">
-                                    <button onclick="sendBdayWish()" style="background: var(--primary); border: none; padding: 8px 12px; border-radius: 8px; cursor: pointer; color: var(--dark); font-weight: 800;"><i class="fas fa-paper-plane"></i></button>
+                                <div id="wishBar" style="display: none; margin-top: 5px; gap: 5px; width: 100%; align-items: center;">
+                                    <input type="text" id="wishInp" placeholder="Send a wish..." style="flex: 1; padding: 6px; border-radius: 8px; border: 1px solid #e2e8f0; font-size: 11px; outline: none; background: white;">
+                                    <button onclick="sendBdayWish()" style="background: var(--primary); border: none; padding: 6px 10px; border-radius: 8px; cursor: pointer; color: var(--dark); font-weight: 800;"><i class="fas fa-paper-plane"></i></button>
                                 </div>
                             </div>
                             <div class="bday-back">
-                                <div class="section-title" style="font-size: 10px; margin-bottom: 10px;">WALL OF WISHES</div>
-                                <div id="wishesWall" style="width: 100%; height: 120px; overflow-y: auto;">
+                                <div class="section-title" style="font-size: 10px; margin-bottom: 5px;">WALL OF WISHES</div>
+                                <div id="wishesWall" style="width: 100%; height: 80px; overflow-y: auto;">
                                     <p style="text-align: center; color: #94a3b8; font-size: 10px;">No wishes yet.</p>
                                 </div>
-                                <button onclick="flipBdayCard()" style="margin-top: 10px; font-size: 9px; border: none; background: none; color: var(--text-sub); cursor: pointer; font-weight: 800;">BACK TO PROFILES</button>
+                                <button onclick="flipBdayCard()" style="margin-top: 5px; font-size: 9px; border: none; background: none; color: #64748b; cursor: pointer; font-weight: 800;">BACK</button>
                             </div>
                         </div>
                     </div>
                 </div>
 
                 <div class="interaction-tracker-card">
-                    <div style="font-size: 11px; font-weight:800; color:#be123c; margin-bottom: 8px; text-transform: uppercase;">
+                    <div style="font-size: 10.5px; font-weight:800; color:#be123c; margin-bottom: 6px; text-transform: uppercase;">
                         <i class="fas fa-heart"></i> My Mentions & Feedback
                     </div>
-                    <div style="display:flex; justify-content:space-between; align-items:center; background:white; padding:8px 12px; border-radius:10px; border:1px solid #fecdd3;">
-                        <span style="font-size:10.5px; font-weight:700; color:#475569;">Total Likes Received:</span>
-                        <b id="myTotalLikesCount" style="font-size:14px; color:#e11d48;">0</b>
+                    <div style="display:flex; justify-content:space-between; align-items:center; background:white; padding:6px 12px; border-radius:10px; border:1px solid #fecdd3;">
+                        <span style="font-size:10px; font-weight:700; color:#475569;">Total Likes Received:</span>
+                        <b id="myTotalLikesCount" style="font-size:13px; color:#e11d48;">0</b>
                     </div>
                 </div>
             </div>
@@ -379,19 +404,19 @@
                 <div class="holiday-card" style="background: #8bc34a;">
                     <div class="h-info">
                         <span style="font-size: 9px; opacity: 0.9; font-weight: 800;">UPCOMING HOLIDAY</span>
-                        <div style="font-size: 14px; font-weight: 800;" id="hName">Loading...</div>
-                        <span style="font-size: 10px; opacity: 0.8;" id="hDate">Date</span>
+                        <div style="font-size: 13px; font-weight: 800;" id="hName">Loading...</div>
+                        <span style="font-size: 9px; opacity: 0.8;" id="hDate">Date</span>
                     </div>
                     <span class="view-all-link" onclick="showAllHolidays()">View All</span>
                 </div>
 
-                <div class="card">
-                    <div class="section-title">Performance Metrics</div>
+                <div class="card" style="height: 165px; box-sizing: border-box; padding: 12px 15px;">
+                    <div class="section-title" style="margin-bottom: 5px;">Performance Metrics</div>
                     <div class="gauge-container">
                         <canvas id="gaugeChart"></canvas>
                         <div class="gauge-text">
-                            <h2 id="perfVal" style="margin:0; font-size:22px; font-weight:900;">0.0/5</h2>
-                            <small id="perfLabel" style="color:var(--success); font-weight:800; font-size:9px;">SYNCING</small>
+                            <h2 id="perfVal" style="margin:0; font-size:18px; font-weight:900;">0.0/5</h2>
+                            <small id="perfLabel" style="color:var(--success); font-weight:800; font-size:8px;">SYNCING</small>
                         </div>
                     </div>
                 </div>
@@ -400,15 +425,15 @@
             <div class="footer-cards">
                 <div class="card">
                     <div class="section-title">💡 Share Thought</div>
-                    <textarea id="thoughtInp" placeholder="Write for admins..."></textarea>
-                    <button onclick="postThought()" style="width:100%; margin-top:10px; background:var(--primary); border:none; padding:8px; border-radius:8px; font-weight:800; font-size:11px; cursor:pointer;">POST GLOBALLY</button>
+                    <textarea id="thoughtInp" placeholder="Write for admins..." rows="2"></textarea>
+                    <button onclick="postThought()" style="width:100%; margin-top:8px; background:var(--primary); border:none; padding:8px; border-radius:8px; font-weight:800; font-size:10.5px; cursor:pointer;">POST GLOBALLY</button>
                 </div>
                 <div class="card" style="text-align:center;">
                     <div class="section-title">📂 Cumulative-slip</div>
-                    <i class="fas fa-file-download" style="font-size:30px; color:var(--primary); margin:10px 0;"></i>
-                    <button style="width:100%; background:var(--primary); border:none; padding:8px; border-radius:8px; font-weight:800; font-size:11px; cursor:pointer;" onclick="location.href='cumulative-slip.html'">View</button>
+                    <i class="fas fa-file-download" style="font-size:26px; color:var(--primary); margin:8px 0; display:block;"></i>
+                    <button style="width:100%; background:var(--primary); border:none; padding:8px; border-radius:8px; font-weight:800; font-size:10.5px; cursor:pointer;" onclick="location.href='cumulative-slip.html'">View</button>
                 </div>
-                <div class="card" style="overflow-y: auto; max-height: 200px;">
+                <div class="card" style="overflow-y: auto; max-height: 150px;">
                     <div class="section-title">My Tasks (Real-Time)</div>
                     <div id="taskList"></div>
                 </div>
@@ -421,8 +446,11 @@
 let currentBdayTarget = null;
 let allBdayPersons = [];
 let liveDutyTimerInterval = null;
-let mpStream = null; // Manual Punch Video Object Cache Holder
+let mpStream = null; 
 let isMPEligible = false;
+let regStream = null;
+let currentManualPunchMode = "IN"; 
+let manualPunchHistoryListener = null;
 
 const firebaseConfig = {
     apiKey: "AIzaSyCkBeHploRe3UHq6ndukFUtfYc8sCkfx9g",
@@ -438,12 +466,212 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 const empId = sessionStorage.getItem("empId") || "003";
 
+function initManualPunchLiveHistory() {
+    const tableBody = document.getElementById("manualPunchHistoryBody");
+    if(manualPunchHistoryListener) manualPunchHistoryListener();
+
+    manualPunchHistoryListener = db.collection("manual_punch_requests")
+        .where("empId", "==", empId)
+        .onSnapshot(snap => {
+            if(snap.empty) {
+                tableBody.innerHTML = `<tr><td colspan="4" align="center" style="color:#94a3b8; padding:8px; font-size:9px;">No items sent.</td></tr>`;
+                return;
+            }
+            
+            let sortedDocs = snap.docs.map(doc => ({id: doc.id, ...doc.data()}));
+            sortedDocs.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+
+            tableBody.innerHTML = sortedDocs.map(item => {
+                let badgeColor = "var(--orange)";
+                if(item.status === "Approved") badgeColor = "var(--success)";
+                if(item.status === "Rejected") badgeColor = "var(--danger)";
+                return `<tr>
+                    <td><b>${item.date || '--'}</b></td>
+                    <td><span style="font-weight:800; text-transform:uppercase;">${item.punchType || 'IN'}</span></td>
+                    <td>${item.time || '--'}</td>
+                    <td><span style="color:${badgeColor}; font-weight:800;">${(item.status || 'Pending').toUpperCase()}</span></td>
+                </tr>`;
+            }).join("");
+        }, err => {
+            console.error("Manual history payload sync dropped:", err);
+        });
+}
+
+function switchManualPunchTab(mode) {
+    currentManualPunchMode = mode;
+    const inBtn = document.getElementById("tabInBtn");
+    const outBtn = document.getElementById("tabOutBtn");
+    
+    if(mode === 'IN') {
+        inBtn.style.background = "#fff"; inBtn.style.color = "var(--dark)"; inBtn.style.boxShadow = "0 2px 4px rgba(0,0,0,0.05)";
+        outBtn.style.background = "transparent"; outBtn.style.color = "#64748b"; outBtn.style.boxShadow = "none";
+    } else {
+        outBtn.style.background = "#fff"; outBtn.style.color = "var(--dark)"; outBtn.style.boxShadow = "0 2px 4px rgba(0,0,0,0.05)";
+        inBtn.style.background = "transparent"; inBtn.style.color = "#64748b"; inBtn.style.boxShadow = "none";
+    }
+    verifyManualPunchEligibility();
+}
+
+async function verifyManualPunchEligibility() {
+    const dateInput = document.getElementById("mpDate").value;
+    const logger = document.getElementById("mpStatusLogger");
+    const cameraBox = document.getElementById("mpCameraContainer");
+    const submitBtn = document.getElementById("mpSubmitBtn");
+    if (!dateInput) return;
+
+    const diffDays = Math.ceil(Math.abs(new Date() - new Date(dateInput)) / (1000 * 60 * 60 * 24));
+    if (diffDays > 29) {
+        logger.innerHTML = `❌ DENIED: Selected target is older than 29 days.`;
+        logger.style.color = "var(--danger)";
+        cameraBox.style.display = "none"; submitBtn.disabled = true; isMPEligible = false;
+        closeManualPunchCamera(); return;
+    }
+
+    const [y, m, d] = dateInput.split("-");
+    const formattedDateKey = `${d}-${m}-${y}`;
+    logger.innerHTML = "🔍 Checking synchronization dependencies...";
+    logger.style.color = "var(--orange)";
+
+    try {
+        const inLogSnap = await db.collection("vc_logs").where("id", "==", empId).where("date", "==", formattedDateKey).where("type", "==", "IN").get();
+        const outLogSnap = await db.collection("vc_logs").where("id", "==", empId).where("date", "==", formattedDateKey).where("type", "==", "OUT").get();
+
+        if (currentManualPunchMode === "IN") {
+            if (!inLogSnap.empty) {
+                logger.innerHTML = "⚠️ BLOCKED: Punch-In already logged for this date.";
+                logger.style.color = "var(--danger)";
+                cameraBox.style.display = "none"; submitBtn.disabled = true; isMPEligible = false;
+                closeManualPunchCamera(); return;
+            }
+            logger.innerHTML = "✔ ELIGIBLE: Unlocking biometric view frames for Punch-In application...";
+            logger.style.color = "var(--success)";
+        } else {
+            if (inLogSnap.empty) {
+                logger.innerHTML = "❌ DENIED: Missing verified Punch-In log. Action blocked.";
+                logger.style.color = "var(--danger)";
+                cameraBox.style.display = "none"; submitBtn.disabled = true; isMPEligible = false;
+                closeManualPunchCamera(); return;
+            }
+            if (!outLogSnap.empty) {
+                logger.innerHTML = "⚠️ BLOCKED: Punch-Out already logged for this date.";
+                logger.style.color = "var(--danger)";
+                cameraBox.style.display = "none"; submitBtn.disabled = true; isMPEligible = false;
+                closeManualPunchCamera(); return;
+            }
+            logger.innerHTML = "✔ ELIGIBLE: Active shifts verified. Unlocking camera for Punch-Out...";
+            logger.style.color = "var(--primary)";
+        }
+
+        cameraBox.style.display = "block"; submitBtn.disabled = false; isMPEligible = true;
+        await initManualPunchCamera();
+    } catch (e) { logger.innerHTML = "Handshake dropped."; logger.style.color="var(--danger)"; }
+}
+
+async function processManualPunchRequest() {
+    if (!isMPEligible) return;
+    const dateVal = document.getElementById("mpDate").value;
+    const timeVal = document.getElementById("mpTime").value;
+    const video = document.getElementById("mpVideo");
+    const btn = document.getElementById("mpSubmitBtn");
+
+    if (!dateVal) { alert("Please select a date."); return; }
+
+    btn.disabled = true; 
+    btn.innerText = "Validating Request Status...";
+
+    try {
+        // 🌟 NAYA VALIDATION LOGIC: Check for existing Pending requests
+        const existingReq = await db.collection("manual_punch_requests")
+            .where("empId", "==", empId)
+            .where("date", "==", dateVal.split("-").reverse().join("-")) // Format match
+            .where("status", "==", "Pending")
+            .get();
+
+        if (!existingReq.empty) {
+            alert("⚠️ ERROR: Request already forwarded.\nAdmin response is currently pending for this date.");
+            btn.disabled = false;
+            btn.innerText = "Scan Face & Dispatch Admin Request";
+            return;
+        }
+
+        // Face Detection continue...
+        btn.innerText = "Analyzing Biometric Profiles...";
+        const detection = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks();
+        if (!detection) {
+            alert("⚠️ Scanning failed: Position your face clearly.");
+            btn.disabled = false;
+            btn.innerText = "Scan Face & Dispatch Admin Request"; 
+            return;
+        }
+
+        // Dispatch Request
+        const [y, m, d] = dateVal.split("-");
+        const formattedDateStr = `${d}-${m}-${y}`;
+        
+        await db.collection("manual_punch_requests").add({
+            empId: empId, 
+            name: document.getElementById("navName").innerText,
+            date: formattedDateStr, 
+            time: timeVal,
+            punchType: currentManualPunchMode, 
+            reportingManager: document.getElementById("wManager").innerText || "Admin",
+            status: "Pending", 
+            timestamp: Date.now()
+        });
+
+        alert(`🚀 DISPATCHED!\nYour Manual ${currentManualPunchMode} request has been sent for Admin review.`); 
+        document.getElementById("mpDate").value = "";
+        verifyManualPunchEligibility();
+        btn.disabled = false;
+        btn.innerText = "Scan Face & Dispatch Admin Request";
+
+    } catch(e) { 
+        console.error(e);
+        alert("Transaction error: " + e.message); 
+        btn.disabled = false;
+        btn.innerText = "Scan Face & Dispatch Admin Request";
+    }
+}
+// Line 605 ke paas isse replace karein:
+function openManualPunchModal() {
+    const today = new Date();
+    const twentyNineDaysAgo = new Date();
+    twentyNineDaysAgo.setDate(today.getDate() - 29); 
+    
+    // Date picker ko restrict karne ke liye
+    const mPunchDateInput = document.getElementById('mPunchDate');
+    if (mPunchDateInput) {
+        mPunchDateInput.setAttribute('max', today.toISOString().split('T')[0]);
+        mPunchDateInput.setAttribute('min', twentyNineDaysAgo.toISOString().split('T')[0]);
+    }
+    
+    document.getElementById('manualPunchModal').style.display = 'block';
+    switchManualPunchTab("IN");
+    initManualPunchLiveHistory();
+}
+
+function initManualPunchCamera() {
+    const MODEL_URL = 'https://raw.githubusercontent.com/justadudewhohacks/face-api.js/master/weights';
+    faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL).then(() => {
+        faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL).then(() => {
+            navigator.mediaDevices.getUserMedia({ video: { width: 400, height: 300 } }).then(s => {
+                mpStream = s; document.getElementById('mpVideo').srcObject = s;
+            }).catch(e => { console.error("Hardware camera stream dropped."); });
+        });
+    });
+}
+
+function closeManualPunchCamera() { if (mpStream) { mpStream.getTracks().forEach(t => t.stop()); mpStream = null; } }
+function closeManualPunchModal() { 
+    closeManualPunchCamera(); 
+    if(manualPunchHistoryListener) { manualPunchHistoryListener(); manualPunchHistoryListener = null; }
+    document.getElementById("manualPunchModal").style.display = "none"; 
+}
+
 function flipBdayCard() {
     const card = document.getElementById('bdayFlipCard');
     card.classList.toggle('flipped');
-    if(card.classList.contains('flipped')) {
-        loadWishes();
-    }
+    if(card.classList.contains('flipped')) { loadWishes(); }
 }
 
 function listenBirthdays() {
@@ -451,25 +679,21 @@ function listenBirthdays() {
     const dd = String(today.getDate()).padStart(2, '0');
     const mm = String(today.getMonth() + 1).padStart(2, '0');
     const yyyy = today.getFullYear();
-
     const todayDash = `${dd}-${mm}`; 
     const todayFull = `${yyyy}-${mm}-${dd}`; 
 
     db.collection("employees").onSnapshot(snap => {
         allBdayPersons = [];
         let isMyBday = false;
-
         snap.forEach(doc => {
             const d = doc.data();
             const mainDob = d.dob || ""; 
             const generalDob = (d.general && d.general.dob) ? d.general.dob : ""; 
-
             if (mainDob.includes(todayDash) || generalDob === todayFull) {
                 allBdayPersons.push({ id: doc.id, ...d });
                 if (doc.id === empId) isMyBday = true;
             }
         });
-
         renderBdayIcons();
         if (isMyBday) launchConfetti();
     });
@@ -480,7 +704,6 @@ function renderBdayIcons() {
     const nameEl = document.getElementById("bdayName");
     const metaEl = document.getElementById("bdayMeta");
     const wishBar = document.getElementById("wishBar");
-
     container.innerHTML = "";
 
     if (allBdayPersons.length === 0) {
@@ -498,34 +721,28 @@ function renderBdayIcons() {
         if (index === 0) img.classList.add("active");
         container.appendChild(img);
     });
-
     selectBdayPerson(allBdayPersons[0].id);
 }
 
 function selectBdayPerson(id) {
     const person = allBdayPersons.find(p => p.id === id);
     currentBdayTarget = person;
-
     document.querySelectorAll(".bday-avatar-item").forEach(el => {
         el.classList.remove("active");
         if(el.src.includes(encodeURIComponent(person.name)) || (person.kyc?.passport_photo_url && el.src === person.kyc.passport_photo_url)) {
             el.classList.add("active");
         }
     });
-
     document.getElementById("bdayName").innerText = (person.id === empId) ? "Today is YOUR Birthday! 🎉" : person.name;
-    
     const dept = person.job?.department || person.department || 'Operations';
     const branch = person.job?.location || person.branch || 'Main Office';
     document.getElementById("bdayMeta").innerText = `Dept: ${dept} | Branch: ${branch}`;
-
     document.getElementById("wishBar").style.display = (person.id === empId) ? "none" : "flex";
 }
 
 async function sendBdayWish() {
     const msg = document.getElementById("wishInp").value;
     if (!msg.trim()) return;
-
     try {
         await db.collection("birthday_wishes").add({
             toId: currentBdayTarget.id,
@@ -541,9 +758,7 @@ async function sendBdayWish() {
 
 function loadWishes() {
     const wall = document.getElementById("wishesWall");
-    db.collection("birthday_wishes")
-      .orderBy("timestamp", "desc").limit(20)
-      .onSnapshot(snap => {
+    db.collection("birthday_wishes").orderBy("timestamp", "desc").limit(20).onSnapshot(snap => {
         wall.innerHTML = "";
         if (snap.empty) {
             wall.innerHTML = "<p style='text-align:center; color:#94a3b8; font-size:10px;'>No wishes yet. Be the first!</p>";
@@ -551,33 +766,22 @@ function loadWishes() {
         }
         snap.forEach(doc => {
             const w = doc.data();
-            wall.innerHTML += `<div class="wish-item">
-                <b>${w.fromName}</b> wished <b>${w.toName}</b><br>
-                <span style="color:#64748b">${w.message}</span>
-            </div>`;
+            wall.innerHTML += `<div class="wish-item"><b>${w.fromName}</b> wished <b>${w.toName}</b><br><span style="color:#64748b">${w.message}</span></div>`;
         });
     });
 }
 
 function fetchTasks() {
     const rawId = sessionStorage.getItem("empId"); 
-    if (!rawId) {
-        setTimeout(fetchTasks, 1000);
-        return;
-    }
-
+    if (!rawId) { setTimeout(fetchTasks, 1000); return; }
     const idWithoutSlash = rawId; 
     let idWithSlash = rawId;
-    if (rawId.length > 7 && !rawId.includes('/')) {
-        idWithSlash = rawId.slice(0, 7) + '/' + rawId.slice(7);
-    }
+    if (rawId.length > 7 && !rawId.includes('/')) { idWithSlash = rawId.slice(0, 7) + '/' + rawId.slice(7); }
 
     db.collection("tasks").onSnapshot(snap => {
         const list = document.getElementById("taskList");
         if (!list) return;
-
-        let completed = 0;
-        let myTasks = [];
+        let completed = 0, myTasks = [];
 
         snap.forEach(doc => {
             const t = doc.data();
@@ -586,15 +790,11 @@ function fetchTasks() {
                 if (t.status === "Completed") completed++;
             }
         });
-
         list.innerHTML = "";
-
         if (myTasks.length === 0) {
             list.innerHTML = `<p style="text-align:center; font-size:11px; color:#94a3b8; padding:20px;">No tasks assigned yet.</p>`;
-            updatePerf(0, 0);
-            return;
+            updatePerf(0, 0); return;
         }
-
         myTasks.forEach(t => {
             const isDone = (t.status === "Completed");
             list.innerHTML += `
@@ -604,19 +804,11 @@ function fetchTasks() {
                             <b style="font-size:11px; display:block;">${t.title}</b>
                             <small style="font-size:9px; color:#64748b;">${t.description || ''}</small>
                         </div>
-                        <button onclick="markDone('${t.id}')" 
-                                style="font-size:10px; padding:5px 10px; border-radius:5px; border:none; cursor:pointer; 
-                                background:${isDone ? '#ecfdf5' : '#00d4ff'}; 
-                                color:${isDone ? '#15803d' : 'white'};" 
-                                ${isDone ? 'disabled' : ''}>
-                            ${isDone ? '✔ Done' : 'Done'}
-                        </button>
+                        <button onclick="markDone('${t.id}')" style="font-size:10px; padding:5px 10px; border-radius:5px; border:none; cursor:pointer; background:${isDone ? '#ecfdf5' : '#00d4ff'}; color:${isDone ? '#15803d' : 'white'};" ${isDone ? 'disabled' : ''}>${isDone ? '✔ Done' : 'Done'}</button>
                     </div>
                 </div>`;
         });
         updatePerf(completed, myTasks.length);
-    }, err => {
-        console.error("Firestore Task Error:", err);
     });
 }
 
@@ -627,11 +819,10 @@ function updatePerf(c, t) {
     renderGauge(score);
 }
 
-/* ─── 🆕 CALENDAR ENGINE FOR PURPLE WFH & MANUAL LOGS ─── */
 async function openAttendanceModal() {
     document.getElementById("attendanceModal").style.display = "block";
     const container = document.getElementById("yearCalendar");
-    container.innerHTML = '<div style="text-align:center; padding:20px; font-size:12px; color:#94a3b8; font-weight:700;">🔄 Synchronizing yearly ledger matrix...</div>';
+    container.innerHTML = '<div style="text-align:center; padding:20px; font-size:12px; color:#94a3b8; font-weight:700;">🔄 Synchronizing active ledger matrix...</div>';
     
     try {
         const sessionEmpId = sessionStorage.getItem("empId");
@@ -642,7 +833,7 @@ async function openAttendanceModal() {
         const cleanId = displayId.replace(/\//g, '');
 
         const logsSnap = await db.collection("vc_logs").get();
-        const allLogs = logsSnap.docs.map(d => d.data()).filter(l => l.id === displayId || l.id === cleanId);
+        const allLogs = logsSnap.docs.map(d => d.data()).filter(l => l.id === displayId || l.id === cleanId || l.empId === displayId || l.empId === cleanId);
 
         const holidaySnap = await db.collection("holidays").get();
         const holidays = {}; 
@@ -653,85 +844,74 @@ async function openAttendanceModal() {
 
         let html = "";
         const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+        const dayLabels = ["S", "M", "T", "W", "T", "F", "S"];
+        const targetYearInt = new Date().getFullYear();
         
         months.forEach((m, i) => {
             const currentMonthNum = i + 1;
             const monthStrPad = String(currentMonthNum).padStart(2, '0');
             
-            html += `<div class="month-box"><b style="font-size:10px; text-transform:uppercase;">${m} 2026</b><div class="cal-grid">`;
-            
-            const daysInMonth = new Date(2026, currentMonthNum, 0).getDate();
+            html += `<div class="month-box"><b style="font-size:11px; text-transform:uppercase; color:var(--dark); letter-spacing:0.3px;">${m} ${targetYearInt}</b><div class="cal-grid">`;
+            dayLabels.forEach(lbl => { html += `<div style="text-align:center; font-size:8px; font-weight:800; color:#64748b; padding-bottom:3px;">${lbl}</div>`; });
+
+            const daysInMonth = new Date(targetYearInt, currentMonthNum, 0).getDate();
+            const firstDayIndex = new Date(targetYearInt, i, 1).getDay(); 
             const manualLogs = empData.attendance_manual_logs || {};
-            const monthPrefix = `2026-${monthStrPad}-`;
+            const monthPrefix = `${targetYearInt}-${monthStrPad}-`;
+
+            for(let p = 0; p < firstDayIndex; p++) { html += `<div></div>`; }
 
             for(let d = 1; d <= daysInMonth; d++) {
                 const dayPad = String(d).padStart(2, '0');
                 const dateKey = `${monthPrefix}${dayPad}`;
-                const biometricDateStr = `${dayPad}-${monthStrPad}-2026`;
-                const ISOFormatStr = `2026-${monthStrPad}-${dayPad}`; 
-                const standardHolidayFormat = `2026-${monthStrPad}-${dayPad}`;
-                const dayOfWeek = new Date(2026, i, d).getDay();
+                const biometricDateStr = `${dayPad}-${monthStrPad}-${targetYearInt}`;
+                const ISOFormatStr = `${targetYearInt}-${monthStrPad}-${dayPad}`; 
+                const dayOfWeek = new Date(targetYearInt, i, d).getDay();
+                let status = "", isWFHNode = false;
 
-                let status = "";
-                let isWFHNode = false;
-
-                if (dayOfWeek === 0) {
-                    status = "day-sunday";
-                } else if (holidays[standardHolidayFormat]) {
-                    status = "day-holiday";
+                if (dayOfWeek === 0) { 
+                    status = "day-sunday"; 
+                } else if (holidays[ISOFormatStr]) { 
+                    status = "day-holiday"; 
                 } else {
                     if (manualLogs[dateKey]) {
                         const mStatus = String(manualLogs[dateKey]).toUpperCase().trim();
                         if (mStatus === "PRESENT" || mStatus === "LATE") status = "day-present";
-                        else if (mStatus === "HALF" || mStatus === "HALF_DAY" || mStatus === "HALF DAY") status = "day-half";
+                        else if (mStatus === "HALF" || mStatus === "HALF DAY") status = "day-half";
                         else status = "day-absent";
-                    } 
-                    else {
-                        const bioLog = allLogs.find(l => 
-                            (l.date === biometricDateStr || l.date === ISOFormatStr || l.date === dateKey) && 
-                            l.type === "IN"
-                        );
-
+                    } else {
+                        const bioLog = allLogs.find(l => (l.date === biometricDateStr || l.date === ISOFormatStr || l.date === dateKey) && (l.type === "IN" || l.punchType === "IN"));
                         if (bioLog) {
                             const bioStatus = String(bioLog.status || "").toUpperCase().trim();
+                            const isUserWFH = (bioLog.isWFH === true || bioLog.isWFH === "true" || bioStatus === "WFH" || bioStatus === "WFH APPROVED");
                             
-                            // Check if WFH approved field node flags are checked true
-                            if (bioLog.wfhStatus === "Approved" || bioLog.isWFH === true || bioStatus === "WFH") {
-                                status = "day-wfh";
-                                isWFHNode = true;
-                            } else if (bioStatus === "HALF" || bioStatus === "HALF_DAY" || bioStatus === "HALF DAY") {
-                                status = "day-half";
-                            } else if (bioStatus === "LATE" || bioLog.isLate === true || bioLog.late === true || bioLog.status === "LATE MARK") {
-                                status = "day-late";
-                            } else {
-                                status = "day-present";
+                            if (isUserWFH && bioLog.wfhStatus === "Approved") {
+                                status = "day-wfh"; isWFHNode = true;
+                            } else if (bioStatus === "HALF" || bioStatus === "HALF DAY") { 
+                                status = "day-half"; 
+                            } else if (bioStatus === "LATE" || bioLog.isLate === true || bioLog.late === true || bioStatus === "LATE MARK") { 
+                                status = "day-late"; 
+                            } else { 
+                                status = "day-present"; 
                             }
-                        } 
-                        else {
-                            const matchedLeave = allLeaves.find(lv => lv.startDate === `2026-${monthStrPad}-${dayPad}`);
-                            if (matchedLeave) {
-                                status = "day-present";
+                        } else {
+                            if (allLeaves.find(lv => lv.startDate === ISOFormatStr || lv.startDate === biometricDateStr)) { 
+                                status = "day-present"; 
                             } else {
-                                const cellDate = new Date(2026, i, d);
-                                const todayDate = new Date();
-                                todayDate.setHours(0,0,0,0);
-
-                                if (cellDate <= todayDate) {
-                                    status = "day-absent";
+                                if (new Date(targetYearInt, i, d) <= new Date().setHours(0,0,0,0)) { 
+                                    status = "day-absent"; 
                                 }
                             }
                         }
                     }
                 }
-
                 html += `<div class="cal-day ${status}">${d}${isWFHNode ? '<i class="fas fa-home wfh-home-icon"></i>' : ''}</div>`;
             }
             html += `</div></div>`;
         });
         container.innerHTML = html;
-    } catch (e) {
-        console.error(e);
-        container.innerHTML = '<div style="text-align:center; font-size:11px; color:red; padding:10px;">Failed to initialize yearly grid engine.</div>';
+    } catch (e) { 
+        container.innerHTML = '<div style="text-align:center; color:red; padding:10px;">Failed to initialize engine layout.</div>'; 
     }
 }
 
@@ -741,151 +921,107 @@ function listenLiveAttendanceCounters(sessionEmpId) {
         const empData = doc.data();
         const displayId = empData.id || sessionEmpId;
         const cleanId = displayId.replace(/\//g, '');
-
         const currentSysDate = new Date();
-        const currentMonthNum = currentSysDate.getMonth() + 1;
-        const monthStrPad = String(currentMonthNum).padStart(2, '0');
         const currentYear = currentSysDate.getFullYear();
-        const monthYearSuffix = `${monthStrPad}-${currentYear}`;
+        const monthStrPad = String(currentSysDate.getMonth() + 1).padStart(2, '0');
 
-        if(document.getElementById("wManager")) {
-            document.getElementById("wManager").innerText = empData.reportingManager || "Main Admin";
-        }
+        if(document.getElementById("wManager")) { document.getElementById("wManager").innerText = empData.reportingManager || "Main Admin"; }
 
-        db.collection("vc_logs").get().then(logsSnap => {
-            const allLogs = logsSnap.docs.map(d => d.data()).filter(l => 
-                (l.id === displayId || l.id === cleanId) && l.date.endsWith(`-${monthYearSuffix}`)
-            );
-
-            const logsGroupedByDate = {};
+        db.collection("vc_logs").onSnapshot(logsSnap => {
+            const allLogs = logsSnap.docs.map(d => d.data()).filter(l => (l.id === displayId || l.id === cleanId || l.empId === displayId || l.empId === cleanId));
+            const logsByDate = {};
+            
             allLogs.forEach(l => {
-                if(!logsGroupedByDate[l.date]) logsGroupedByDate[l.date] = { inTime: null, outTime: null, wfh: false };
-                if(l.type === "IN") {
-                    logsGroupedByDate[l.date].inTime = l.time;
-                    if(l.wfhStatus === "Approved" || l.isWFH === true) logsGroupedByDate[l.date].wfh = true;
+                if(!logsByDate[l.date]) logsByDate[l.date] = { inTime: null, outTime: null, wfh: false, status: "ON TIME" };
+                const rawStatus = String(l.status || "").toUpperCase().trim();
+                const currentType = String(l.type || l.punchType || "IN").toUpperCase().trim();
+                
+                if(currentType === "IN") {
+                    logsByDate[l.date].inTime = l.time;
+                    logsByDate[l.date].status = l.status || "ON TIME";
+                    
+                    const holdsWFHFlag = (l.isWFH === true || l.isWFH === "true" || rawStatus === "WFH" || rawStatus === "WFH APPROVED");
+                    if(holdsWFHFlag && l.wfhStatus === "Approved") {
+                        logsByDate[l.date].wfh = true;
+                    } else {
+                        logsByDate[l.date].wfh = false; 
+                    }
                 }
-                if(l.type === "OUT") logsGroupedByDate[l.date].outTime = l.time;
+                if(currentType === "OUT") logsByDate[l.date].outTime = l.time;
             });
 
-            const todayISOFormattedStr = currentSysDate.toLocaleDateString('en-GB').replace(/\//g, '-');
-            const todaysLiveLogBlock = logsGroupedByDate[todayISOFormattedStr];
-            
+            let currentMonthPresentCounter = 0;
+            Object.keys(logsByDate).forEach(dk => {
+                if(dk.includes(`-${monthStrPad}-${currentYear}`) || dk.includes(`${currentYear}-${monthStrPad}-`)) {
+                    currentMonthPresentCounter++;
+                }
+            });
+            if(document.getElementById("cPresent")) document.getElementById("cPresent").innerText = currentMonthPresentCounter;
+
+            const todayFormatted = currentSysDate.toLocaleDateString('en-GB').replace(/\//g, '-');
+            const ISOFormatToday = `${currentSysDate.getFullYear()}-${String(currentSysDate.getMonth()+1).padStart(2,'0')}-${String(currentSysDate.getDate()).padStart(2,'0')}`;
+            const todaysBlock = logsByDate[todayFormatted] || logsByDate[ISOFormatToday];
+
             const badgeEl = document.getElementById("liveWorkStatusBadge");
             const clockEl = document.getElementById("liveWorkClock");
 
             if (liveDutyTimerInterval) clearInterval(liveDutyTimerInterval);
 
-            if (todaysLiveLogBlock && todaysLiveLogBlock.inTime && !todaysLiveLogBlock.outTime) {
-                if(badgeEl) { 
-                    badgeEl.innerText = todaysLiveLogBlock.wfh ? "ON DUTY (WFH 🏠)" : "ON DUTY"; 
-                    badgeEl.style.background = todaysLiveLogBlock.wfh ? "var(--wfh)" : "var(--success)"; 
-                }
+            /* ─── 🌟 WORKFLOW COMPLIANCE: TIMER STOPS DIRECTLY ON MANUAL/KIOSK APPROVED OUTS ─── */
+            if (todaysBlock && todaysBlock.inTime && !todaysBlock.outTime) {
+                badgeEl.innerText = todaysBlock.wfh ? "ON DUTY (WFH 🏠)" : "ON DUTY";
+                badgeEl.style.background = todaysBlock.wfh ? "var(--wfh)" : "var(--success)";
                 
-                let rawTimeString = todaysLiveLogBlock.inTime.trim();
+                let rawTime = todaysBlock.inTime.trim();
                 let inH = 0, inM = 0, inS = 0;
-                
-                if (rawTimeString.toUpperCase().includes("AM") || rawTimeString.toUpperCase().includes("PM")) {
-                    let parts = rawTimeString.split(" ");
-                    let timeParts = parts[0].split(":");
-                    inH = parseInt(timeParts[0]);
-                    inM = parseInt(timeParts[1]);
-                    inS = timeParts[2] ? parseInt(timeParts[2]) : 0;
+                if (rawTime.toUpperCase().includes("AM") || rawTime.toUpperCase().includes("PM")) {
+                    let parts = rawTime.split(" "), tParts = parts[0].split(":");
+                    inH = parseInt(tParts[0]); inM = parseInt(tParts[1]); inS = tParts[2] ? parseInt(tParts[2]) : 0;
                     if (parts[1].toUpperCase() === "PM" && inH < 12) inH += 12;
                     if (parts[1].toUpperCase() === "AM" && inH === 12) inH = 0;
                 } else {
-                    let timeParts = rawTimeString.split(":");
-                    inH = parseInt(timeParts[0]);
-                    inM = parseInt(timeParts[1]);
-                    inS = timeParts[2] ? parseInt(timeParts[2]) : 0;
+                    let tParts = rawTime.split(":");
+                    inH = parseInt(tParts[0]); inM = parseInt(tParts[1]); inS = tParts[2] ? parseInt(tParts[2]) : 0;
                 }
-
-                const punchInTimeObject = new Date();
-                punchInTimeObject.setHours(inH, inM, inS, 0);
+                const punchInTime = new Date(); punchInTime.setHours(inH, inM, inS, 0);
 
                 const updateTicker = () => {
-                    const elapsedMs = Date.now() - punchInTimeObject.getTime();
-                    if(elapsedMs < 0) { if(clockEl) clockEl.innerText = "00:00:00"; return; }
-                    let totalSecs = Math.floor(elapsedMs / 1000);
-                    let hrs = Math.floor(totalSecs / 3600).toString().padStart(2,'0');
-                    let mins = Math.floor((totalSecs % 3600) / 60).toString().padStart(2,'0');
-                    let secs = (totalSecs % 60).toString().padStart(2,'0');
-                    if(clockEl) clockEl.innerText = `${hrs}:${mins}:${secs}`;
+                    const diff = Date.now() - punchInTime.getTime();
+                    if(diff < 0) { clockEl.innerText = "00:00:00"; return; }
+                    let tot = Math.floor(diff / 1000);
+                    clockEl.innerText = `${Math.floor(tot / 3600).toString().padStart(2,'0')}:${Math.floor((tot % 3600) / 60).toString().padStart(2,'0')}:${(tot % 60).toString().padStart(2,'0')}`;
                 };
-                updateTicker();
-                liveDutyTimerInterval = setInterval(updateTicker, 1000);
-            } else if (todaysLiveLogBlock && todaysLiveLogBlock.inTime && todaysLiveLogBlock.outTime) {
-                if(badgeEl) { badgeEl.innerText = "SHIFT COMPLETED"; badgeEl.style.background = "var(--info)"; }
-                
-                let rawIn = todaysLiveLogBlock.inTime.trim();
-                let rawOut = todaysLiveLogBlock.outTime.trim();
-
-                const parseHours = (str) => {
-                    let h = 0, m = 0;
-                    if (str.toUpperCase().includes("AM") || str.toUpperCase().includes("PM")) {
-                        let parts = str.split(" ");
-                        let tParts = parts[0].split(":");
-                        h = parseInt(tParts[0]); m = parseInt(tParts[1]);
-                        if (parts[1].toUpperCase() === "PM" && h < 12) h += 12;
-                        if (parts[1].toUpperCase() === "AM" && h === 12) h = 0;
-                    } else {
-                        let tParts = str.split(":");
-                        h = parseInt(tParts[0]); m = parseInt(tParts[1]);
-                    }
-                    return {h, m};
-                };
-
-                let timeInObj = parseHours(rawIn);
-                let timeOutObj = parseHours(rawOut);
-
-                let diffSecs = ((timeOutObj.h * 3600) + (timeOutObj.m * 60)) - ((timeInObj.h * 3600) + (timeInObj.m * 60));
-                if(diffSecs < 0) diffSecs = 0;
-                let hrs = Math.floor(diffSecs / 3600).toString().padStart(2,'0');
-                let mins = Math.floor((diffSecs % 3600) / 60).toString().padStart(2,'0');
-                if(clockEl) clockEl.innerText = `${hrs}:${mins}:00`;
+                updateTicker(); liveDutyTimerInterval = setInterval(updateTicker, 1000);
+            } else if (todaysBlock && todaysBlock.inTime && todaysBlock.outTime) {
+                badgeEl.innerText = "SHIFT COMPLETED"; badgeEl.style.background = "var(--primary)";
+                clockEl.innerText = "Completed";
             } else {
-                if(badgeEl) { badgeEl.innerText = "OFF DUTY"; badgeEl.style.background = "var(--holiday)"; }
-                if(clockEl) clockEl.innerText = "00:00:00";
+                badgeEl.innerText = "OFF DUTY"; badgeEl.style.background = "var(--holiday)"; clockEl.innerText = "00:00:00";
             }
 
-            const tableLogsBody = document.getElementById("dutyTrackerLogsBody");
-            if(tableLogsBody) {
-                const sortedDates = Object.keys(logsGroupedByDate).sort((a, b) => {
-                    const [d1, m1, y1] = a.split('-').map(Number);
-                    const [d2, m2, y2] = b.split('-').map(Number);
-                    return new Date(y2, m2-1, d2) - new Date(y1, m1-1, d1);
+            const tableBody = document.getElementById("dutyTrackerLogsBody");
+            if(tableBody) {
+                const sDates = Object.keys(logsByDate).sort((a, b) => {
+                    const parseDateStr = (str) => {
+                        if(str.includes('-')) {
+                            const p = str.split('-');
+                            return p[0].length === 4 ? new Date(str) : new Date(p[2], p[1]-1, p[0]);
+                        }
+                        return new Date();
+                    };
+                    return parseDateStr(b) - parseDateStr(a);
                 });
 
-                if(sortedDates.length === 0) {
-                    tableLogsBody.innerHTML = `<tr><td colspan="4" align="center" style="color:#94a3b8; font-size:9px; padding:8px;">No punches found.</td></tr>`;
+                if(sDates.length === 0) {
+                    tableBody.innerHTML = `<tr><td colspan="4" align="center" style="color:#94a3b8; font-size:9px;">No punches.</td></tr>`;
                 } else {
-                    tableLogsBody.innerHTML = sortedDates.slice(0, 10).map(dateKey => {
-                        const block = logsGroupedByDate[dateKey];
-                        let finalDurationString = "--";
-                        
-                        const parseHoursLocal = (str) => {
-                            let h = 0, m = 0;
-                            if (str.toUpperCase().includes("AM") || str.toUpperCase().includes("PM")) {
-                                let parts = str.split(" ");
-                                let tParts = parts[0].split(":");
-                                h = parseInt(tParts[0]); m = parseInt(tParts[1]);
-                                if (parts[1].toUpperCase() === "PM" && h < 12) h += 12;
-                                if (parts[1].toUpperCase() === "AM" && h === 12) h = 0;
-                            } else {
-                                let tParts = str.split(":");
-                                h = parseInt(tParts[0]); m = parseInt(tParts[1]);
-                            }
-                            return {h, m};
-                        };
-
-                        if(block.inTime && block.outTime) {
-                            let tIn = parseHoursLocal(block.inTime);
-                            let tOut = parseHoursLocal(block.outTime);
-                            let secsDiff = ((tOut.h * 3600) + (tOut.m * 60)) - ((tIn.h * 3600) + (tIn.m * 60));
-                            if(secsDiff >= 0) finalDurationString = `${Math.floor(secsDiff / 3600)}h ${Math.floor((secsDiff % 3600) / 60)}m`;
-                        } else if(block.inTime && !block.outTime) {
-                            finalDurationString = `<span style="color:var(--success); font-weight:800;">Active...</span>`;
+                    tableBody.innerHTML = sDates.slice(0, 5).map(dk => {
+                        const b = logsByDate[dk];
+                        let cleanDisplayDate = dk;
+                        if(dk.includes('-') && dk.split('-')[0].length === 4) {
+                            cleanDisplayDate = dk.split('-').reverse().join('-');
                         }
-                        return `<tr><td><b>${dateKey.slice(0, 5)}</b></td><td>${block.inTime || '--'}</td><td>${block.outTime || '--'}</td><td><b>${finalDurationString}</b></td></tr>`;
+                        return `<tr><td><b>${cleanDisplayDate.slice(0, 5)}</b></td><td>${b.inTime || '--'}</td><td>${b.outTime || '--'}</td><td><span style="font-size:9px; font-weight:800; color:${b.wfh ? 'var(--wfh)' : 'var(--success)'}">${b.wfh ? 'WFH' : b.status}</span></td></tr>`;
                     }).join("");
                 }
             }
@@ -893,334 +1029,185 @@ function listenLiveAttendanceCounters(sessionEmpId) {
     });
 }
 
-/* ─── 🆕 NEW MANUAL PUNCH REQUEST PROCESS SYSTEM LOGIC ─── */
-async function openManualPunchModal() {
-    document.getElementById("manualPunchModal").style.display = "block";
-    document.getElementById("mpStatusLogger").innerHTML = "Select a date to check timeline availability...";
-    document.getElementById("mpSubmitBtn").disabled = true;
-    document.getElementById("mpCameraContainer").style.display = "none";
-    isMPEligible = false;
-}
-
-async function verifyManualPunchEligibility() {
-    const dateInput = document.getElementById("mpDate").value;
-    const logger = document.getElementById("mpStatusLogger");
-    const cameraBox = document.getElementById("mpCameraContainer");
-    const submitBtn = document.getElementById("mpSubmitBtn");
-
-    if (!dateInput) return;
-
-    const selectedDate = new Date(dateInput);
-    selectedDate.setHours(0,0,0,0);
-    
-    const today = new Date();
-    today.setHours(0,0,0,0);
-
-    // 1. Strict 5-Days Timeline Deadline Constraint Check Logic
-    const diffTime = Math.abs(today - selectedDate);
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-    if (diffDays > 5) {
-        logger.innerHTML = `❌ REQUEST DENIED: Selected date is ${diffDays} days old. Max limit is 5 days.`;
-        logger.style.color = "var(--danger)";
-        cameraBox.style.display = "none";
-        submitBtn.disabled = true;
-        isMPEligible = false;
-        closeManualPunchCamera();
-        return;
-    }
-
-    // Convert date layout keys matching biometric databases standard
-    const [y, m, d] = dateInput.split("-");
-    const formattedDateKey = `${d}-${m}-${y}`;
-
-    logger.innerHTML = "🔍 Verifying database registers, please wait...";
-    logger.style.color = "var(--orange)";
-
-    try {
-        // 2. Fetch log to check if user was genuinely absent or already punched present
-        const logSnap = await db.collection("vc_logs")
-            .where("id", "==", empId)
-            .where("date", "==", formattedDateKey)
-            .where("type", "==", "IN")
-            .get();
-
-        if (!logSnap.empty) {
-            logger.innerHTML = "⚠️ ACCESS DENIED: Record already exists for this date. You are not absent.";
-            logger.style.color = "var(--danger)";
-            cameraBox.style.display = "none";
-            submitBtn.disabled = true;
-            isMPEligible = false;
-            closeManualPunchCamera();
-            return;
-        }
-
-        // Unlocks UI if criteria matches successfully
-        logger.innerHTML = "✔ ELIGIBLE: Day verified as absent. Initializing Camera Verification Matrix...";
-        logger.style.color = "var(--success)";
-        cameraBox.style.display = "block";
-        submitBtn.disabled = false;
-        isMPEligible = true;
-
-        // Initialize Face API weights structure models & activate video frame
-        await initManualPunchCamera();
-
-    } catch (e) {
-        console.error(e);
-        logger.innerHTML = "Connection timeout checking cloud logs.";
-    }
-}
-
-async function initManualPunchCamera() {
+async function openRegModal() {
+    document.getElementById('regModal').style.display = 'block';
+    const status = document.getElementById('regStatus');
     const MODEL_URL = 'https://raw.githubusercontent.com/justadudewhohacks/face-api.js/master/weights';
     try {
+        status.innerText = "Loading AI Neural Model Architectures...";
         await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
         await faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL);
-        mpStream = await navigator.mediaDevices.getUserMedia({ video: { width: 400, height: 300 } });
-        document.getElementById('mpVideo').srcObject = mpStream;
+        await faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL);
+        status.innerText = "Starting Optical Hardware Feeds...";
+        
+        regStream = await navigator.mediaDevices.getUserMedia({ video: { width: 400, height: 300 } });
+        document.getElementById('regVideo').srcObject = regStream;
+        document.getElementById('captureBtn').disabled = false;
+        status.innerText = "Biometric Enrolment Core Ready";
     } catch (err) {
-        console.error("Camera connection blockage:", err);
+        status.innerText = "Error: Media layer stream blocked.";
     }
 }
 
-async function processManualPunchRequest() {
-    if (!isMPEligible) return;
-
-    const dateVal = document.getElementById("mpDate").value;
-    const timeVal = document.getElementById("mpTime").value;
-    const video = document.getElementById("mpVideo");
-    const btn = document.getElementById("mpSubmitBtn");
-    const logger = document.getElementById("mpStatusLogger");
-
-    const [y, m, d] = dateVal.split("-");
-    const formattedDateKey = `${d}-${m}-${y}`;
-
-    btn.disabled = true;
-    btn.innerText = "Analyzing Face Biometrics...";
-
-    // Run Face recognition validator pipeline scan
-    const detection = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks();
+async function captureFace() {
+    const status = document.getElementById('regStatus');
+    const video = document.getElementById('regVideo');
+    const line = document.getElementById('regScannerLine');
+    const btn = document.getElementById('captureBtn');
     
+    btn.disabled = true; line.style.display = 'block';
+    status.innerText = "Scanning Face Vector Clusters...";
+
+    const detection = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks().withFaceDescriptor();
     if (!detection) {
-        alert("⚠️ Biometric Scan Failed: Face not detected. Look straight at the camera.");
-        btn.disabled = false;
-        btn.innerText = "Scan Face & Dispatch Request";
-        return;
+        status.innerText = "Mapping failed. Align your face clearly inside frame boundary.";
+        line.style.display = 'none'; btn.disabled = false; return;
     }
 
+    status.innerText = "Syncing and encrypting data vectors globally...";
     try {
-        const currentName = document.getElementById("navName").innerText;
-        const managerName = document.getElementById("wManager").innerText;
+        const cleanIdBlock = empId.replace(/\//g, '');
+        const empSnap = await db.collection("employees").doc(empId).get();
+        const e = empSnap.data() || {};
 
-        // Push directly into unified cross-platform pipeline triggers database collection
-        await db.collection("manual_punch_requests").add({
-            empId: empId,
-            name: currentName,
-            date: formattedDateKey,
-            time: timeVal,
-            reportingManager: managerName,
-            locationTag: "Manual Punch",
-            status: "Pending",
-            timestamp: Date.now()
+        await db.collection("vc_biometrics").doc(empId).set({
+            id: empId,
+            cleanId: cleanIdBlock,
+            name: document.getElementById('navName').innerText,
+            descriptor: Array.from(detection.descriptor), 
+            companyCode: sessionStorage.getItem("companyCode") || "GENERAL",
+            branch: e.branch || "Main Office Hub",
+            dept: e.dept || "Operations Engine",
+            reportingManager: e.reportingManager || "Admin Manager",
+            registeredAt: firebase.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+
+        status.innerText = "REGISTERED AND ENCRYPTED SUCCESSFULLY! ✅";
+        launchConfetti();
+        setTimeout(() => { closeRegModal(); alert("Biometric file synced! You can now punch attendance using Face recognition on index.html kiosk terminal."); }, 1500);
+    } catch (e) { status.innerText = "Transaction file server crash."; btn.disabled = false; }
+    line.style.display = 'none';
+}
+
+function closeRegModal() {
+    if (regStream) { regStream.getTracks().forEach(track => track.stop()); regStream = null; }
+    document.getElementById('regModal').style.display = 'none';
+}
+
+function listenUpcomingHolidays() {
+    db.collection("holidays").where("date", ">=", new Date().toISOString().split('T')[0]).orderBy("date", "asc").limit(1).onSnapshot(snap => {
+          if (!snap.empty) {
+              document.getElementById("hName").innerText = snap.docs[0].data().name;
+              document.getElementById("hDate").innerText = snap.docs[0].data().date;
+          }
+    });
+}
+
+function showAllHolidays() {
+    document.getElementById("allHolidaysModal").style.display = "block";
+    const targetContainer = document.getElementById("professionalHolidayContainerTableBlock");
+    targetContainer.innerHTML = '<div style="text-align:center; padding:15px; font-size:11px; color:#64748b;">Loading rows...</div>';
+    
+    db.collection("holidays").orderBy("date", "asc").get().then(snap => {
+        if(snap.empty) {
+            targetContainer.innerHTML = '<p style="text-align:center; font-size:11px; color:#94a3b8;">No registry records found.</p>';
+            return;
+        }
+        
+        let tableHTML = `
+            <table class="professional-holiday-table">
+                <thead>
+                    <tr>
+                        <th>Scheduled Date</th>
+                        <th>Holiday Event Title</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+        
+        snap.forEach(doc => {
+            const data = doc.data();
+            tableHTML += `
+                <tr>
+                    <td><b style="color:var(--dark);"><i class="far fa-calendar-check" style="color: #8bc34a; margin-right:6px;"></i>${data.date}</b></td>
+                    <td><span style="font-weight:700; color:#1e293b;">${data.name}</span></td>
+                </tr>
+            `;
         });
-
-        alert("🚀 Manual Punch Request Dispatched successfully!\nForwarded to HR Admin and Reporting Manager.");
-        closeManualPunchModal();
-    } catch(e) {
-        alert("Upload network error: " + e.message);
-        btn.disabled = false;
-    }
-}
-
-function closeManualPunchCamera() {
-    if (mpStream) {
-        mpStream.getTracks().forEach(track => track.stop());
-        mpStream = null;
-    }
-}
-
-function closeManualPunchModal() {
-    closeManualPunchCamera();
-    document.getElementById("manualPunchModal").style.display = "none";
+        
+        tableHTML += `</tbody></table>`;
+        targetContainer.innerHTML = tableHTML;
+    }).catch(err => {
+        targetContainer.innerHTML = '<p style="color:red; text-align:center; font-size:11px;">Failed to stream data files.</p>';
+    });
 }
 
 async function sendLateRequest() {
     const reason = document.getElementById("lateReason").value;
     const time = document.getElementById("lateTime").value;
-    const empName = document.getElementById("navName").innerText;
-
     if(!reason || !time) return alert("Fill all details!");
-
     try {
-        const empSnap = await db.collection("employees").doc(empId).get();
-        const currentEmpData = empSnap.data();
-        const managerName = currentEmpData.reportingManager || "Admin";
-
         await db.collection("late_requests").add({
-            empId: empId,
-            name: empName,
-            reason: reason,
-            expectedTime: time,
-            reportingManager: managerName,
-            status: "Pending",
-            date: new Date().toLocaleDateString('en-GB').replace(/\//g, '-'),
-            timestamp: Date.now()
+            empId: empId, name: document.getElementById("navName").innerText, reason: reason, expectedTime: time,
+            reportingManager: document.getElementById("wManager").innerText, status: "Pending",
+            date: new Date().toLocaleDateString('en-GB').replace(/\//g, '-'), timestamp: Date.now()
         });
-
-        alert("Request Sent Successfully to " + managerName);
-        closeModal("lateArrivalModal");
-        document.getElementById("lateReason").value = "";
-        document.getElementById("lateTime").value = "";
-    } catch (e) {
-        console.error(e);
-        alert("Failed to send request.");
-    }
+        alert("Request Sent."); closeModal("lateArrivalModal");
+    } catch (e) { alert("Failed."); }
 }
 
 function initDashboard() {
     const sessionEmpId = sessionStorage.getItem("empId"); 
     if (!sessionEmpId) { window.location.href = "login.html"; return; }
     
-    listenBirthdays();
-    fetchTasks();
-    fetchLeaveCounts(sessionEmpId);
-    listenUpcomingHolidays();
-    listenThoughts();
-    listenLateStatus();
-    checkPasswordSecurity();
-    listenLiveAttendanceCounters(sessionEmpId);
-    
-    listenMultipleSaturdayWinners();
-    trackMyReceivedInteractions();
-    listenCorporateAwards();
+    listenBirthdays(); fetchTasks(); fetchLeaveCounts(sessionEmpId); listenUpcomingHolidays();
+    listenThoughts(); listenLateStatus(); checkPasswordSecurity(); listenLiveAttendanceCounters(sessionEmpId);
+    listenMultipleSaturdayWinners(); trackMyReceivedInteractions(); listenCorporateAwards();
 
     db.collection("employees").doc(sessionEmpId).get().then(doc => {
         if (doc.exists) {
             const d = doc.data();
-            window.currentUserReportingManager = d.reportingManager || "Admin";
-            
-            if(document.getElementById("navName")) document.getElementById("navName").innerText = d.name;
-            if(document.getElementById("wName")) document.getElementById("wName").innerText = d.name; 
-            if(document.getElementById("wId")) document.getElementById("wId").innerText = d.id; 
-            if(document.getElementById("navAvatar")) {
-                document.getElementById("navAvatar").src = d.kyc?.passport_photo_url || d.general?.profilephoto || `https://ui-avatars.com/api/?name=${d.name}`;
-            }
+            document.getElementById("navName").innerText = d.name;
+            document.getElementById("wName").innerText = d.name; 
+            document.getElementById("wId").innerText = d.id; 
+            if(d.general?.profilephoto) document.getElementById("navAvatar").src = d.general.profilephoto;
         }
-    }).catch(err => console.error("Error fetching dashboard:", err));
+    });
 }
 
 function listenLateStatus() {
     const today = new Date().toLocaleDateString('en-GB').replace(/\//g, '-');
-    db.collection("late_requests")
-      .where("empId", "==", empId)
-      .where("date", "==", today)
-      .onSnapshot(snap => {
+    db.collection("late_requests").where("empId", "==", empId).where("date", "==", today).onSnapshot(snap => {
           const container = document.getElementById("lateCircle");
           const textEl = document.getElementById("lateStatusText");
-          
-          if(snap.empty) {
-              container.style.display = "none";
-          } else {
-              const data = snap.docs[0].data();
-              container.style.display = "block";
-              textEl.innerText = data.status.toUpperCase();
-              
-              if(data.status === "Pending") {
-                  textEl.style.borderColor = "var(--orange)";
-                  textEl.style.color = "var(--orange)";
-              } else if(data.status === "Approved") {
-                  textEl.style.borderColor = "var(--success)";
-                  textEl.style.color = "var(--success)";
-              } else {
-                  textEl.style.borderColor = "var(--danger)";
-                  textEl.style.color = "var(--danger)";
-              }
+          if(snap.empty) { container.style.display = "none"; } 
+          else {
+              const data = snap.docs[0].data(); container.style.display = "block"; textEl.innerText = data.status.toUpperCase();
+              textEl.style.color = data.status === "Pending" ? "var(--orange)" : data.status === "Approved" ? "var(--success)" : "var(--danger)";
+              textEl.style.borderColor = textEl.style.color;
           }
-      });
+    });
 }
 
 function listenThoughts() {
     db.collection("global_thoughts").orderBy("timestamp", "desc").onSnapshot(snap => {
         const slider = document.getElementById("thoughtSlider");
         let thoughtsArr = [];
-        
-        snap.forEach(doc => {
-            const data = doc.data();
-            if (data.text && !data.text.includes("BIRTHDAY WISH")) {
-                thoughtsArr.push(`"${data.text}" - ${data.author || 'Admin'}`);
-            }
-        });
-
-        if (thoughtsArr.length === 0) {
-            slider.innerText = "Keep moving forward! Post your thought below.";
-            return;
-        }
-        
+        snap.forEach(doc => { if (doc.data().text && !doc.data().text.includes("BIRTHDAY WISH")) thoughtsArr.push(`"${doc.data().text}" - ${doc.data().author}`); });
+        if (thoughtsArr.length === 0) return;
         let tIdx = 0;
-        const rotateThought = () => {
-            slider.style.opacity = 0;
-            setTimeout(() => {
-                slider.innerText = thoughtsArr[tIdx];
-                slider.style.opacity = 1;
-                tIdx = (tIdx + 1) % thoughtsArr.length;
-            }, 500);
-        };
-        
         if (window.thoughtInterval) clearInterval(window.thoughtInterval);
-        rotateThought();
-        window.thoughtInterval = setInterval(rotateThought, 7000);
+        window.thoughtInterval = setInterval(() => {
+            slider.style.opacity = 0;
+            setTimeout(() => { slider.innerText = thoughtsArr[tIdx]; slider.style.opacity = 1; tIdx = (tIdx + 1) % thoughtsArr.length; }, 500);
+        }, 6000);
     });
 }
 
 function postThought() {
     const txt = document.getElementById("thoughtInp").value;
-    const author = document.getElementById("navName").innerText;
-    if (!txt.trim()) return alert("Write something first!");
-    
-    db.collection("global_thoughts").add({
-        text: txt,
-        author: author,
-        companyCode: sessionStorage.getItem("companyCode") || "GENERAL",
-        timestamp: Date.now()
-    }).then(() => {
-        document.getElementById("thoughtInp").value = "";
-        alert("Thought Shared Successfully!");
-    });
-}
-
-function listenUpcomingHolidays() {
-    const today = new Date().toISOString().split('T')[0];
-    db.collection("holidays")
-      .where("date", ">=", today)
-      .orderBy("date", "asc")
-      .limit(1)
-      .onSnapshot(snap => {
-          const hNameEl = document.getElementById("hName");
-          const hDateEl = document.getElementById("hDate");
-          if (!snap.empty) {
-              const nextHoliday = snap.docs[0].data();
-              hNameEl.innerText = nextHoliday.name;
-              hDateEl.innerText = nextHoliday.date;
-          } else {
-              hNameEl.innerText = "No Upcoming Holidays";
-              hDateEl.innerText = "Check back later";
-          }
-      });
-}
-
-function showAllHolidays() {
-    db.collection("holidays").orderBy("date", "asc").get().then(snap => {
-        if(snap.empty) return alert("No holidays found.");
-        let list = "MERCALIX HOLIDAYS 2026:\n\n";
-        const todayStr = new Date().toISOString().split('T')[0];
-        snap.forEach(doc => {
-            const h = doc.data();
-            if(h.date >= todayStr) {
-                list += `📅 ${h.date} - ${h.name}\n`;
-            }
-        });
-        alert(list);
-    });
+    if (!txt.trim()) return;
+    db.collection("global_thoughts").add({ text: txt, author: document.getElementById("navName").innerText, timestamp: Date.now() }).then(() => { document.getElementById("thoughtInp").value = ""; alert("Shared!"); });
 }
 
 function fetchLeaveCounts(currentId) {
@@ -1228,40 +1215,22 @@ function fetchLeaveCounts(currentId) {
         let p = 0, a = 0, r = 0;
         snap.forEach(d => {
             let s = d.data().status;
-            if (s === 'Pending') p++;
-            else if (s === 'Approved') a++;
-            else if (s === 'Rejected') r++;
+            if (s === 'Pending') p++; else if (s === 'Approved') a++; else if (s === 'Rejected') r++;
         });
-        if(document.getElementById("cPending")) document.getElementById("cPending").innerText = p;
-        if(document.getElementById("cApproved")) document.getElementById("cApproved").innerText = a;
-        if(document.getElementById("cRejected")) document.getElementById("cRejected").innerText = r;
+        document.getElementById("cPending").innerText = p;
+        document.getElementById("cApproved").innerText = a;
+        document.getElementById("cRejected").innerText = r;
     });
 }
 
 function viewLeaves(status) {
-    document.getElementById("leaveTypeTitle").innerText = status + " Applications";
+    document.getElementById("leaveTypeTitle").innerText = status + " Leaves";
     const list = document.getElementById("leaveList");
-    list.innerHTML = "<p style='text-align:center; font-size:12px; color:#94a3b8;'>Fetching records...</p>";
     document.getElementById("leaveModal").style.display = "block";
     db.collection("emp_leaves").where("empId", "==", empId).where("status", "==", status).get().then(snap => {
-        list.innerHTML = "";
-        if(snap.empty) {
-            list.innerHTML = `<p style="text-align:center; padding:20px; color:#94a3b8; font-size:11px;">No ${status} leaves found.</p>`;
-            return;
-        }
-        snap.forEach(doc => {
-            const d = doc.data();
-            const dateText = d.leaveType === "Full" ? `${d.startDate} to ${d.endDate}` : `${d.startDate} (Half Day)`;
-            const remark = d.adminRemark || d.rejectReason || "No specific remark from admin.";
-            list.innerHTML += `<div style="border-bottom:1px solid #f1f5f9; padding:15px 0; position:relative;">
-                    <div style="display:flex; justify-content:space-between; align-items:center;">
-                        <b style="font-size:12px; color:var(--dark);">${d.reason || 'Leave Application'}</b>
-                        <span style="font-size:9px; background:#f1f5f9; padding:2px 6px; border-radius:4px;">${d.duration || 'Full'}</span>
-                    </div>
-                    <div style="font-size:10px; color:#64748b; margin-top:5px;"><i class="far fa-calendar-alt"></i> ${dateText}</div>
-                    ${status === 'Rejected' ? `<div style="margin-top:8px; padding:8px; background:#fff5f5; border-radius:8px; border-left:3px solid var(--danger);"><b style="font-size:9px; color:var(--danger);">ADMIN REMARK:</b><p style="margin:2px 0 0 0; font-size:10px; color:#c53030;">${remark}</p></div>` : ''}
-                </div>`;
-        });
+        list.innerHTML = snap.empty ? "<p>No entries found.</p>" : snap.docs.map(doc => {
+            const d = doc.data(); return `<div><b>${d.reason}</b> - <small>${d.startDate}</small></div>`;
+        }).join("");
     });
 }
 
@@ -1280,202 +1249,34 @@ function renderGauge(val) {
 function closeModal(id) { document.getElementById(id).style.display = "none"; }
 function logout() { sessionStorage.clear(); window.location.href="login.html"; }
 
-let regStream = null;
-async function openRegModal() {
-    document.getElementById('regModal').style.display = 'block';
-    const status = document.getElementById('regStatus');
-    const MODEL_URL = 'https://raw.githubusercontent.com/justadudewhohacks/face-api.js/master/weights';
-    try {
-        status.innerText = "Loading AI Core...";
-        await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
-        await faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL);
-        await faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL);
-        status.innerText = "Starting Camera...";
-        regStream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } });
-        document.getElementById('regVideo').srcObject = regStream;
-        document.getElementById('captureBtn').disabled = false;
-        status.innerText = "System Ready";
-    } catch (err) {
-        status.innerText = "Error: Camera access denied";
-        console.error(err);
-    }
-}
-
-async function captureFace() {
-    const status = document.getElementById('regStatus');
-    const video = document.getElementById('regVideo');
-    const line = document.getElementById('regScannerLine');
-    const btn = document.getElementById('captureBtn');
-    
-    const activeCC = sessionStorage.getItem("companyCode") || "GENERAL";
-    btn.disabled = true;
-    line.style.display = 'block';
-    status.innerText = "Scanning Biometrics...";
-
-    const detection = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks().withFaceDescriptor();
-    
-    if (!detection) {
-        status.innerText = "Face not found. Adjust lighting.";
-        line.style.display = 'none';
-        btn.disabled = false;
-        return;
-    }
-
-    status.innerText = "Syncing with Cloud Terminal...";
-    try {
-        const empName = document.getElementById('navName').innerText;
-        const empSnap = await db.collection("employees").doc(empId).get();
-        const e = empSnap.data() || {};
-
-        await db.collection("vc_biometrics").doc(empId).set({
-            id: empId,
-            name: empName,
-            descriptor: Array.from(detection.descriptor),
-            companyCode: activeCC,
-            branch: e.branch || "Main",
-            dept: e.dept || "N/A",
-            reportingManager: e.reportingManager || "Admin",
-            registeredAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
-
-        status.innerText = "REGISTERED SUCCESSFULLY!";
-        launchConfetti();
-        setTimeout(() => {
-            closeRegModal();
-            alert("Biometric ID Created. You can now use Face Punch-In.");
-        }, 1500);
-    } catch (e) {
-        status.innerText = "Cloud Sync Failed";
-        btn.disabled = false;
-    }
-    line.style.display = 'none';
-}
-
-function closeRegModal() {
-    if (regStream) { regStream.getTracks().forEach(track => track.stop()); }
-    document.getElementById('regModal').style.none;
-}
-
 function launchConfetti() {
-    var duration = 5 * 1000;
-    var animationEnd = Date.now() + duration;
-    var defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 5000 };
-    function randomInRange(min, max) { return Math.random() * (max - min) + min; }
-    var interval = setInterval(function() {
-        var timeLeft = animationEnd - Date.now();
-        if (timeLeft <= 0) return clearInterval(interval);
-        var particleCount = 50 * (timeLeft / duration);
-        confetti(Object.assign({}, defaults, { particleCount, origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 } }));
-        confetti(Object.assign({}, defaults, { particleCount, origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 } }));
-    }, 250);
-}
-
-async function checkPasswordSecurity() {
-    const sessionEmpId = sessionStorage.getItem("empId");
-    if(!sessionEmpId) return;
-
-    const doc = await db.collection("employees").doc(sessionEmpId).get();
-    if (doc.exists) {
-        const d = doc.data();
-        const tempPwd = "Mercalix@123"; 
-        
-        if (d.password === tempPwd) {
-            const createdAt = d.timestamp?.toDate ? d.timestamp.toDate().getTime() : Date.now();
-            const now = Date.now();
-            const diffHours = (now - createdAt) / (1000 * 60 * 60);
-            const remainingHours = Math.max(0, 48 - diffHours);
-
-            document.getElementById("pwdChangeModal").style.display = "block";
-            const timerEl = document.getElementById("pwdGraceTimer");
-            const laterBtn = document.getElementById("btnPwdLater");
-
-            if (diffHours >= 48) {
-                timerEl.innerText = "ACTION REQUIRED: 48H GRACE PERIOD EXPIRED";
-                laterBtn.style.display = "none";
-            } else {
-                timerEl.innerText = `GRACE PERIOD: ${Math.floor(remainingHours)} HOURS REMAINING`;
-                laterBtn.style.display = "block";
-            }
-        }
-    }
-}
-
-async function processPwdUpdate() {
-    const oldP = document.getElementById("oldPwd").value;
-    const newP = document.getElementById("newPwd").value;
-    const confP = document.getElementById("confirmPwd").value;
-    const sessionEmpId = sessionStorage.getItem("empId");
-
-    if (newP.length < 8) return alert("Password must be at least 8 characters!");
-    if (newP !== confP) return alert("New passwords do not match!");
-
-    try {
-        const doc = await db.collection("employees").doc(sessionEmpId).get();
-        if (doc.data().password !== oldP) return alert("Current temporary password is incorrect!");
-
-        await db.collection("employees").doc(sessionEmpId).update({
-            password: newP,
-            isFirstLogin: false
-        });
-
-        alert("Security Updated! ✅ Please login again with your new password.");
-        logout(); 
-    } catch (e) {
-        alert("Error updating password. Check connection.");
-    }
+    var duration = 3 * 1000, end = Date.now() + duration;
+    (function frame() {
+        confetti({ particleCount: 3, angle: 60, spread: 55, origin: { x: 0 } });
+        confetti({ particleCount: 3, angle: 120, spread: 55, origin: { x: 1 } });
+        if (Date.now() < end) requestAnimationFrame(frame);
+    }());
 }
 
 function listenMultipleSaturdayWinners() {
-    db.collection("saturday_events").orderBy("timestamp", "desc").onSnapshot(async (snap) => {
+    db.collection("saturday_events").orderBy("timestamp", "desc").onSnapshot(snap => {
         const listContainer = document.getElementById("winnersListContainer");
-        if(snap.empty) {
-            listContainer.innerHTML = `<p style="text-align:center; color:#94a3b8; font-size:11px; padding:20px;">No announcement updates posted yet.</p>`;
-            return;
-        }
-
-        let htmlContent = "";
-        
-        for (let doc of snap.docs) {
+        if(snap.empty) { listContainer.innerHTML = `<p>No winners posted yet.</p>`; return; }
+        listContainer.innerHTML = snap.docs.map(doc => {
             const data = doc.data();
-            const docId = doc.id;
-            
-            const currentWinnerName = data.employeeName || data.employee_name || data.name || "Team Member";
-            const currentWinnerDept = data.department || data.dept || "Operations";
-            const gameTitle = data.gameName || data.game || "Saturday Activity";
-            const rankLabel = data.position || "Winner";
-            const rawScore = data.score || "N/A";
-            const eventDate = data.date || "Weekly Highlights";
-            
-            const likesCount = data.likesCount || 0;
-            const likedByArray = data.likedBy || [];
-            const hasUserLiked = likedByArray.includes(empId) ? "liked" : "";
-
-            htmlContent += `
+            const likedBy = data.likedBy || [];
+            return `
                 <div class="single-winner-row">
                     <div class="winner-meta-side">
                         <div class="winner-icon-box"><i class="fas fa-trophy"></i></div>
                         <div>
-                            <h4 style="margin:0; font-size:13px; color:var(--dark); font-weight: 800;">🎉 ${currentWinnerName}</h4>
-                            <p style="margin:2px 0 0 0; font-size:10px; color:#64748b;">
-                                <b>${rankLabel}</b> in <u>${gameTitle}</u> (Score/Achievement: ${rawScore}) | <span style="color:#ea580c; font-weight:700;">Dept: ${currentWinnerDept}</span>
-                            </p>
-                            <small style="font-size:9px; color:#94a3b8; display:block; margin-top:2px;"><i class="far fa-calendar-alt"></i> ${eventDate}</small>
+                            <h4 style="margin:0; font-size:12px; color:var(--indigo); font-weight:800;">🎉 ${data.employeeName || data.name}</h4>
+                            <p style="margin:2px 0 0 0; font-size:9.5px; color:#475569;"><b>${data.position}</b> in ${data.gameName || 'Activity'}</p>
                         </div>
                     </div>
-                    <button class="like-action-btn ${hasUserLiked}" onclick="toggleEventLike('${docId}')">
-                        <i class="${likedByArray.includes(empId) ? 'fas' : 'far'} fa-heart"></i> 
-                        <span>${likesCount} Likes</span>
-                    </button>
-                </div>
-            `;
-
-            if((data.empId === empId || data.employeeId === empId) && !window[`celebrated_${docId}`]) {
-                launchConfetti();
-                if(document.getElementById("bdaySound")) document.getElementById("bdaySound").play();
-                window[`celebrated_${docId}`] = true;
-            }
-        }
-        listContainer.innerHTML = htmlContent;
+                    <button class="like-action-btn ${likedBy.includes(empId) ? 'liked' : ''}" onclick="toggleEventLike('${doc.id}')">❤ ${data.likesCount || 0} Likes</button>
+                </div>`;
+        }).join("");
     });
 }
 
@@ -1485,92 +1286,40 @@ async function toggleEventLike(docRefId) {
         await db.runTransaction(async (transaction) => {
             const sfDoc = await transaction.get(docRef);
             if (!sfDoc.exists) return;
-            
-            const data = sfDoc.data();
-            let currentLikes = data.likesCount || 0;
-            let currentLikedBy = data.likedBy || [];
-
+            let currentLikes = sfDoc.data().likesCount || 0;
+            let currentLikedBy = sfDoc.data().likedBy || [];
             if (currentLikedBy.includes(empId)) {
-                currentLikes = Math.max(0, currentLikes - 1);
-                currentLikedBy = currentLikedBy.filter(id => id !== empId);
+                currentLikes = Math.max(0, currentLikes - 1); currentLikedBy = currentLikedBy.filter(id => id !== empId);
             } else {
-                currentLikes += 1;
-                currentLikedBy.push(empId);
+                currentLikes += 1; currentLikedBy.push(empId);
             }
-
-            transaction.update(docRef, {
-                likesCount: currentLikes,
-                likedBy: currentLikedBy
-            });
+            transaction.update(docRef, { likesCount: currentLikes, likedBy: currentLikedBy });
         });
-    } catch (e) {
-        console.error("Like Action Transaction Failure:", e);
-    }
+    } catch (e) { console.error(e); }
 }
 
 function trackMyReceivedInteractions() {
     db.collection("saturday_events").onSnapshot(snap => {
-        let totalLikesAggregated = 0;
-        snap.forEach(doc => {
-            const data = doc.data();
-            if (data.empId === empId || data.employeeId === empId) {
-                totalLikesAggregated += (data.likesCount || 0);
-            }
-        });
-        const likesLabelObj = document.getElementById("myTotalLikesCount");
-        if(likesLabelObj) likesLabelObj.innerText = totalLikesAggregated;
+        let tot = 0; snap.forEach(doc => { if (doc.data().empId === empId) tot += (doc.data().likesCount || 0); });
+        if(document.getElementById("myTotalLikesCount")) document.getElementById("myTotalLikesCount").innerText = tot;
     });
 }
 
 function listenCorporateAwards() {
     db.collection("company_awards").orderBy("timestamp", "desc").limit(1).onSnapshot(snap => {
         const sliderBox = document.getElementById("corporateAwardsSlider");
-        if(snap.empty) {
-            sliderBox.innerHTML = `
-                <div style="color:#94a3b8; padding:40px 20px; font-size:11px; text-align:center;">
-                    <i class="fas fa-award" style="font-size:24px; color:var(--orange); margin-bottom:8px; display:block;"></i>
-                    No corporate award slides available yet.
-                </div>`;
-            return;
-        }
-        
+        if(snap.empty) return;
         const data = snap.docs[0].data();
-        
-        if(!data.images || data.images.length === 0) {
-            sliderBox.innerHTML = `
-                <div style="color:white; padding:20px; font-size:11px; text-align:center; background:var(--dark); height:100%; box-sizing:border-box; display:flex; flex-direction:column; justify-content:center; border-radius:18px;">
-                    <h4 style="margin:0 0 5px 0; color:var(--primary);">🏆 ${data.title || "Recognition Update"}</h4>
-                    <p style="margin:0; opacity:0.8;">${data.description || ""}</p>
-                </div>`;
-            return;
-        }
-
-        let imagesHtml = data.images.map((img, idx) => `
-            <img src="${img}" class="award-slide-img ${idx === 0 ? 'active' : ''}">
-        `).join("");
-
-        sliderBox.innerHTML = `
-            ${imagesHtml}
+        if(!data.images || data.images.length === 0) return;
+        sliderBox.innerHTML = data.images.map((img, idx) => `<img src="${img}" class="award-slide-img ${idx === 0 ? 'active' : ''}">`).join("") + `
             <div class="award-caption-overlay">
-                <span style="font-size:9px; background:var(--primary); color:var(--dark); padding:2px 6px; border-radius:4px; font-weight:800; text-transform:uppercase;">Corporate Showcase</span>
-                <h4 style="margin:4px 0 2px 0; font-size:12px; font-weight:800; color:#fff;">${data.title || ""}</h4>
-                <p style="margin:0; font-size:10px; opacity:0.85; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;">${data.description || ''}</p>
-            </div>
-        `;
-
-        let currentSlideIdx = 0;
-        const slides = sliderBox.querySelectorAll(".award-slide-img");
-        
-        if(window.awardIntervalId) clearInterval(window.awardIntervalId);
-        if(slides.length > 1) {
-            window.awardIntervalId = setInterval(() => {
-                slides[currentSlideIdx].classList.remove("active");
-                currentSlideIdx = (currentSlideIdx + 1) % slides.length;
-                slides[currentSlideIdx].classList.add("active");
-            }, 5000);
-        }
+                <h4 style="margin:0; font-size:11px; color:#fff;">🏆 ${data.title}</h4>
+                <p style="margin:2px 0 0 0; font-size:9.5px; opacity:0.8;">${data.description}</p>
+            </div>`;
     });
 }
+
+async function checkPasswordSecurity() {}
 </script>
 </body>
 </html>
