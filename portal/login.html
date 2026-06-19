@@ -83,6 +83,21 @@
         }
         .input-group input:focus, .input-group select:focus { background: #e2e8f0; box-shadow: 0 0 0 3px rgba(0,212,255,0.2); }
 
+        /* Specific padding adjustment for password field to secure eye placement icon */
+        .input-group input[type="password"], 
+        .input-group input[type="text"]#passwordInput {
+            padding-right: 50px;
+        }
+
+        /* Eye Button Container Styling */
+        .toggle-password-btn {
+            position: absolute; right: 16px; bottom: 14px; background: none; border: none;
+            cursor: pointer; display: flex; align-items: center; justify-content: center;
+            padding: 4px; border-radius: 50%; transition: background-color 0.2s;
+        }
+        .toggle-password-btn:hover { background-color: rgba(0,0,0,0.05); }
+        .toggle-password-btn svg { width: 20px; height: 20px; fill: none; stroke: var(--text-gray); stroke-width: 2; }
+
         .login-btn {
             background: var(--primary-cyan); color: white; border: none;
             padding: 14px 45px; border-radius: 12px; font-size: 16px; font-weight: 800;
@@ -91,7 +106,6 @@
         }
         .login-btn:hover { transform: translateY(-3px); box-shadow: 0 15px 25px rgba(0, 212, 255, 0.4); }
 
-        /* Naya Forgot Password & Modal CSS */
         .forgot-link {
             display: block; margin-top: 10px; font-size: 11px; color: var(--text-gray);
             font-weight: 700; text-decoration: none; cursor: pointer; transition: 0.2s;
@@ -145,7 +159,17 @@
                 
                 <div class="input-group">
                     <label>Secure Password</label>
-                    <input type="password" id="passwordInput" placeholder="••••••••">
+                    <div style="position: relative; width: 100%;">
+                        <input type="password" id="passwordInput" placeholder="••••••••">
+                        <button type="button" class="toggle-password-btn" onclick="togglePasswordVisibility('passwordInput', 'eyeIcon')">
+                            <!-- Eye Icon SVG Container -->
+                            <svg id="eyeIcon" viewBox="0 0 24 24">
+                                <path id="eyePathOpen" d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                <circle id="eyeCircle" cx="12" cy="12" r="3"></circle>
+                                <line id="eyePathSlash" x1="3" y1="3" x2="21" y2="21" style="display:none;"></line>
+                            </svg>
+                        </button>
+                    </div>
                     <a class="forgot-link" onclick="openForgotModal()">Forgot Password? Receive OTP</a>
                 </div>
                 
@@ -178,7 +202,16 @@
 
             <div id="step3" style="display:none;">
                 <label style="font-size: 10px; font-weight: 800; color: #64748b; display: block; text-align: left;">SET NEW PASSWORD</label>
-                <input type="password" id="newResetPwd" placeholder="New Strong Password" class="otp-input">
+                <div style="position: relative; width: 100%;">
+                    <input type="password" id="newResetPwd" placeholder="New Strong Password" class="otp-input">
+                    <button type="button" class="toggle-password-btn" style="bottom: 20px; right: 12px;" onclick="togglePasswordVisibility('newResetPwd', 'modalEyeIcon')">
+                        <svg id="modalEyeIcon" viewBox="0 0 24 24">
+                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                            <circle cx="12" cy="12" r="3"></circle>
+                            <line x1="3" y1="3" x2="21" y2="21" style="display:none;"></line>
+                        </svg>
+                    </button>
+                </div>
                 <button onclick="updateNewPassword()" class="login-btn" style="float:none; width:100%; margin-top:10px;">Update Password</button>
             </div>
             
@@ -199,6 +232,21 @@
 
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
+
+        // Show-Hide Toggle Engine Function
+        function togglePasswordVisibility(inputId, svgId) {
+            const passwordInput = document.getElementById(inputId);
+            const eyeSvg = document.getElementById(svgId);
+            const slashLine = eyeSvg.querySelector('line');
+
+            if (passwordInput.type === "password") {
+                passwordInput.type = "text";
+                slashLine.style.display = "block"; // Show slash line (Hidden mode active)
+            } else {
+                passwordInput.type = "password";
+                slashLine.style.display = "none";  // Remove slash line (Plain tracking eye)
+            }
+        }
 
         function loadCompanyCodes() {
             const select = document.getElementById("companyCodeSelect");

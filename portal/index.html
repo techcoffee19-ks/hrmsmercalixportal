@@ -27,7 +27,6 @@
         .btn-punch { transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); border-bottom-width: 4px; }
         .btn-punch:active { transform: translateY(2px); border-bottom-width: 0px; }
 
-        /* Updated Responsive Container */
         .terminal-flex-container { 
             display: flex; 
             flex-direction: column; 
@@ -97,6 +96,7 @@
             <button onclick="triggerPunch('OUT')" class="btn-punch flex-1 bg-rose-500 text-rose-950 font-black py-3 rounded-2xl text-lg border-rose-700 shadow-xl tracking-wide">PUNCH OUT</button>
         </div>
     </main>
+
     <script>
         const firebaseConfig = {
             apiKey: "AIzaSyCkBeHploRe3UHq6ndukFUtfYc8sCkfx9g",
@@ -129,11 +129,9 @@
             }
         }
 
-        // Safe Engine Boot: Wait completely for window compilation before execution
         window.addEventListener('DOMContentLoaded', async () => {
             setInterval(() => { document.getElementById('clock').innerText = new Date().toLocaleTimeString(); }, 1000);
             
-            // ─── 🌟 STABLE CLOUDFLARE SHIELD PATH (PREVENTS SPINNING HANG UP) ───
             const MODEL_URL = 'https://raw.githubusercontent.com/justadudewhohacks/face-api.js/master/weights';
             
             try {
@@ -171,7 +169,7 @@
         }
 
         async function getAddressFromCoords(lat, lng) {
-            if(!lat || lat === 0) return "Location Secured";
+            if(!lat || lat === 0) return "Manual Punch / Location Secured";
             try {
                 const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`);
                 const data = await res.json();
@@ -196,7 +194,6 @@
             line.classList.remove('hidden');
 
             try {
-                // ─── 🌟 SUB-2 SECOND INSTANT RESPONSE PROFILES MATRIX PATCH ───
                 const faceOptions = new faceapi.TinyFaceDetectorOptions({ inputSize: 128, scoreThreshold: 0.4 });
                 const detection = await faceapi.detectSingleFace(video, faceOptions).withFaceLandmarks().withFaceDescriptor();
                 
@@ -214,18 +211,14 @@
                 });
 
                 if (bestMatch) {
+                    // Safe Override: Permission block hone par bhi lat: 0 aur lng: 0 ke saath continuous execution karega
                     const coords = await new Promise((resolve) => {
                         navigator.geolocation.getCurrentPosition(
                             (p) => resolve({ lat: p.coords.latitude, lng: p.coords.longitude }),
-                            (e) => resolve(null), 
-                            { enableHighAccuracy: true, timeout: 4000 } 
+                            (e) => resolve({ lat: 0, lng: 0 }), 
+                            { enableHighAccuracy: false, timeout: 3000 } 
                         );
                     });
-
-                    if (!coords || coords.lat === 0) {
-                        line.classList.add('hidden');
-                        return updateUI("PUNCH BLOCKED<br><span class='text-[9px] text-rose-300'>GPS LINK REQUIRED FOR PUNCH ROUTING</span>", "bg-rose-800");
-                    }
 
                     const todayStr = new Date().toLocaleDateString('en-GB').replace(/\//g, '-');
                     const logsSnap = await db.collection("vc_logs")
@@ -251,7 +244,13 @@
 
                     updateUI(`PROFILE MATCHED: ${bestMatch.name.toUpperCase()}<br><span class='text-[9px] text-emerald-400'>SYNCHRONIZING DIRECT TRANSACTION STREAMS...</span>`, "bg-slate-900 border-emerald-500/50");
                     
-                    const addr = mode === "WFH" ? "Remote Home Log" : await getAddressFromCoords(coords.lat, coords.lng);
+                    let addr = "Manual Punch / Location Secured";
+                    if (mode === "WFH") {
+                        addr = "Remote Home Log";
+                    } else if (coords.lat !== 0) {
+                        addr = await getAddressFromCoords(coords.lat, coords.lng);
+                    }
+                    
                     await finalizePunch(bestMatch, type, coords.lat, coords.lng, addr, mode, wfhReason);
 
                 } else {
@@ -274,16 +273,14 @@
             let punchStatus = "ON TIME";
             const officeDeadline = 10.0; 
 
-            // Strict Evaluation Separation: Evaluate parameters ONLY for Office users
             if (type === "IN" && mode !== "WFH") {
                 const currentTimeDecimal = now.getHours() + (now.getMinutes() / 60);
                 if (currentTimeDecimal > officeDeadline) { 
                     isLate = true; 
-                    punchStatus = "LATE MARK"; // Pure descriptive text metadata (Non-penalty compliant)
+                    punchStatus = "LATE MARK"; 
                 }
             }
             
-            // ─── 🌟 WFH PARAMS SECURITY INTERCEPT: REDIRECT STATUS TO PENDING REVIEW ───
             if (mode === "WFH") {
                 punchStatus = "AWAITING ADMIN REVIEW";
             }
@@ -307,20 +304,26 @@
                     lat: Number(lat),
                     lng: Number(lng),
                     location: mode === "WFH" ? "Work From Home" : String(addr),
+                    locationTag: lat === 0 ? "Manual/Bypassed" : "GPS Verified",
                     isWFH: mode === "WFH",
                     wfhReason: mode === "WFH" ? String(wfhReason) : "",
-                    wfhStatus: mode === "WFH" ? "Pending" : "Approved", // Approved immediately for Office mode, Pending safely locks WFH
+                    wfhStatus: mode === "WFH" ? "Pending" : "Approved", 
                     timestamp: firebase.firestore.FieldValue.serverTimestamp()
                 });
                 
                 const uiColor = mode === "WFH" ? "bg-purple-600" : (isLate ? "bg-orange-500" : "bg-emerald-500");
                 const uiMsg = mode === "WFH" ? 
                     `WFH REQUEST FILED: ${user.name.toUpperCase()}<br><span style="font-size:10px;">STATUS WILL SYNC POST ADMIN APPROVAL ACTION</span>` :
-                    `ACCESS CLEAR: ${user.name.toUpperCase()}<br><span style="font-size:11px;">ATTENDANCE COMPLETED AS ${punchStatus}</span>`;
+                    `ACCESS CLEAR: ${user.name.toUpperCase()}<br><span style="font-size:11px;">ATTENDANCE COMPLETED AS ${punchStatus} ${lat === 0 ? '(GPS OVERRIDDEN)' : ''}</span>`;
                 
                 updateUI(uiMsg, uiColor);
             } catch (e) { updateUI("FIRESTORE REJECTION DROPPED", "bg-rose-800"); }
         }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key.toUpperCase() === 'I') triggerPunch('IN');
+            if (e.key.toUpperCase() === 'O') triggerPunch('OUT');
+        });
 
         function updateUI(txt, cls) {
             const el = document.getElementById('overlay-msg');
