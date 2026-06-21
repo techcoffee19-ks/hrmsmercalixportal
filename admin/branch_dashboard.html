@@ -41,6 +41,7 @@
             if (!isVisible) container.style.display = "block";
         }
 
+        /* FIXED: Direct core click handler to invoke dynamic query pipeline compilation explicitly */
         function handleCardClick(id) {
             const el = document.getElementById(id);
             if (!el) return;
@@ -48,6 +49,7 @@
             document.querySelectorAll('.detail-container').forEach(d => d.style.display = "none");
             if (!isVisible) {
                 el.style.display = "block";
+                if(id === 'v6') { refreshLeaveTableQueueSync(); }
                 window.scrollTo({ top: el.offsetTop - 100, behavior: 'smooth' });
             } else {
                 el.style.display = "none";
@@ -67,7 +69,7 @@
         }
 
         function validateAccess(moduleId, targetPage) {
-            if (userRole === "super_admin" || userRole === "Main Admin") { 
+            if (userRole === "super_admin" || userRole === "Main Admin" || userRole === "hr_admin") { 
                 window.location.href = targetPage; 
                 return; 
             }
@@ -94,8 +96,8 @@
             let updateData = { status: status, actionDate: today };
             
             if (status === 'Rejected') {
-                const reason = prompt("Enter Rejection Reason:");
-                if (!reason) return alert("Rejection reason is required!");
+                const reason = prompt("Enter Rejection Reason for Leave Disapproval:");
+                if (!reason) return alert("Rejection reason is mandatory!");
                 updateData.rejectionReason = reason;
             }
 
@@ -138,9 +140,10 @@
 
                                 if (selectedCategory === "Sick Leave" || String(leaveData.reason).toLowerCase().includes("sick")) {
                                     currentSL = Math.max(0, currentSL - leaveDays);
-                                } else {
-                                    currentPL = currentPL - leaveDays;
+                                } else if (selectedCategory === "Casual Leave") {
                                     currentCL = Math.max(0, currentCL - leaveDays);
+                                } else {
+                                    currentPL = Math.max(0, currentPL - leaveDays);
                                 }
 
                                 await targetEmpRef.update({
@@ -155,10 +158,81 @@
                 }
 
                 await db.collection("emp_leaves").doc(leaveId).update(updateData);
-                alert(`Leave Request ${status} successfully & Balance Updated! 🚀`);
+                alert(`Leave Request ${status} successfully & Balances Synchronized! 🚀`);
+                refreshLeaveTableQueueSync();
             } catch (e) { 
-                console.error("Sync Error: ", e);
                 alert("Sync Error: " + e.message);
+            }
+        }
+
+        async function handleLeaveCancellationApproval(leaveId, isApproved) {
+            let updatePayload = {
+                actionDate: new Date().toLocaleDateString('en-GB').replace(/\//g, '-')
+            };
+
+            if (!isApproved) {
+                const rReason = prompt("Enter Rejection Reason for Cancellation Disapproval:");
+                if (!rReason) return alert("Rejection reason is mandatory!");
+                updatePayload.status = "Approved"; // Revert to standard Approved state bounds
+                updatePayload.cancellationRejectionReason = rReason;
+                
+                try {
+                    await db.collection("emp_leaves").doc(leaveId).update(updatePayload);
+                    alert("Cancellation Request Disapproved. Base leave status preserved.");
+                    refreshLeaveTableQueueSync();
+                } catch(e) { alert(e.message); }
+                return;
+            }
+
+            try {
+                const leaveDocRef = db.collection("emp_leaves").doc(leaveId);
+                const leaveSnap = await leaveDocRef.get();
+                if (!leaveSnap.exists) return alert("Leave context block corrupted!");
+                const leaveData = leaveSnap.data();
+
+                const rawEmpId = leaveData.empId;
+                const refundDaysCount = parseFloat(leaveData.requestedCancelDays || 0);
+                const categoryType = leaveData.leaveType || "Casual Leave";
+
+                if (rawEmpId && refundDaysCount > 0) {
+                    let targetEmpRef = db.collection("employees").doc(rawEmpId);
+                    let targetEmpDoc = await targetEmpRef.get();
+                    
+                    if (!targetEmpDoc.exists) {
+                        let querySnap = await db.collection("employees").where("name", "==", leaveData.name).get();
+                        if (!querySnap.empty) {
+                            targetEmpDoc = querySnap.docs[0];
+                            targetEmpRef = targetEmpDoc.ref;
+                        }
+                    }
+
+                    if (targetEmpDoc.exists) {
+                        const employeeProfile = targetEmpDoc.data();
+                        let targetKeyField = "pl";
+                        if (categoryType === "Casual Leave") targetKeyField = "cl";
+                        if (categoryType === "Sick Leave") targetKeyField = "sl";
+
+                        let oldBalance = parseFloat(employeeProfile[targetKeyField] || 0);
+                        let finalRefundedBalance = oldBalance + refundDaysCount;
+
+                        let employeeUpdatePayload = {};
+                        employeeUpdatePayload[targetKeyField] = parseFloat(finalRefundedBalance.toFixed(2));
+                        if(targetKeyField === "pl") employeeUpdatePayload["leaveBalance"] = parseFloat(finalRefundedBalance.toFixed(2));
+
+                        await targetEmpRef.update(employeeUpdatePayload);
+                    }
+                }
+
+                updatePayload.status = "Partially Cancelled";
+                updatePayload.cancelledDays = refundDaysCount;
+                updatePayload.originalDays = leaveData.days + refundDaysCount;
+                updatePayload.days = (leaveData.days - refundDaysCount) > 0 ? (leaveData.days - refundDaysCount) : 0;
+
+                await leaveDocRef.update(updatePayload);
+                alert("✔ Cancellation Approved successfully! Balance units restored into database layers.");
+                refreshLeaveTableQueueSync();
+            } catch(err) {
+                alert("Error processing cancellation request: " + err.message);
             }
         }
 
@@ -217,8 +291,8 @@
         .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 15px; }
         .stat-box { background: white; padding: 22px; border-radius: 15px; border: 1px solid var(--border); cursor: pointer; transition: 0.3s; }
         .stat-box:hover { border-color: var(--primary); transform: translateY(-3px); }
-        .stat-box label { font-size: 8px; font-weight: 900; color: #64748b; text-transform: uppercase; }
-        .stat-box .value { font-size: 28px; font-weight: 900; margin: 5px 0; }
+        .stat-box label { font-size: 8px; font-weight: 900; color: #64748b; text-transform: uppercase; pointer-events: none; }
+        .stat-box .value { font-size: 28px; font-weight: 900; margin: 5px 0; pointer-events: none; }
         .detail-container { display: none; background: white; border-radius: 15px; border: 2px solid var(--primary); padding: 20px; margin-bottom: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.05); }
         table { width: 100%; border-collapse: collapse; }
         table th { text-align: left; font-size: 10px; color: #94a3b8; padding: 12px; border-bottom: 1px solid #eee; text-transform: uppercase; }
@@ -240,7 +314,6 @@
         .btn-task { background: var(--dark); color: var(--primary); }
         .btn-thought { background: var(--dark); color: var(--success); }
         
-        /* Holidays Registry System Styles Updates */
         .holiday-professional-card { background: white; padding: 20px; border-radius: 15px; border: 1px solid var(--border); border-top: 5px solid var(--danger); margin-top: 30px; margin-bottom: 25px; }
         .holiday-list-grid { display: flex; gap: 15px; overflow-x: auto; padding: 10px 5px; width: 100%; max-width: 100%; box-sizing: border-box; white-space: nowrap; -webkit-overflow-scrolling: touch; }
         .holiday-item { min-width: 140px; background: #fff5f5; border: 1px dashed var(--danger); padding: 12px; border-radius: 12px; text-align: center; cursor: pointer; display: inline-block; vertical-align: top; white-space: normal; }
@@ -253,6 +326,10 @@
         #topThought { transition: opacity 0.5s ease-in-out; min-height: 1.5em; }
 
         .wfh-compact-card { max-height: 280px; overflow-y: auto; border: 1px solid #f1f5f9; border-radius: 12px; padding: 5px; }
+        
+        .type-badge { padding: 4px 10px; border-radius: 6px; font-size: 8.5px; font-weight: 900; text-transform: uppercase; display: inline-block; margin-right: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.03); }
+        .tb-new { background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; }
+        .tb-cancel { background: #fee2e2; color: #b91c1c; border: 1px solid #fecaca; }
     </style>
 </head>
 <body onload="initDashboard()">
@@ -392,7 +469,11 @@
         <div class="stats-grid">
             <div class="stat-box" onclick="handleCardClick('v4')"><label>Today Late</label><div class="value" id="c4" style="color:var(--warning)">0</div></div>
             <div class="stat-box" onclick="handleCardClick('v5')"><label>Late Requests</label><div class="value" id="c5">0</div></div>
-            <div class="stat-box" onclick="handleCardClick('v6')"><label>Pending Leaves</label><div class="value" id="c6" style="color:var(--primary)">0</div></div>
+            
+            <div class="stat-box" onclick="handleCardClick('v6')" style="border: 1.5px solid var(--primary); background: #fffbeb;">
+                <label style="color: var(--dark); font-weight:800;">Leave Applications</label>
+                <div class="value" id="c6" style="color:var(--primary)">0</div>
+            </div>
             <div class="stat-box" onclick="handleCardClick('vManualPunchDetail')"><label style="color: #4f46e5;"><i class="fas fa-fingerprint"></i> Manual Punch Req</label><div class="value" id="cManualPunchCount" style="color:#4f46e5">0</div></div>
         </div>
 
@@ -412,9 +493,9 @@
             <table id="tManualPunchTable"></table>
         </div>
 
-        <div id="v6" class="detail-container" style="display: block;">
+        <div id="v6" class="detail-container" style="display: none;">
             <h3 style="margin-top: 0; font-size: 13px; font-weight: 800; color: var(--dark); text-transform: uppercase;">
-                📋 Pending Leave Requests Panel
+                📋 Leave Management Queue Panel (Pending Requests & Cancellations)
             </h3>
             <table id="t6"></table>
         </div>
@@ -577,16 +658,18 @@ async function initDashboard() {
 }
 
 function listenToNotifications() {
-    db.collection("emp_leaves").where("status", "==", "Pending").onSnapshot(snap => {
+    db.collection("emp_leaves").where("status", "in", ["Pending", "Pending Cancellation"]).onSnapshot(snap => {
         if(!snap.empty && !snap.metadata.hasPendingWrites) {
             if(typeof alertTone !== 'undefined') alertTone.play();
             if(document.getElementById("notifyDot")) document.getElementById("notifyDot").style.display = "block";
             let h = "";
             snap.forEach(doc => {
                 const d = doc.data();
+                let typeLabel = d.status === "Pending Cancellation" ? "LEAVE CANCEL REQUEST" : "NEW LEAVE";
+                let textDesc = d.status === "Pending Cancellation" ? `requested cancellation for ${d.requestedCancelDays} days.` : "applied for leave.";
                 h += `<div class="notify-item" onclick="toggleNotify()">
-                        <small style="color:red; font-weight:800;">NEW LEAVE</small><br>
-                        <b>${d.name || 'Staff'}</b> applied for leave.
+                        <small style="color:var(--danger); font-weight:800;">${typeLabel}</small><br>
+                        <b>${d.name || 'Staff'}</b> ${textDesc}
                       </div>`;
             });
             if(document.getElementById("notifyList")) document.getElementById("notifyList").innerHTML = h;
@@ -627,6 +710,46 @@ function resetFilters() {
     if(document.getElementById("fManager")) document.getElementById("fManager").value = "All";
     if(document.getElementById("fDept")) document.getElementById("fDept").value = "All";
     loadManagedData();
+}
+
+/* FIXED: Unified single pipeline core execution method to query pending queues on demand safely */
+function refreshLeaveTableQueueSync() {
+    const today = new Date().toLocaleDateString('en-GB').replace(/\//g, '-');
+    const selBranch = document.getElementById("fBranch") ? document.getElementById("fBranch").value : "All";
+    const selManager = document.getElementById("fManager") ? document.getElementById("fManager").value : "All";
+    const selDept = document.getElementById("fDept") ? document.getElementById("fDept").value : "All";
+
+    db.collection("employees").get().then(empSnap => {
+        let staff = empSnap.docs.map(d => ({id: d.id, ...d.data()}));
+        
+        if(userRole !== "hr_admin" && userRole !== "Main Admin" && userRole !== "super_admin") {
+            staff = staff.filter(s => String(s.reportingManager || "").toLowerCase().trim() === String(adminName || "").toLowerCase().trim());
+        }
+        if(selBranch !== "All") staff = staff.filter(s => s.branch === selBranch);
+        if(selManager !== "All") staff = staff.filter(s => s.reportingManager === selManager);
+        if(selDept !== "All") staff = staff.filter(s => s.dept === selDept);
+        
+        const currentFilteredIds = staff.map(s => s.id);
+
+        db.collection("emp_leaves").get().then(lvSnap => {
+            const pending = [];
+            lvSnap.forEach(doc => {
+                const l = {id: doc.id, ...doc.data()};
+                const cleanStatus = String(l.status || "").trim();
+                
+                if (userRole === "hr_admin" || userRole === "Main Admin" || userRole === "super_admin") {
+                    if(cleanStatus === "Pending" || cleanStatus === "Pending Cancellation") pending.push(l);
+                } else {
+                    const matchManagerName = String(l.reportingManager || "").toLowerCase().trim() === String(adminName || "").toLowerCase().trim();
+                    const matchEmpArray = currentFilteredIds.includes(l.empId);
+                    if(matchManagerName || matchEmpArray) {
+                        if(cleanStatus === "Pending" || cleanStatus === "Pending Cancellation") pending.push(l);
+                    }
+                }
+            });
+            renderLeaveActionTable("t6", pending, true);
+        });
+    });
 }
 
 async function loadManagedData() {
@@ -714,7 +837,7 @@ async function loadManagedData() {
                 const cleanStatus = String(l.status || "").trim();
                 
                 if (userRole === "hr_admin" || userRole === "Main Admin" || userRole === "super_admin") {
-                    if(cleanStatus === "Pending") pending.push(l);
+                    if(cleanStatus === "Pending" || cleanStatus === "Pending Cancellation") pending.push(l);
                     if(cleanStatus === "Approved" && l.actionDate === today) appToday.push(l);
                     if(cleanStatus === "Rejected" && l.actionDate === today) rejToday.push(l);
                 } else {
@@ -722,7 +845,7 @@ async function loadManagedData() {
                     const matchEmpArray = currentFilteredIds.includes(l.empId);
                     
                     if(matchManagerName || matchEmpArray) {
-                        if(cleanStatus === "Pending") pending.push(l);
+                        if(cleanStatus === "Pending" || cleanStatus === "Pending Cancellation") pending.push(l);
                         if(cleanStatus === "Approved" && l.actionDate === today) appToday.push(l);
                         if(cleanStatus === "Rejected" && l.actionDate === today) rejToday.push(l);
                     }
@@ -732,6 +855,8 @@ async function loadManagedData() {
             document.getElementById("c6").innerText = pending.length;
             document.getElementById("c7").innerText = appToday.length;
             document.getElementById("c8").innerText = rejToday.length;
+            
+            // Render default live background queues safely
             renderLeaveActionTable("t6", pending, true);
             renderLeaveActionTable("t7", appToday, false);
             renderLeaveActionTable("t8", rejToday, false);
@@ -770,28 +895,68 @@ function renderLateRequestTable(target, data) {
     if(el) el.innerHTML = h;
 }
 
+/* FIXED: Complete column restructuring mapping exact corporate employee layout metadata schemas */
 function renderLeaveActionTable(target, data, showAction) {
     let h = `<tr>
-        <th style="padding: 12px; font-size: 10px; font-weight: 800; color: #94a3b8; text-transform: uppercase;">ID</th>
-        <th style="padding: 12px; font-size: 10px; font-weight: 800; color: #94a3b8; text-transform: uppercase;">Name</th>
-        <th style="padding: 12px; font-size: 10px; font-weight: 800; color: #94a3b8; text-transform: uppercase;">Reason</th>
-        <th style="padding: 12px; font-size: 10px; font-weight: 800; color: #94a3b8; text-transform: uppercase; text-align: center;">Days</th>
-        <th style="padding: 12px; font-size: 10px; font-weight: 800; color: #94a3b8; text-transform: uppercase; text-align: center;">Action/Status</th>
+        <th style="padding: 12px; font-size: 10px; font-weight: 800; color: #94a3b8; text-transform: uppercase;">Employee ID</th>
+        <th style="padding: 12px; font-size: 10px; font-weight: 800; color: #94a3b8; text-transform: uppercase;">Employee Name</th>
+        <th style="padding: 12px; font-size: 10px; font-weight: 800; color: #94a3b8; text-transform: uppercase;">Request Type</th>
+        <th style="padding: 12px; font-size: 10px; font-weight: 800; color: #94a3b8; text-transform: uppercase;">Leave Type</th>
+        <th style="padding: 12px; font-size: 10px; font-weight: 800; color: #94a3b8; text-transform: uppercase;">Date Range</th>
+        <th style="padding: 12px; font-size: 10px; font-weight: 800; color: #94a3b8; text-transform: uppercase; text-align: center;">No. of Days</th>
+        <th style="padding: 12px; font-size: 10px; font-weight: 800; color: #94a3b8; text-transform: uppercase; text-align: center;">Actions Suite</th>
     </tr>`;
     
+    if(data.length === 0) {
+        h += `<tr><td colspan="7" align="center" style="color:#94a3b8; padding:20px; font-size:11px;">No leave requests inside this active cluster bounds.</td></tr>`;
+        const el = document.getElementById(target);
+        if(el) el.innerHTML = h;
+        return;
+    }
+
     data.forEach(r => {
-        let actionHtml = showAction ? 
-            `<div style="display: flex; gap: 6px; justify-content: center; align-items: center;">
-                <button class="btn-action-leave btn-approve" style="margin:0; padding: 6px 12px;" onclick="handleLeaveAction('${r.id}','Approved')">Approve</button>
-                <button class="btn-action-leave btn-reject" style="margin:0; padding: 6px 12px;" onclick="handleLeaveAction('${r.id}','Rejected')">Reject</button>
-            </div>` : 
-            `<div style="text-align: center;"><span style="color:${r.status==='Approved'?'#10b981':'#ef4444'}; font-weight: 800;">${r.status} ${r.rejectionReason ? '('+r.rejectionReason+')' : ''}</span></div>`;
+        let actionHtml = "";
+        let typeBadgeHtml = "";
+        let dateRangeDisplay = `${r.startDate || '--'} to ${r.endDate || '--'}`;
+        let displayDaysNum = r.days || '1';
+        
+        // Dynamic formulation mapping full company code bounds strings
+        let finalCompanyCodeText = r.companyCode || "GENERAL";
+        let employeeFullIdentiferString = `${r.empId} <span style="font-size:9px; color:#94a3b8; font-weight:700;">[${finalCompanyCodeText}]</span>`;
+
+        if(r.status === "Pending Cancellation") {
+            typeBadgeHtml = `<span class="type-badge tb-cancel"><i class="fas fa-calendar-times"></i> Cancel Request</span>`;
+            dateRangeDisplay = `<span style="font-weight:700; color:#b91c1c;">${r.requestedCancelStart} to ${r.requestedCancelEnd}</span>`;
+            displayDaysNum = `<span style="color:var(--danger); font-weight:900;">${r.requestedCancelDays} Days</span>`;
+            
+            if(showAction) {
+                actionHtml = `<div style="display: flex; gap: 6px; justify-content: center; align-items: center;">
+                    <button class="btn-action-leave btn-approve" style="margin:0; padding: 6px 12px; background:var(--info);" onclick="handleLeaveCancellationApproval('${r.id}', true)">Approve Cancel</button>
+                    <button class="btn-action-leave btn-reject" style="margin:0; padding: 6px 12px;" onclick="handleLeaveCancellationApproval('${r.id}', false)">Reject Cancel</button>
+                </div>`;
+            }
+        } else {
+            typeBadgeHtml = `<span class="type-badge tb-new"><i class="fas fa-plane-departure"></i> New Apply</span>`;
+            
+            if(showAction) {
+                actionHtml = `<div style="display: flex; gap: 6px; justify-content: center; align-items: center;">
+                    <button class="btn-action-leave btn-approve" style="margin:0; padding: 6px 12px;" onclick="handleLeaveAction('${r.id}','Approved')">Approve</button>
+                    <button class="btn-action-leave btn-reject" style="margin:0; padding: 6px 12px;" onclick="handleLeaveAction('${r.id}','Rejected')">Reject</button>
+                </div>`;
+            }
+        }
+
+        if(!showAction) {
+            actionHtml = `<div style="text-align: center;"><span style="color:${r.status==='Approved'?'#10b981':'#ef4444'}; font-weight: 800;">${r.status} ${r.rejectionReason ? '('+r.rejectionReason+')' : ''}</span></div>`;
+        }
         
         h += `<tr style="border-bottom: 1px solid #f1f5f9;">
-            <td style="padding: 12px; vertical-align: middle;"><b>${r.empId || 'N/A'}</b></td>
+            <td style="padding: 12px; vertical-align: middle;"><b>${employeeFullIdentiferString}</b></td>
             <td style="padding: 12px; vertical-align: middle;">${r.name}</td>
-            <td style="padding: 12px; vertical-align: middle; color: #475569;">${r.reason || 'Leave'} ${r.leaveType ? '<span style="color:#3b82f6; font-weight:700;">['+r.leaveType+']</span>' : ''}</td>
-            <td style="padding: 12px; text-align: center; vertical-align: middle; font-weight: 800;">${r.days || '1'}</td>
+            <td style="padding: 12px; vertical-align: middle;">${typeBadgeHtml}</td>
+            <td style="padding: 12px; vertical-align: middle; font-weight:700; color:var(--dark);"><small>${r.leaveType || 'General'}</small></td>
+            <td style="padding: 12px; vertical-align: middle; color: #475569; font-size:11px;">${dateRangeDisplay}</td>
+            <td style="padding: 12px; text-align: center; vertical-align: middle; font-weight: 800;">${displayDaysNum}</td>
             <td style="padding: 12px; vertical-align: middle;">${actionHtml}</td>
         </tr>`;
     });
@@ -837,7 +1002,6 @@ function listenManualPunchPipelineQueue() {
     });
 }
 
-/* ─── 🌟 SECURED DYNAMIC FLOW: PROCESSES IN & OUT SEPARATELY BASE ON REQUESTS ─── */
 async function processManualPunchApproval(docId, isApproved) {
     try {
         const docRef = db.collection("manual_punch_requests").doc(docId);

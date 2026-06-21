@@ -524,7 +524,7 @@ async function verifyManualPunchEligibility() {
         logger.innerHTML = `❌ DENIED: Selected target is older than 29 days.`;
         logger.style.color = "var(--danger)";
         cameraBox.style.display = "none"; submitBtn.disabled = true; isMPEligible = false;
-        closeManualPunchCamera(); return;
+        return;
     }
 
     const [y, m, d] = dateInput.split("-");
@@ -541,7 +541,7 @@ async function verifyManualPunchEligibility() {
                 logger.innerHTML = "⚠️ BLOCKED: Punch-In already logged for this date.";
                 logger.style.color = "var(--danger)";
                 cameraBox.style.display = "none"; submitBtn.disabled = true; isMPEligible = false;
-                closeManualPunchCamera(); return;
+                return;
             }
             logger.innerHTML = "✔ ELIGIBLE: Unlocking biometric view frames for Punch-In application...";
             logger.style.color = "var(--success)";
@@ -550,20 +550,19 @@ async function verifyManualPunchEligibility() {
                 logger.innerHTML = "❌ DENIED: Missing verified Punch-In log. Action blocked.";
                 logger.style.color = "var(--danger)";
                 cameraBox.style.display = "none"; submitBtn.disabled = true; isMPEligible = false;
-                closeManualPunchCamera(); return;
+                return;
             }
             if (!outLogSnap.empty) {
                 logger.innerHTML = "⚠️ BLOCKED: Punch-Out already logged for this date.";
                 logger.style.color = "var(--danger)";
                 cameraBox.style.display = "none"; submitBtn.disabled = true; isMPEligible = false;
-                closeManualPunchCamera(); return;
+                return;
             }
             logger.innerHTML = "✔ ELIGIBLE: Active shifts verified. Unlocking camera for Punch-Out...";
             logger.style.color = "var(--primary)";
         }
 
         cameraBox.style.display = "block"; submitBtn.disabled = false; isMPEligible = true;
-        await initManualPunchCamera();
     } catch (e) { logger.innerHTML = "Handshake dropped."; logger.style.color="var(--danger)"; }
 }
 
@@ -580,10 +579,9 @@ async function processManualPunchRequest() {
     btn.innerText = "Validating Request Status...";
 
     try {
-        // 🌟 NAYA VALIDATION LOGIC: Check for existing Pending requests
         const existingReq = await db.collection("manual_punch_requests")
             .where("empId", "==", empId)
-            .where("date", "==", dateVal.split("-").reverse().join("-")) // Format match
+            .where("date", "==", dateVal.split("-").reverse().join("-")) 
             .where("status", "==", "Pending")
             .get();
 
@@ -594,7 +592,6 @@ async function processManualPunchRequest() {
             return;
         }
 
-        // Face Detection continue...
         btn.innerText = "Analyzing Biometric Profiles...";
         const detection = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks();
         if (!detection) {
@@ -604,7 +601,6 @@ async function processManualPunchRequest() {
             return;
         }
 
-        // Dispatch Request
         const [y, m, d] = dateVal.split("-");
         const formattedDateStr = `${d}-${m}-${y}`;
         
@@ -632,14 +628,13 @@ async function processManualPunchRequest() {
         btn.innerText = "Scan Face & Dispatch Admin Request";
     }
 }
-// Line 605 ke paas isse replace karein:
+
 function openManualPunchModal() {
     const today = new Date();
     const twentyNineDaysAgo = new Date();
     twentyNineDaysAgo.setDate(today.getDate() - 29); 
     
-    // Date picker ko restrict karne ke liye
-    const mPunchDateInput = document.getElementById('mPunchDate');
+    const mPunchDateInput = document.getElementById('mpDate');
     if (mPunchDateInput) {
         mPunchDateInput.setAttribute('max', today.toISOString().split('T')[0]);
         mPunchDateInput.setAttribute('min', twentyNineDaysAgo.toISOString().split('T')[0]);
@@ -648,16 +643,26 @@ function openManualPunchModal() {
     document.getElementById('manualPunchModal').style.display = 'block';
     switchManualPunchTab("IN");
     initManualPunchLiveHistory();
+    
+    // Direct User Gesture Context standard pipeline flow call
+    initManualPunchCamera();
 }
 
 function initManualPunchCamera() {
-    const MODEL_URL = 'https://raw.githubusercontent.com/justadudewhohacks/face-api.js/master/weights';
-    faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL).then(() => {
-        faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL).then(() => {
-            navigator.mediaDevices.getUserMedia({ video: { width: 400, height: 300 } }).then(s => {
-                mpStream = s; document.getElementById('mpVideo').srcObject = s;
-            }).catch(e => { console.error("Hardware camera stream dropped."); });
-        });
+    if (mpStream) return; 
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: "user", width: 400, height: 300 } })
+    .then(s => {
+        mpStream = s; 
+        const vEl = document.getElementById('mpVideo');
+        if(vEl) {
+            vEl.srcObject = s;
+            vEl.setAttribute('playsinline', true);
+            vEl.play().catch(e => console.error(e));
+        }
+    })
+    .catch(e => { 
+        console.error("Hardware camera stream dropped:", e); 
+        alert("Camera permission blocked or not found. Please verify device privacy settings.");
     });
 }
 
@@ -967,7 +972,6 @@ function listenLiveAttendanceCounters(sessionEmpId) {
 
             if (liveDutyTimerInterval) clearInterval(liveDutyTimerInterval);
 
-            /* ─── 🌟 WORKFLOW COMPLIANCE: TIMER STOPS DIRECTLY ON MANUAL/KIOSK APPROVED OUTS ─── */
             if (todaysBlock && todaysBlock.inTime && !todaysBlock.outTime) {
                 badgeEl.innerText = todaysBlock.wfh ? "ON DUTY (WFH 🏠)" : "ON DUTY";
                 badgeEl.style.background = todaysBlock.wfh ? "var(--wfh)" : "var(--success)";
@@ -1040,7 +1044,7 @@ async function openRegModal() {
         await faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL);
         status.innerText = "Starting Optical Hardware Feeds...";
         
-        regStream = await navigator.mediaDevices.getUserMedia({ video: { width: 400, height: 300 } });
+        regStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user", width: 400, height: 300 } });
         document.getElementById('regVideo').srcObject = regStream;
         document.getElementById('captureBtn').disabled = false;
         status.innerText = "Biometric Enrolment Core Ready";
@@ -1156,10 +1160,20 @@ async function sendLateRequest() {
     } catch (e) { alert("Failed."); }
 }
 
+async function backgroundPreloadFaceApi() {
+    const MODEL_URL = 'https://raw.githubusercontent.com/justadudewhohacks/face-api.js/master/weights';
+    try {
+        await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
+        await faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL);
+        console.log("Face-API models optimized globally.");
+    } catch(e) { console.warn("Background cache deferred:", e); }
+}
+
 function initDashboard() {
     const sessionEmpId = sessionStorage.getItem("empId"); 
     if (!sessionEmpId) { window.location.href = "login.html"; return; }
     
+    backgroundPreloadFaceApi();
     listenBirthdays(); fetchTasks(); fetchLeaveCounts(sessionEmpId); listenUpcomingHolidays();
     listenThoughts(); listenLateStatus(); checkPasswordSecurity(); listenLiveAttendanceCounters(sessionEmpId);
     listenMultipleSaturdayWinners(); trackMyReceivedInteractions(); listenCorporateAwards();

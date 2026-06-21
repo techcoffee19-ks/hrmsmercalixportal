@@ -10,7 +10,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght=400;600;700;800&display=swap');
         
         :root {
             --primary: #00d4ff; --dark: #002b3d; --bg: #f3f7f9; 
@@ -61,9 +61,39 @@
         .st-Approved { background: #dcfce7; color: #15803d; }
         .st-Pending { background: #fef3c7; color: #92400e; }
         .st-Rejected { background: #fee2e2; color: #b91c1c; }
+        .st-PendingCancellation { background: #ffedd5; color: #c2410c; }
+        .st-PartiallyCancelled { background: #e0f2fe; color: #0369a1; }
+
+        .btn-cancel-action { padding: 4px 8px; font-size: 9px; background: var(--danger); color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 800; text-transform: uppercase; margin-left: 5px; }
+
+        /* Modal Overlay Wrapper for Date Selection */
+        .cancel-modal { display: none; position: fixed; z-index: 5000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); backdrop-filter: blur(5px); }
+        .cancel-modal-content { background: white; margin: 10% auto; padding: 25px; border-radius: 20px; width: 400px; box-sizing: border-box; }
     </style>
 </head>
 <body onload="initLeavePage()">
+
+<div id="leaveCancelModal" class="cancel-modal">
+    <div class="cancel-modal-content">
+        <h3 style="margin-top:0; font-size:14px; color:var(--dark);"><i class="fas fa-calendar-times" style="color:var(--danger)"></i> Select Cancellation Dates</h3>
+        <p style="font-size:10px; color:#64748b; margin:-5px 0 15px 0;">Select range of dates you want to cancel from your approved schedule.</p>
+        
+        <input type="hidden" id="targetLeaveDocId">
+        <input type="hidden" id="targetLeaveType">
+        
+        <div class="form-group">
+            <label>Cancel From Date</label>
+            <input type="date" id="cancelStartDate">
+        </div>
+        <div class="form-group">
+            <label>Cancel To Date</label>
+            <input type="date" id="cancelEndDate">
+        </div>
+        
+        <button class="btn-submit" style="background:var(--danger); color:white; margin-top:10px;" onclick="submitCancellationRequestToAdmin()">Send Cancellation Request 🚀</button>
+        <button onclick="document.getElementById('leaveCancelModal').style.display='none'" style="width:100%; margin-top:10px; background:none; border:none; color:#64748b; font-size:11px; font-weight:800; cursor:pointer; text-transform:uppercase;">Close Window</button>
+    </div>
+</div>
 
 <div class="p-container">
     <aside class="sidebar">
@@ -107,6 +137,7 @@
                         <select id="fullLeaveCategory">
                             <option value="Casual Leave">Casual / Personal Leave</option>
                             <option value="Sick Leave">Sick Leave</option>
+                            <option value="Paid Leave">Paid Leave</option>
                         </select>
                     </div>
                     <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
@@ -128,6 +159,7 @@
                         <select id="halfLeaveCategory">
                             <option value="Casual Leave">Casual / Personal Leave</option>
                             <option value="Sick Leave">Sick Leave</option>
+                            <option value="Paid Leave">Paid Leave</option>
                         </select>
                     </div>
                     <div class="form-group"><label>Select Date</label><input type="date" id="hdDate"></div>
@@ -153,10 +185,10 @@
                     <div style="overflow-x: auto;">
                         <table>
                             <thead>
-                                <tr><th>Applied On</th><th>Date / Time</th><th>Type</th><th>Days</th><th>Status</th></tr>
+                                <tr><th>Applied On</th><th>Date / Time</th><th>Type</th><th>Days</th><th>Status</th><th>Actions</th></tr>
                             </thead>
                             <tbody id="historyBody">
-                                <tr><td colspan="5" style="text-align:center; padding:20px;">Fetching records...</td></tr>
+                                <tr><td colspan="6" style="text-align:center; padding:20px;">Fetching records...</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -183,6 +215,22 @@ const db = firebase.firestore();
 const empId = sessionStorage.getItem("empId") || sessionStorage.getItem("userDocId");
 let empData = null;
 
+function handleMonthlyLeaveAccrual(employeeDoc, data) {
+    const today = new Date();
+    const currentMonthKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+    
+    if (data.lastAccrualMonth !== currentMonthKey) {
+        let updatedSL = parseFloat(data.sl || 0) + 1.0; 
+        let updatedCL = parseFloat(data.cl || 0) + 1.0; 
+        
+        db.collection("employees").doc(employeeDoc).update({
+            sl: updatedSL,
+            cl: updatedCL,
+            lastAccrualMonth: currentMonthKey
+        });
+    }
+}
+
 function initLeavePage() {
     if(!empId) { alert("Session Expired. Please login again."); window.location.href="index.html"; return; }
     
@@ -193,6 +241,7 @@ function initLeavePage() {
     db.collection("employees").doc(empId).onSnapshot(doc => {
         if(doc.exists) {
             empData = doc.data();
+            handleMonthlyLeaveAccrual(empId, empData);
             
             let currentPL = empData.pl !== undefined ? empData.pl : (empData.leaveBalance !== undefined ? empData.leaveBalance : 0);
             
@@ -210,7 +259,7 @@ function initLeavePage() {
     .onSnapshot(snap => {
         const tbody = document.getElementById("historyBody");
         if(snap.empty) {
-            tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding:20px;">No applications found.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:20px;">No applications found.</td></tr>`;
             return;
         }
 
@@ -224,20 +273,87 @@ function initLeavePage() {
         tbody.innerHTML = "";
         docs.forEach(l => {
             const ts = l.timestamp ? new Date(l.timestamp.seconds * 1000).toLocaleDateString('en-GB') : 'Just now';
-            const dateDisplay = l.leaveType === "Full" || l.leaveType === "Casual Leave" || l.leaveType === "Sick Leave" ? `${l.startDate} to ${l.endDate}` : `${l.startDate}`;
+            const dateDisplay = l.leaveType === "Full" || l.leaveType === "Casual Leave" || l.leaveType === "Sick Leave" || l.leaveType === "Paid Leave" ? `${l.startDate} to ${l.endDate}` : `${l.startDate}`;
             
             let cleanStatus = String(l.status || "Pending").trim();
-            let badgeClass = cleanStatus === "Approved" ? "st-Approved" : (cleanStatus === "Rejected" ? "st-Rejected" : "st-Pending");
+            let displayStatus = cleanStatus;
+            let badgeClass = "st-Pending";
+            
+            if(cleanStatus === "Approved") badgeClass = "st-Approved";
+            if(cleanStatus === "Rejected") badgeClass = "st-Rejected";
+            if(cleanStatus === "Pending Cancellation") {
+                badgeClass = "st-PendingCancellation";
+                displayStatus = `Pending Cancel Approval`;
+            }
+            if(cleanStatus === "Partially Cancelled") {
+                badgeClass = "st-PartiallyCancelled";
+                displayStatus = `Partially Cancelled (-${l.cancelledDays} Days)`;
+            }
+
+            let actionBtnHTML = "---";
+            if (cleanStatus === "Approved") {
+                actionBtnHTML = `<button class="btn-cancel-action" onclick="openCancellationModal('${l.id}', '${l.startDate}', '${l.endDate}', '${l.leaveType}')">Cancel Date</button>`;
+            } else if (cleanStatus === "Pending Cancellation") {
+                actionBtnHTML = `<span style="font-size:10px; color:var(--orange); font-weight:700;">Sent to Admin</span>`;
+            }
 
             tbody.innerHTML += `<tr>
                 <td>${ts}</td>
                 <td>${dateDisplay}</td>
                 <td><small>${l.leaveType || 'General'}</small></td>
                 <td>${l.days}</td>
-                <td><span class="badge ${badgeClass}">${cleanStatus}</span></td>
+                <td><span class="badge ${badgeClass}">${displayStatus}</span></td>
+                <td>${actionBtnHTML}</td>
             </tr>`;
         });
     });
+}
+
+function openCancellationModal(docId, appStart, appEnd, leaveType) {
+    document.getElementById("targetLeaveDocId").value = docId;
+    document.getElementById("targetLeaveType").value = leaveType;
+    
+    const startInp = document.getElementById("cancelStartDate");
+    const endInp = document.getElementById("cancelEndDate");
+    
+    // Set restrictions on date picker to match bounds of original application
+    startInp.min = appStart; startInp.max = appEnd;
+    endInp.min = appStart; endInp.max = appEnd;
+    
+    startInp.value = appStart;
+    endInp.value = appEnd;
+    
+    document.getElementById("leaveCancelModal").style.display = "block";
+}
+
+async function submitCancellationRequestToAdmin() {
+    const docId = document.getElementById("targetLeaveDocId").value;
+    const leaveType = document.getElementById("targetLeaveType").value;
+    const cStart = document.getElementById("cancelStartDate").value;
+    const cEnd = document.getElementById("cancelEndDate").value;
+    
+    if(!cStart || !cEnd) return alert("Please select cancellation bounds!");
+    
+    const d1 = new Date(cStart);
+    const d2 = new Date(cEnd);
+    if(d1 > d2) return alert("Invalid Date Bounds Selection!");
+    
+    const calculatedCancelDays = Math.ceil((d2 - d1) / (1000 * 60 * 60 * 24)) + 1;
+
+    try {
+        // Change state to Pending Cancellation & delegate routing configuration variables
+        await db.collection("emp_leaves").doc(docId).update({
+            status: "Pending Cancellation",
+            requestedCancelStart: cStart,
+            requestedCancelEnd: cEnd,
+            requestedCancelDays: calculatedCancelDays
+        });
+        
+        alert("🚀 Request Dispatched!\nCancellation dates forwarded to your Reporting Manager / Admin framework registry.");
+        document.getElementById("leaveCancelModal").style.display = "none";
+    } catch(e) {
+        alert("Error dispatching transaction parameters: " + e.message);
+    }
 }
 
 function calculateFull() {
