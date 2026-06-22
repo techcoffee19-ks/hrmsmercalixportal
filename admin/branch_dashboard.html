@@ -41,7 +41,6 @@
             if (!isVisible) container.style.display = "block";
         }
 
-        /* FIXED: Direct core click handler to invoke dynamic query pipeline compilation explicitly */
         function handleCardClick(id) {
             const el = document.getElementById(id);
             if (!el) return;
@@ -50,6 +49,7 @@
             if (!isVisible) {
                 el.style.display = "block";
                 if(id === 'v6') { refreshLeaveTableQueueSync(); }
+                if(id === 'vResignationDetail') { listenResignationApplicationsQueue(); }
                 window.scrollTo({ top: el.offsetTop - 100, behavior: 'smooth' });
             } else {
                 el.style.display = "none";
@@ -103,9 +103,13 @@
 
             try {
                 if (status === 'Approved') {
-                    const leaveDoc = await db.collection("emp_leaves").doc(leaveId).get();
-                    if (leaveDoc.exists) {
-                        const leaveData = leaveDoc.data();
+                    const leaveDoc = await db.collection("emp_leaves").get();
+                    let leaveData = null;
+                    let targetDocRef = db.collection("emp_leaves").doc(leaveId);
+                    const singleSnap = await targetDocRef.get();
+                    if(singleSnap.exists) leaveData = singleSnap.data();
+
+                    if (leaveData) {
                         const rawEmpId = leaveData.empId; 
                         const leaveDays = parseFloat(leaveData.days || 0);
                         const selectedCategory = leaveData.leaveType || "Casual Leave";
@@ -166,16 +170,12 @@
         }
 
         async function handleLeaveCancellationApproval(leaveId, isApproved) {
-            let updatePayload = {
-                actionDate: new Date().toLocaleDateString('en-GB').replace(/\//g, '-')
-            };
-
+            let updatePayload = { actionDate: new Date().toLocaleDateString('en-GB').replace(/\//g, '-') };
             if (!isApproved) {
                 const rReason = prompt("Enter Rejection Reason for Cancellation Disapproval:");
                 if (!rReason) return alert("Rejection reason is mandatory!");
-                updatePayload.status = "Approved"; // Revert to standard Approved state bounds
+                updatePayload.status = "Approved";
                 updatePayload.cancellationRejectionReason = rReason;
-                
                 try {
                     await db.collection("emp_leaves").doc(leaveId).update(updatePayload);
                     alert("Cancellation Request Disapproved. Base leave status preserved.");
@@ -197,15 +197,10 @@
                 if (rawEmpId && refundDaysCount > 0) {
                     let targetEmpRef = db.collection("employees").doc(rawEmpId);
                     let targetEmpDoc = await targetEmpRef.get();
-                    
                     if (!targetEmpDoc.exists) {
                         let querySnap = await db.collection("employees").where("name", "==", leaveData.name).get();
-                        if (!querySnap.empty) {
-                            targetEmpDoc = querySnap.docs[0];
-                            targetEmpRef = targetEmpDoc.ref;
-                        }
+                        if (!querySnap.empty) { targetEmpDoc = querySnap.docs[0]; targetEmpRef = targetEmpDoc.ref; }
                     }
-
                     if (targetEmpDoc.exists) {
                         const employeeProfile = targetEmpDoc.data();
                         let targetKeyField = "pl";
@@ -229,11 +224,9 @@
                 updatePayload.days = (leaveData.days - refundDaysCount) > 0 ? (leaveData.days - refundDaysCount) : 0;
 
                 await leaveDocRef.update(updatePayload);
-                alert("✔ Cancellation Approved successfully! Balance units restored into database layers.");
+                alert("✔ Cancellation Approved successfully!");
                 refreshLeaveTableQueueSync();
-            } catch(err) {
-                alert("Error processing cancellation request: " + err.message);
-            }
+            } catch(err) { alert(err.message); }
         }
 
         async function handleLateAction(reqId, status) {
@@ -330,6 +323,8 @@
         .type-badge { padding: 4px 10px; border-radius: 6px; font-size: 8.5px; font-weight: 900; text-transform: uppercase; display: inline-block; margin-right: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.03); }
         .tb-new { background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; }
         .tb-cancel { background: #fee2e2; color: #b91c1c; border: 1px solid #fecaca; }
+
+        .asset-audit-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; background: #f8fafc; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 6px; }
     </style>
 </head>
 <body onload="initDashboard()">
@@ -474,7 +469,17 @@
                 <label style="color: var(--dark); font-weight:800;">Leave Applications</label>
                 <div class="value" id="c6" style="color:var(--primary)">0</div>
             </div>
-            <div class="stat-box" onclick="handleCardClick('vManualPunchDetail')"><label style="color: #4f46e5;"><i class="fas fa-fingerprint"></i> Manual Punch Req</label><div class="value" id="cManualPunchCount" style="color:#4f46e5">0</div></div>
+            <div class="stat-box" onclick="handleCardClick('vManualPunchDetail')" style="border: 1.5px solid #4f46e5; background: #faf5ff;">
+                <label style="color: #4f46e5; font-weight:800;"><i class="fas fa-fingerprint"></i> Manual Punch Req</label>
+                <div class="value" id="cManualPunchCount" style="color:#4f46e5">0</div>
+            </div>
+        </div>
+
+        <div class="stats-grid" style="grid-template-columns: 1fr; margin-bottom: 15px;">
+            <div class="stat-box" onclick="handleCardClick('vResignationDetail')" style="border: 1.5px solid var(--danger); background: #fef2f2; padding: 15px 22px;">
+                <label style="color: var(--danger); font-weight:800;"><i class="fas fa-user-minus"></i> Exit Requests (HR Portal Only)</label>
+                <div class="value" id="cResignationCount" style="color:var(--danger)">0</div>
+            </div>
         </div>
 
         <div id="v1" class="detail-container"><h3>Full Team Mapping</h3><table id="t1"></table></div>
@@ -498,6 +503,11 @@
                 📋 Leave Management Queue Panel (Pending Requests & Cancellations)
             </h3>
             <table id="t6"></table>
+        </div>
+
+        <div id="vResignationDetail" class="detail-container">
+            <h3 style="color: var(--danger); text-transform:uppercase;"><i class="fas fa-door-open"></i> Resignation & Full Clearance Action Grid</h3>
+            <table id="tResignationTable"></table>
         </div>
         
         <div id="v7" class="detail-container"><h3>Approved History (Today)</h3><table id="t7"></table></div>
@@ -655,6 +665,9 @@ async function initDashboard() {
     
     listenManualPunchPipelineQueue();
     listenWFHApprovalQueue();
+    
+    // Global continuous sync
+    listenResignationApplicationsQueue();
 }
 
 function listenToNotifications() {
@@ -712,7 +725,6 @@ function resetFilters() {
     loadManagedData();
 }
 
-/* FIXED: Unified single pipeline core execution method to query pending queues on demand safely */
 function refreshLeaveTableQueueSync() {
     const today = new Date().toLocaleDateString('en-GB').replace(/\//g, '-');
     const selBranch = document.getElementById("fBranch") ? document.getElementById("fBranch").value : "All";
@@ -856,7 +868,6 @@ async function loadManagedData() {
             document.getElementById("c7").innerText = appToday.length;
             document.getElementById("c8").innerText = rejToday.length;
             
-            // Render default live background queues safely
             renderLeaveActionTable("t6", pending, true);
             renderLeaveActionTable("t7", appToday, false);
             renderLeaveActionTable("t8", rejToday, false);
@@ -895,7 +906,6 @@ function renderLateRequestTable(target, data) {
     if(el) el.innerHTML = h;
 }
 
-/* FIXED: Complete column restructuring mapping exact corporate employee layout metadata schemas */
 function renderLeaveActionTable(target, data, showAction) {
     let h = `<tr>
         <th style="padding: 12px; font-size: 10px; font-weight: 800; color: #94a3b8; text-transform: uppercase;">Employee ID</th>
@@ -920,7 +930,6 @@ function renderLeaveActionTable(target, data, showAction) {
         let dateRangeDisplay = `${r.startDate || '--'} to ${r.endDate || '--'}`;
         let displayDaysNum = r.days || '1';
         
-        // Dynamic formulation mapping full company code bounds strings
         let finalCompanyCodeText = r.companyCode || "GENERAL";
         let employeeFullIdentiferString = `${r.empId} <span style="font-size:9px; color:#94a3b8; font-weight:700;">[${finalCompanyCodeText}]</span>`;
 
@@ -1093,23 +1102,152 @@ async function processWFHApproval(logDocId, isApproved) {
     try {
         const logRef = db.collection("vc_logs").doc(logDocId);
         if(!isApproved) {
-            await logRef.update({
-                wfhStatus: "Rejected",
-                status: "ABSENT"
-            });
+            await logRef.update({ wfhStatus: "Rejected", status: "ABSENT" });
             alert("WFH Request Rejected. Day marked as Absent.");
             return;
         }
-
-        await logRef.update({
-            wfhStatus: "Approved",
-            status: "WFH"
-        });
+        await logRef.update({ wfhStatus: "Approved", status: "WFH" });
         alert("🎉 Remote WFH Attendance Log Locked and Validated successfully!");
+    } catch(e) { alert("Sync pipeline bottleneck: " + e.message); }
+}
 
-    } catch(e) {
-        alert("Sync pipeline bottleneck: " + e.message);
+/* HIGH-UPGRADE CRITICAL RE-ALIGNMENT: Direct single-gateway HR pipeline mapping */
+function listenResignationApplicationsQueue() {
+    db.collection("vc_resignations").onSnapshot(snap => {
+        let activePendingCounter = 0;
+        let h = `<tr>
+            <th>Emp ID</th>
+            <th>Name</th>
+            <th>Notice Strategy</th>
+            <th>Target LWD</th>
+            <th>Assets Audit & Clearance Checklist</th>
+            <th style="text-align:center;">Action Panel Suite</th>
+        </tr>`;
+
+        const tbody = document.getElementById("tResignationTable");
+        if (!tbody) return;
+
+        // Strict Check: Access permitted ONLY if user role is HR Admin/Main Admin
+        const isGlobalAdminScope = (userRole === "hr_admin" || userRole === "Main Admin" || userRole === "super_admin");
+
+        if (!isGlobalAdminScope) {
+            document.getElementById("cResignationCount").innerText = "0";
+            tbody.innerHTML = h + `<tr><td colspan="6" align="center" style="color:#94a3b8; padding:20px;">⚠️ ACCESS RESTRICTED: Resignation approval is exclusively managed by HR Administration.</td></tr>`;
+            return;
+        }
+
+        if (snap.empty) {
+            document.getElementById("cResignationCount").innerText = "0";
+            tbody.innerHTML = h + `<tr><td colspan="6" align="center" style="color:#94a3b8; padding:20px;">No resignation files logged inside database bounds.</td></tr>`;
+            return;
+        }
+
+        snap.forEach(doc => {
+            const r = doc.data();
+            const docId = doc.id;
+
+            if (r.hrStatus === "Pending") activePendingCounter++;
+
+            let assetChecklistHtml = "";
+            let assetsArr = r.allocatedAssets || [];
+            
+            if (assetsArr.length === 0) {
+                assetChecklistHtml = `<span style="color:var(--success); font-weight:800;"><i class="fas fa-check-circle"></i> Clean Slate (No Assets Assigned)</span>`;
+            } else {
+                assetsArr.forEach((asset, idx) => {
+                    let badgeColor = "orange";
+                    if (asset.clearance === "Cleared") badgeColor = "green";
+                    if (asset.clearance === "Damaged/Lost") badgeColor = "red";
+
+                    assetChecklistHtml += `
+                        <div class="asset-audit-row">
+                            <span><b>${asset.name}</b> <code style="font-size:9px;">(${asset.serial})</code></span>
+                            <div style="display:flex; gap:4px; align-items:center;">
+                                <span style="font-size:9px; font-weight:900; color:${badgeColor}; margin-right:4px;">${asset.clearance.toUpperCase()} ${asset.fine > 0 ? '(-₹'+asset.fine+')':''}</span>
+                                <button onclick="markResignationAssetCleared('${docId}', ${idx})" style="background:var(--success); color:white; border:none; padding:2px 6px; border-radius:4px; font-size:8px; cursor:pointer;" title="Mark Cleared">✓</button>
+                                <button onclick="markResignationAssetDamaged('${docId}', ${idx})" style="background:var(--danger); color:white; border:none; padding:2px 6px; border-radius:4px; font-size:8px; cursor:pointer;" title="Charge Fine">❌</button>
+                            </div>
+                        </div>`;
+                });
+            }
+
+            let buttonSuiteHtml = "";
+            if (r.hrStatus === "Pending") {
+                buttonSuiteHtml = `
+                    <div style="display:flex; gap:4px; justify-content:center;">
+                        <button class="btn-action-leave btn-approve" onclick="processResignationAction('${docId}', 'hr', 'Approved')">Approve</button>
+                        <button class="btn-action-leave btn-reject" onclick="processResignationAction('${docId}', 'hr', 'Rejected')">Reject</button>
+                    </div>`;
+            } else {
+                buttonSuiteHtml = `<div style="text-align:center;"><span class="status-badge-node sbn-${r.hrStatus === 'Approved'?'approved':'rejected'}">Final HR: ${r.hrStatus}</span></div>`;
+            }
+
+            h += `<tr>
+                <td><b>${r.empId}</b></td>
+                <td>${r.name}<br><small style="color:#64748b;">Dept: ${r.dept}</small></td>
+                <td><span style="color:var(--indigo); font-weight:700;">Notice: ${r.noticePeriod} Days</span><br><small>Filed: ${r.applyDate}</small></td>
+                <td style="color:var(--danger); font-weight:800;"><code>${r.requestedLastWorkingDate}</code></td>
+                <td style="min-width:240px;">${assetChecklistHtml}</td>
+                <td style="vertical-align:middle;">${buttonSuiteHtml}</td>
+            </tr>`;
+        });
+
+        document.getElementById("cResignationCount").innerText = activePendingCounter;
+        tbody.innerHTML = h;
+    });
+}
+
+async function processResignationAction(docId, scope, targetStatus) {
+    let updateFields = {};
+    const todayStr = new Date().toLocaleDateString('en-GB').replace(/\//g, '-');
+
+    updateFields.hrStatus = targetStatus;
+    updateFields.hrActionDate = todayStr;
+    updateFields.managerStatus = targetStatus; // Synced directly to eliminate dependencies
+    
+    if (targetStatus === "Rejected") {
+        const reason = prompt("Enter HR Admin Rejection Justification Note:");
+        if (!reason) return alert("HR Rejection reason note parameters are mandatory!");
+        updateFields.hrRejectionReason = reason;
+        updateFields.status = "Rejected by HR Admin";
+    } else {
+        updateFields.status = "Resignation Approved";
+        updateFields.fnfStatus = "Pending Settlement";
     }
+
+    try {
+        await db.collection("vc_resignations").doc(docId).update(updateFields);
+        alert(`🚀 Resignation updated to ${targetStatus} instantly in employee view ledger!`);
+    } catch(e) { alert(e.message); }
+}
+
+async function markResignationAssetCleared(docId, index) {
+    try {
+        const docRef = db.collection("vc_resignations").doc(docId);
+        const snap = await docRef.get();
+        if(!snap.exists) return;
+        let assets = snap.data().allocatedAssets || [];
+        assets[index].clearance = "Cleared";
+        assets[index].fine = 0;
+        await docRef.update({ allocatedAssets: assets });
+    } catch(e) { alert(e.message); }
+}
+
+async function markResignationAssetDamaged(docId, index) {
+    const fineInput = prompt("Enter Penalty fine deduction amount for Damaged/Lost Corporate asset (INR):", "0");
+    if (fineInput === null) return;
+    const fineAmount = Number(fineInput) || 0;
+
+    try {
+        const docRef = db.collection("vc_resignations").doc(docId);
+        const snap = await docRef.get();
+        if(!snap.exists) return;
+        let assets = snap.data().allocatedAssets || [];
+        assets[index].clearance = "Damaged/Lost";
+        assets[index].fine = fineAmount;
+        await docRef.update({ allocatedAssets: assets });
+        alert(`Fine of ₹${fineAmount} charged successfully.`);
+    } catch(e) { alert(e.message); }
 }
 
 function loadGlobalContent() {
@@ -1127,7 +1265,6 @@ function loadGlobalContent() {
     const dd = String(today.getDate()).padStart(2, '0');
     const mm = String(today.getMonth() + 1).padStart(2, '0');
     const yyyy = today.getFullYear();
-
     const todayDash = `${dd}-${mm}`; 
     const todayFull = `${yyyy}-${mm}-${dd}`; 
 
@@ -1186,7 +1323,6 @@ function listenHolidays() {
         const grid = document.getElementById("holidayGrid");
         const fullList = document.getElementById("fullHolidayList");
         if(grid) grid.innerHTML = "";
-        
         const todayISO = new Date().toISOString().split('T')[0]; 
         
         let tableH = `
@@ -1200,7 +1336,6 @@ function listenHolidays() {
                 </thead>
                 <tbody>
         `;
-        
         let counter = 0;
 
         snap.forEach(doc => { 
@@ -1225,7 +1360,6 @@ function listenHolidays() {
         });
         
         tableH += `</tbody></table>`;
-        
         if(grid && counter === 0) {
             grid.innerHTML = "<small style='color:#94a3b8; font-weight:700; padding:10px;'>NO UPCOMING HOLIDAYS</small>";
         }
@@ -1243,15 +1377,13 @@ async function saveHolidayRecord() {
     try {
         if(docId) {
             await db.collection("holidays").doc(docId).update({ name: name.trim(), date: date });
-            alert("✔ Holiday occasion updated successfully!");
+            alert("✔ Holiday updated successfully!");
         } else {
             await db.collection("holidays").add({ name: name.trim(), date: date });
-            alert("🚀 New Holiday created and broadcasted to employee registry dashboard panels!");
+            alert("🚀 New Holiday created successfully!");
         }
         resetHolidayForm();
-    } catch(e) {
-        alert("Firestore transaction bottleneck: " + e.message);
-    }
+    } catch(e) { alert(e.message); }
 }
 
 function loadHolidayForEdit(docId, name, date) {
@@ -1269,11 +1401,11 @@ function resetHolidayForm() {
 }
 
 async function deleteHolidayRecord(docId) {
-    if(!confirm("❌ Are you absolutely sure you want to remove this holiday from the corporate logs registry?")) return;
+    if(!confirm("❌ Remove this holiday from the logs?")) return;
     try {
         await db.collection("holidays").doc(docId).delete();
-        alert("🗑 Holiday entry removed from databases successfully.");
-    } catch(e) { alert("Deletion crashed: " + e.message); }
+        alert("🗑 Holiday entry removed successfully.");
+    } catch(e) { alert(e.message); }
 }
 
 async function assignTask() {
@@ -1317,7 +1449,6 @@ async function publishSaturdayWinner() {
     const gameName = document.getElementById("winGameName").value || "Saturday Fun Activity";
     const position = document.getElementById("winPosition").value;
     const score = document.getElementById("winScore").value || "N/A";
-    
     const currentSysDate = new Date();
     const formattedDateStr = currentSysDate.toLocaleDateString('en-GB').replace(/\//g, '-');
 
@@ -1348,13 +1479,11 @@ async function publishSaturdayWinner() {
             timestamp: Date.now()
         });
 
-        alert("🎉 Saturday Event Winner Published Successfully!\nBroadcast and notification pushed to dashboard.");
+        alert("🎉 Saturday Event Winner Published Successfully!");
         document.getElementById("winGameName").value = "";
         document.getElementById("winScore").value = "";
         sel.value = "";
-    } catch(e) {
-        alert("Sync error: " + e.message);
-    }
+    } catch(e) { alert("Sync error: " + e.message); }
 }
 
 async function publishAward() {
@@ -1367,8 +1496,7 @@ async function publishAward() {
     }
 
     const btn = document.getElementById("awardBtn");
-    btn.disabled = true;
-    btn.innerText = "Compressing & Uploading...";
+    btn.disabled = true; btn.innerText = "Compressing & Uploading...";
     
     try {
         const base64Array = [];
@@ -1383,18 +1511,12 @@ async function publishAward() {
             images: base64Array,
             timestamp: firebase.firestore.FieldValue.serverTimestamp()
         });
-        
         alert("🏅 Corporate Award Slider Successfully Broadcasted!");
         document.getElementById("awardTitle").value = "";
         document.getElementById("awardDesc").value = "";
         document.getElementById("awardImages").value = "";
-    } catch(e) {
-        console.error(e);
-        alert("Upload error: " + e.message);
-    } finally {
-        btn.disabled = false;
-        btn.innerText = "Publish Award ✨";
-    }
+    } catch(e) { alert("Upload error: " + e.message); } 
+    finally { btn.disabled = false; btn.innerText = "Publish Award ✨"; }
 }
 
 function compressImageAndConvertToBase64(file) {
@@ -1406,29 +1528,18 @@ function compressImageAndConvertToBase64(file) {
             img.src = event.target.result;
             img.onload = () => {
                 const canvas = document.createElement('canvas');
-                let width = img.width;
-                let height = img.height;
-
-                const MAX_WIDTH = 800;
-                const MAX_HEIGHT = 600;
+                let width = img.width; let height = img.height;
+                const MAX_WIDTH = 800; const MAX_HEIGHT = 600;
 
                 if (width > height) {
-                    if (width > MAX_WIDTH) {
-                        height *= MAX_WIDTH / width;
-                        width = MAX_WIDTH;
-                    }
+                    if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; }
                 } else {
-                    if (height > MAX_HEIGHT) {
-                        width *= MAX_HEIGHT / height;
-                        height = MAX_HEIGHT;
-                    }
+                    if (height > MAX_HEIGHT) { width *= MAX_HEIGHT / height; height = MAX_HEIGHT; }
                 }
 
-                canvas.width = width;
-                canvas.height = height;
+                canvas.width = width; canvas.height = height;
                 const ctx = canvas.getContext('2d');
                 ctx.drawImage(img, 0, 0, width, height);
-
                 const dataUrl = canvas.toDataURL('image/jpeg', 0.6);
                 resolve(dataUrl);
             };

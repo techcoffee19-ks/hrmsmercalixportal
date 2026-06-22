@@ -75,7 +75,7 @@
         .side-profile .designation { color: var(--blue); font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
 
         .mini-spec-list { margin-top: 20px; border-top: 1px dashed var(--border); padding-top: 15px; }
-        .spec-item { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #f1f5f9; font-size: 13px; }
+        .spec-item { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #f1f5f9; font-size: 13px; align-items: center; }
         .spec-item span { color: var(--slate-400); font-weight: 500; }
         .spec-item b { color: var(--slate-700); font-weight: 600; }
 
@@ -123,12 +123,14 @@
         .badge-blue { background: var(--blue-light); color: var(--blue); }
         .badge-purple { background: var(--wfh-light); color: var(--wfh); border: 1px solid var(--wfh); }
 
-        .btn-action-view { padding: 4px 8px; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; text-decoration: none; color: var(--slate-700); font-size: 11px; font-weight: 700; }
+        .btn-action-view { padding: 4px 8px; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; text-decoration: none; color: var(--slate-700); font-size: 11px; font-weight: 700; display: inline-flex; align-items: center; gap: 4px; }
         .gauge-block { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 10px 0; position: relative; }
         .gauge-wrapper { width: 200px; height: 110px; position: relative; }
         .gauge-text { position: absolute; bottom: 5px; text-align: center; left: 50%; transform: translateX(-50%); }
         .gauge-text b { font-size: 22px; display: block; color: var(--dark); font-weight: 800; }
         .gauge-text small { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+        
+        .vault-item-container { background: #f8fafc; border: 1px solid var(--border); padding: 10px 12px; border-radius: 8px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
     </style>
 </head>
 <body onload="initAuditPortal()">
@@ -138,7 +140,7 @@
         <div class="profile-card-center">
             <div class="emp-pfp-wrapper">
                 <img id="pfp" src="https://cdn-icons-png.flaticon.com/512/3135/3135715.png" class="emp-pfp" alt="Employee Photo">
-                <div class="status-badge" id="livePresence">LIVE SYNC</div>
+                <div class="status-badge" id="livePresence" style="background: var(--success);">LIVE SYNC</div>
             </div>
             <h2 id="name">Loading...</h2>
             <p class="designation" id="role">Fetching Profile...</p>
@@ -345,18 +347,16 @@
                     <div class="card-header-v2">
                         <h3><i class="fas fa-vault" style="color: var(--dark);"></i> Compliance & Security</h3>
                     </div>
-                    <div class="spec-item" style="padding: 12px 0;">
-                        <span>KYC Status Verification</span>
-                        <span class="badge badge-success" id="complianceKycStatus">Verified</span>
+                    <div class="spec-item" style="padding: 10px 0; border-bottom: 2px solid var(--bg);">
+                        <span>KYC Progress Tracking Status</span>
+                        <span class="badge" id="complianceKycStatus" style="font-weight: 800;">0% Complete</span>
                     </div>
-                    <div class="spec-item" style="padding: 12px 0;">
-                        <span>PAN Card Vault Attachment</span>
-                        <a href="#" class="btn-action-view" id="vaultPanFile" target="_blank"><i class="fas fa-eye"></i> View Doc</a>
+                    <div class="spec-item" style="padding: 10px 0; border-bottom: 2px solid var(--bg);">
+                        <span>Biometric Template Record</span>
+                        <span class="badge badge-blue" id="biometricMapStatus">Scanning Template...</span>
                     </div>
-                    <div class="spec-item" style="padding: 12px 0;">
-                        <span>Biometric Descriptor Array</span>
-                        <span class="badge badge-blue" id="biometricMapStatus">Linked</span>
-                    </div>
+                    <div style="margin-top: 15px; display: flex; flex-direction: column; gap: 6px;" id="vaultFileGridRows">
+                        </div>
                 </div>
             </div>
         </div>
@@ -389,7 +389,6 @@ let wfhDaysCount = 0;
 let totalLeavesCount = 0;
 
 let monthWiseBifurcationMap = {};
-
 const monthNamesIndex = ["", "January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
 function initAuditPortal() {
@@ -409,6 +408,22 @@ function initAuditPortal() {
     streamCoreEmployeeFile();
 }
 
+function calculateLiveKYCProgress(empData) {
+    const fields = [
+        empData.name, empData.general?.dob || empData.fullDob || empData.dob, 
+        empData.general?.gender, empData.general?.personalemail, empData.mobile,
+        empData.general?.emergencycontact, empData.general?.curraddress,
+        empData.payroll?.bankname, empData.payroll?.accnumber, empData.payroll?.ifsc, empData.payroll?.pan
+    ];
+    const docs = [
+        empData.kyc?.aadhar_url, empData.kyc?.pan_url, empData.kyc?.address_url,
+        empData.kyc?.education_url, empData.kyc?.Check_url
+    ];
+    const filledFields = fields.filter(f => f && f !== "").length;
+    const filledDocs = docs.filter(doc => doc && doc !== "").length;
+    return Math.round(((filledFields + filledDocs) / (fields.length + docs.length)) * 100);
+}
+
 function streamCoreEmployeeFile() {
     db.collection("employees").doc(globalEmpIdClean).onSnapshot(doc => {
         if(doc.exists) {
@@ -422,11 +437,8 @@ function streamCoreEmployeeFile() {
             document.getElementById("br").innerText = data.branch || data.job?.location || "General HQ";
             document.getElementById("deptDisp").innerText = data.dept || data.job?.department || "Operations Group";
 
-            if(data.profilePhotoUrl) {
-                document.getElementById("pfp").src = data.profilePhotoUrl;
-            } else if(data.general && data.general.profilephoto) {
-                document.getElementById("pfp").src = data.general.profilephoto;
-            }
+            if(data.profilePhotoUrl) { document.getElementById("pfp").src = data.profilePhotoUrl; }
+            else if(data.general && data.general.profilephoto) { document.getElementById("pfp").src = data.general.profilephoto; }
 
             document.getElementById("detName").innerText = data.name || "N/A";
             document.getElementById("detEmail").innerText = data.general?.personalemail || data.email || "enterprise@mercalix.local";
@@ -437,15 +449,36 @@ function streamCoreEmployeeFile() {
                 let famText = data.family.map(f => `${f.name} (${f.relation})`).join(", ");
                 document.getElementById("detFather").innerText = famText;
             } else {
-                document.getElementById("detFather").innerText = data.family?.fatherName || data.family?.fatherName || "---";
+                document.getElementById("detFather").innerText = data.family?.fatherName || "---";
             }
             
             document.getElementById("detRelation").innerText = data.general?.emergencycontact || "Guardian Head";
             document.getElementById("detMobile").innerText = data.mobile || data.general?.mobile || "---";
             document.getElementById("detAddress").innerText = data.general?.curraddress || data.address || "India Office Base";
 
-            document.getElementById("complianceKycStatus").innerText = data.kycStatus || (data.kyc?.status) || "Active";
-            if(data.kyc?.pan_url) document.getElementById("vaultPanFile").href = data.kyc.pan_url;
+            // UPGRADED METRIC CONTROL: Realtime percentage parser loader
+            const percentage = calculateLiveKYCProgress(data);
+            const kycStatusBadge = document.getElementById("complianceKycStatus");
+            kycStatusBadge.innerText = percentage === 100 ? "Verified (100%)" : `Pending (${percentage}%)`;
+            kycStatusBadge.className = percentage === 100 ? "badge badge-success" : "badge badge-danger";
+
+            // UPGRADED 5-SLOT INTEGRATED REPOSITORY VIEW
+            const fileContainer = document.getElementById("vaultFileGridRows");
+            fileContainer.innerHTML = "";
+            const docMap = [
+                { label: "Aadhar Card Copy", url: data.kyc?.aadhar_url },
+                { label: "PAN Card Copy", url: data.kyc?.pan_url },
+                { label: "Address Proof Document", url: data.kyc?.address_url },
+                { label: "Degree Certificates", url: data.kyc?.education_url },
+                { label: "Cancel Cheque Attachment", url: data.kyc?.Check_url }
+            ];
+            docMap.forEach(doc => {
+                fileContainer.innerHTML += `
+                    <div class="vault-item-container">
+                        <small style="font-weight:700; color:var(--slate-700); font-size:11px;">${doc.label}</small>
+                        ${doc.url ? `<a href="${doc.url}" target="_blank" class="btn-action-view"><i class="fas fa-eye"></i> View File</a>` : `<span style="font-size:9.5px; color:var(--danger); font-weight:800;">NOT UPLOADED</span>`}
+                    </div>`;
+            });
 
             syncMonthlyMetrics();
         }
@@ -462,31 +495,16 @@ function syncMonthlyMetrics() {
     const toText = document.getElementById("filterMonthTo").options[document.getElementById("filterMonthTo").selectedIndex].text;
     document.querySelectorAll(".payslipMonthLabel").forEach(el => el.innerText = `${fromText} ${fromYear} - ${toText} ${toYear}`);
 
-    presentDaysCount = 0;
-    absentDaysCount = 0;
-    lateDaysCount = 0;
-    wfhDaysCount = 0; 
-    let effectiveWorkdays = 0;
-    let combinedProductiveHours = 0;
-
+    presentDaysCount = 0; absentDaysCount = 0; lateDaysCount = 0; wfhDaysCount = 0; 
+    let effectiveWorkdays = 0; let combinedProductiveHours = 0;
     monthWiseBifurcationMap = {};
     
-    let currentY = fromYear;
-    let currentM = fromMonth;
+    let currentY = fromYear; let currentM = fromMonth;
     while (currentY < toYear || (currentY === toYear && currentM <= toMonth)) {
         const uniqueMonthKey = `${currentY}-${String(currentM).padStart(2, '0')}`;
-        monthWiseBifurcationMap[uniqueMonthKey] = {
-            monthLabel: `${monthNamesIndex[currentM]} ${currentY}`,
-            present: 0,
-            absent: 0,
-            late: 0,
-            wfh: 0
-        };
+        monthWiseBifurcationMap[uniqueMonthKey] = { monthLabel: `${monthNamesIndex[currentM]} ${currentY}`, present: 0, absent: 0, late: 0, wfh: 0 };
         currentM++;
-        if (currentM > 12) {
-            currentM = 1;
-            currentY++;
-        }
+        if (currentM > 12) { currentM = 1; currentY++; }
     }
 
     if(fetchedEmployeeData.attendance_manual_logs) {
@@ -494,16 +512,12 @@ function syncMonthlyMetrics() {
         Object.keys(manualLogsMap).forEach(logDateKey => {
             const parts = logDateKey.split('-'); 
             if(parts.length === 3) {
-                const logYearInt = parseInt(parts[0]);
+                const logYearInt = parseInt(parts[2]);
                 const logMonthInt = parseInt(parts[1]);
                 const uniqueKey = `${logYearInt}-${String(logMonthInt).padStart(2, '0')}`;
-                
                 if (monthWiseBifurcationMap[uniqueKey]) {
                     const statusValue = String(manualLogsMap[logDateKey]).toUpperCase();
-                    if(statusValue === "ABSENT") {
-                        absentDaysCount++;
-                        monthWiseBifurcationMap[uniqueKey].absent++;
-                    }
+                    if(statusValue === "ABSENT") { absentDaysCount++; monthWiseBifurcationMap[uniqueKey].absent++; }
                 }
             }
         });
@@ -512,20 +526,16 @@ function syncMonthlyMetrics() {
     const attendanceRowContainer = document.getElementById("attendanceLogRows");
     attendanceRowContainer.innerHTML = `<tr><td colspan="5" style="text-align:center; color: var(--slate-400);"><i class="fas fa-spinner fa-spin"></i> Merging Range Ledgers...</td></tr>`;
 
-    // Supporting all flexible multi references lookup strings
     db.collection("vc_logs").get().then(snapshot => {
         monthlyLogsStore = [];
         let organizedDailyLogsMap = {};
-
-        const filteredDocs = snapshot.docs.map(doc => doc.data()).filter(l => {
-            return (l.id === globalEmpIdClean || l.id === globalRawEmpId || l.empId === globalEmpIdClean || l.empId === globalRawEmpId);
-        });
+        const filteredDocs = snapshot.docs.map(doc => doc.data()).filter(l => (l.id === globalEmpIdClean || l.id === globalRawEmpId || l.empId === globalEmpIdClean || l.empId === globalRawEmpId));
 
         filteredDocs.forEach(logData => {
             if (logData.date) {
                 const dateParts = logData.date.split('-'); 
                 if(dateParts.length === 3) {
-                    const currentLogYear = parseInt(dateParts[2].length === 4 ? dateParts[2] : dateParts[0]);
+                    const currentLogYear = parseInt(dateParts[2]);
                     const currentLogMonth = parseInt(dateParts[1]);
                     const uniqueKey = `${currentLogYear}-${String(currentLogMonth).padStart(2, '0')}`;
                     
@@ -533,48 +543,24 @@ function syncMonthlyMetrics() {
                         const targetDay = logData.date;
                         if (!organizedDailyLogsMap[targetDay]) {
                             organizedDailyLogsMap[targetDay] = { 
-                                date: targetDay, 
-                                in: "---", 
-                                out: "---", 
-                                late: false, 
-                                geo: "N/A", 
-                                isWFH: false,
-                                isManual: false,
-                                rawHours: 0, 
-                                yearSort: currentLogYear,
-                                monthSort: currentLogMonth, 
-                                daySort: parseInt(dateParts[0].length === 4 ? dateParts[2] : dateParts[0]),
-                                monthKey: uniqueKey
+                                date: targetDay, in: "---", out: "---", late: false, geo: "N/A", isWFH: false, isManual: false, rawHours: 0, 
+                                yearSort: currentLogYear, monthSort: currentLogMonth, daySort: parseInt(dateParts[0]), monthKey: uniqueKey
                             };
                         }
-                        
                         const logStatusClean = String(logData.status || "").toUpperCase().trim();
                         const currentType = String(logData.punchType || logData.type || "IN").toUpperCase().trim();
                         
-                        /* ─── 🌟 STABLE COMPLIANCE MECHANISM: INTELLIGENT FIELD CHECK INTERCEPTOR ─── */
                         if (currentType === "IN") {
-                            organizedDailyLogsMap[targetDay].in = logData.time;
-                            organizedDailyLogsMap[targetDay].geo = logData.location || "Office Base Desk";
-                            
-                            if(logData.isWFH === true || logStatusClean.includes("WFH") || logData.wfhStatus === "Approved") {
-                                organizedDailyLogsMap[targetDay].isWFH = true;
-                            }
-                            
+                            organizedDailyLogsMap[targetDay].in = logData.time; organizedDailyLogsMap[targetDay].geo = logData.location || "Office Base Desk";
+                            if(logData.isWFH === true || logStatusClean.includes("WFH") || logData.wfhStatus === "Approved") organizedDailyLogsMap[targetDay].isWFH = true;
                             if(logData.locationTag === "Manual Punch" || logData.location === "Manual Punch" || logStatusClean.includes("MANUAL")) {
-                                organizedDailyLogsMap[targetDay].isManual = true;
-                                organizedDailyLogsMap[targetDay].geo = "Manual Punch";
+                                organizedDailyLogsMap[targetDay].isManual = true; organizedDailyLogsMap[targetDay].geo = "Manual Punch";
                             }
-
-                            if (logData.late === true || logData.late === "true" || logStatusClean === "LATE" || logStatusClean === "LATE MARK") {
-                                organizedDailyLogsMap[targetDay].late = true;
-                            }
+                            if (logData.late === true || logData.late === "true" || logStatusClean === "LATE" || logStatusClean === "LATE MARK") organizedDailyLogsMap[targetDay].late = true;
                         }
-                        
-                        if (currentType === "OUT" || logStatusClean === "SHIFT END" || logData.time === "19:30" && logData.locationTag === "Manual Punch") {
+                        if (currentType === "OUT" || logStatusClean === "SHIFT END") {
                             organizedDailyLogsMap[targetDay].out = logData.time;
-                            if(logData.locationTag === "Manual Punch" || logData.location === "Manual Punch" || logStatusClean.includes("MANUAL")) {
-                                organizedDailyLogsMap[targetDay].isManual = true;
-                            }
+                            if(logData.locationTag === "Manual Punch" || logData.location === "Manual Punch" || logStatusClean.includes("MANUAL")) organizedDailyLogsMap[targetDay].isManual = true;
                         }
                     }
                 }
@@ -582,82 +568,34 @@ function syncMonthlyMetrics() {
         });
 
         attendanceRowContainer.innerHTML = "";
-        
         const sortedDaysKeys = Object.keys(organizedDailyLogsMap).sort((a,b) => {
             if(organizedDailyLogsMap[a].yearSort !== organizedDailyLogsMap[b].yearSort) return organizedDailyLogsMap[a].yearSort - organizedDailyLogsMap[b].yearSort;
             if(organizedDailyLogsMap[a].monthSort !== organizedDailyLogsMap[b].monthSort) return organizedDailyLogsMap[a].monthSort - organizedDailyLogsMap[b].monthSort;
             return organizedDailyLogsMap[a].daySort - organizedDailyLogsMap[b].daySort;
         });
 
-        const todayStringStr = new Date().toLocaleDateString('en-GB').replace(/\//g, '-');
-        if(organizedDailyLogsMap[todayStringStr]) {
-            const todayObj = organizedDailyLogsMap[todayStringStr];
-            if(todayObj.isWFH) {
-                document.getElementById("livePresence").innerText = "WORK FROM HOME 🏠";
-                document.getElementById("livePresence").style.background = "var(--wfh)";
-            } else {
-                document.getElementById("livePresence").innerText = "OFFICE BASE 🏢";
-                document.getElementById("livePresence").style.background = "var(--success)";
+        sortedDaysKeys.forEach(dayKey => {
+            const dayObj = organizedDailyLogsMap[dayKey];
+            effectiveWorkdays++;
+            if(monthWiseBifurcationMap[dayObj.monthKey]) {
+                if (dayObj.isWFH) { wfhDaysCount++; monthWiseBifurcationMap[dayObj.monthKey].wfh++; } 
+                else { presentDaysCount++; monthWiseBifurcationMap[dayObj.monthKey].present++; }
+                if (dayObj.late) { lateDaysCount++; monthWiseBifurcationMap[dayObj.monthKey].late++; }
             }
-        } else {
-            document.getElementById("livePresence").innerText = "NOT LOGGED TODAY";
-            document.getElementById("livePresence").style.background = "var(--slate-400)";
-        }
 
-        if (sortedDaysKeys.length === 0) {
-            attendanceRowContainer.innerHTML = `<tr><td colspan="5" style="text-align:center; color: var(--slate-400);">No logs synced for this custom range.</td></tr>`;
-        } else {
-            sortedDaysKeys.forEach(dayKey => {
-                const dayObj = organizedDailyLogsMap[dayKey];
-                effectiveWorkdays++;
-                
-                if(monthWiseBifurcationMap[dayObj.monthKey]) {
-                    if (dayObj.isWFH) {
-                        wfhDaysCount++;
-                        monthWiseBifurcationMap[dayObj.monthKey].wfh++;
-                    } else {
-                        presentDaysCount++;
-                        monthWiseBifurcationMap[dayObj.monthKey].present++;
-                    }
+            let calculatedHoursString = "---";
+            if(dayObj.in !== "---" && dayObj.out !== "---") {
+                const mockComputedHrs = (8 + Math.random() * 1.2); combinedProductiveHours += mockComputedHrs;
+                calculatedHoursString = `${mockComputedHrs.toFixed(1)} Hrs`; dayObj.rawHours = parseFloat(mockComputedHrs.toFixed(1));
+            }
+            let locationBadgeHTML = `<small style="font-size:11px; font-weight:600;"><i class="fas fa-map-marker-alt text-danger"></i> ${dayObj.geo}</small>`;
+            if(dayObj.isManual) locationBadgeHTML = `<span class="badge" style="background:#e0e7ff; color:#4f46e5; font-size:10px;"><i class="fas fa-fingerprint"></i> Manual Punch</span>`;
+            else if(dayObj.isWFH) locationBadgeHTML = `<span class="badge badge-purple" style="font-size:10px;"><i class="fas fa-house-user"></i> Remote Home Log</span>`;
 
-                    if (dayObj.late) {
-                        lateDaysCount++;
-                        monthWiseBifurcationMap[dayObj.monthKey].late++;
-                    }
-                }
-
-                let calculatedHoursString = "---";
-                if(dayObj.in !== "---" && dayObj.out !== "---") {
-                    const mockComputedHrs = (8 + Math.random() * 1.2);
-                    combinedProductiveHours += mockComputedHrs;
-                    calculatedHoursString = `${mockComputedHrs.toFixed(1)} Hrs`;
-                    dayObj.rawHours = parseFloat(mockComputedHrs.toFixed(1));
-                } else if (dayObj.in !== "---") {
-                    calculatedHoursString = "Shift Open";
-                    dayObj.rawHours = 4.0;
-                    combinedProductiveHours += 4.0;
-                }
-
-                monthlyLogsStore.push(dayObj);
-
-                let locationBadgeHTML = `<small style="font-size:11px; font-weight:600;"><i class="fas fa-map-marker-alt text-danger"></i> ${dayObj.geo}</small>`;
-                if(dayObj.isManual) {
-                    locationBadgeHTML = `<span class="badge" style="background:#e0e7ff; color:#4f46e5; font-size:10px;"><i class="fas fa-fingerprint"></i> ✨ Manual Punch</span>`;
-                } else if(dayObj.isWFH) {
-                    locationBadgeHTML = `<span class="badge badge-purple" style="font-size:10px;"><i class="fas fa-house-user"></i> Remote Home Log</span>`;
-                }
-
-                const row = document.createElement("tr");
-                row.innerHTML = `
-                    <td><b>${dayObj.date}</b></td>
-                    <td><span class="badge badge-success">${dayObj.in}</span></td>
-                    <td><span class="badge badge-blue">${dayObj.out}</span></td>
-                    <td><span class="badge ${dayObj.rawHours >= 8 ? 'badge-success' : 'badge-warning'}">${calculatedHoursString}</span></td>
-                    <td>${locationBadgeHTML}</td>
-                `;
-                attendanceRowContainer.appendChild(row);
-            });
-        }
+            const row = document.createElement("tr");
+            row.innerHTML = `<td><b>${dayObj.date}</b></td><td><span class="badge badge-success">${dayObj.in}</span></td><td><span class="badge badge-blue">${dayObj.out}</span></td><td><span class="badge ${dayObj.rawHours >= 8 ? 'badge-success' : 'badge-warning'}">${calculatedHoursString}</span></td><td>${locationBadgeHTML}</td>`;
+            attendanceRowContainer.appendChild(row);
+        });
 
         document.getElementById("metricWorkdays").innerText = presentDaysCount + wfhDaysCount + absentDaysCount;
         document.getElementById("metricPresent").innerText = presentDaysCount;
@@ -667,23 +605,13 @@ function syncMonthlyMetrics() {
         document.getElementById("metricHours").innerText = `${combinedProductiveHours.toFixed(1)} Hrs`;
 
         let incomingSalaryFieldRaw = fetchedEmployeeData.salary;
-        if(fetchedEmployeeData.payroll && fetchedEmployeeData.payroll.basic) {
-            incomingSalaryFieldRaw = fetchedEmployeeData.payroll.basic;
-        }
-        if (incomingSalaryFieldRaw && typeof incomingSalaryFieldRaw === 'string') {
-            incomingSalaryFieldRaw = incomingSalaryFieldRaw.replace(/[^0-9.]/g, '');
-        }
-        let baseSingleMonthSalary = parseFloat(incomingSalaryFieldRaw);
-        if (isNaN(baseSingleMonthSalary) || baseSingleMonthSalary <= 0) {
-            baseSingleMonthSalary = 45000; 
-        }
+        if(fetchedEmployeeData.payroll && fetchedEmployeeData.payroll.basic) incomingSalaryFieldRaw = fetchedEmployeeData.payroll.basic;
+        if (incomingSalaryFieldRaw && typeof incomingSalaryFieldRaw === 'string') incomingSalaryFieldRaw = incomingSalaryFieldRaw.replace(/[^0-9.]/g, '');
+        let baseSingleMonthSalary = parseFloat(incomingSalaryFieldRaw) || 45000;
 
         const totalActiveMonthsCount = Object.keys(monthWiseBifurcationMap).length;
         const totalRangeSalaryBasis = baseSingleMonthSalary * totalActiveMonthsCount;
-
-        const latePenaltiesDeduction = lateDaysCount * 250; 
-        const absentPenaltiesDeduction = absentDaysCount * 1200;
-        const normalizedNetCalculatedPay = Math.max(0, totalRangeSalaryBasis - latePenaltiesDeduction - absentPenaltiesDeduction);
+        const normalizedNetCalculatedPay = Math.max(0, totalRangeSalaryBasis - (lateDaysCount * 250) - (absentDaysCount * 1200));
 
         document.getElementById("metricNetPay").innerText = "₹ " + normalizedNetCalculatedPay.toLocaleString('en-IN');
         document.getElementById("payGross").innerText = "₹ " + normalizedNetCalculatedPay.toLocaleString('en-IN');
@@ -691,93 +619,47 @@ function syncMonthlyMetrics() {
         document.getElementById("payHRA").innerText = "₹ " + (normalizedNetCalculatedPay * 0.4).toLocaleString('en-IN');
         document.getElementById("payBonus").innerText = "₹ " + (normalizedNetCalculatedPay * 0.1).toLocaleString('en-IN');
 
-        let calculatedEfficiencyPercentage = 100;
-        const netProductiveDays = presentDaysCount + wfhDaysCount;
-        if (netProductiveDays > 0) {
-            const lateDeductionRatio = (lateDaysCount / netProductiveDays) * 40;
-            calculatedEfficiencyPercentage = Math.round(Math.max(15, 100 - lateDeductionRatio));
-        } else if (absentDaysCount > 0) {
-            calculatedEfficiencyPercentage = 0;
-        }
+        let calculatedEfficiencyPercentage = 100; const netProductiveDays = presentDaysCount + wfhDaysCount;
+        if (netProductiveDays > 0) calculatedEfficiencyPercentage = Math.round(Math.max(15, 100 - ((lateDaysCount / netProductiveDays) * 40)));
+        else if (absentDaysCount > 0) calculatedEfficiencyPercentage = 0;
         updateEfficiencyGaugeWidget(calculatedEfficiencyPercentage);
     });
 
     const leaveContainerBoard = document.getElementById("leaveHistoryRows");
     db.collection("emp_leaves").where("empId", "==", globalEmpIdClean).get().then(snap => {
-        leaveContainerBoard.innerHTML = "";
-        monthlyLeavesStore = [];
-        totalLeavesCount = 0;
-
+        leaveContainerBoard.innerHTML = ""; monthlyLeavesStore = []; totalLeavesCount = 0;
         snap.forEach(doc => {
-            const leaveItem = doc.data();
-            totalLeavesCount++;
-            
-            monthlyLeavesStore.push({
-                date: leaveItem.date || "N/A",
-                reason: leaveItem.reason || "N/A",
-                status: leaveItem.status || "Pending"
-            });
-
-            let statusBadgeClass = "badge-warning";
-            if(leaveItem.status === "Approved") statusBadgeClass = "badge-success";
-            if(leaveItem.status === "Rejected" || leaveItem.status === "Denied") statusBadgeClass = "badge-danger";
-
+            const leaveItem = doc.data(); totalLeavesCount++;
+            monthlyLeavesStore.push({ date: leaveItem.date || "N/A", reason: leaveItem.reason || "N/A", status: leaveItem.status || "Pending" });
+            let statusBadgeClass = leaveItem.status === "Approved" ? "badge-success" : (leaveItem.status === "Rejected" ? "badge-danger" : "badge-warning");
             const row = document.createElement("tr");
-            row.innerHTML = `
-                <td><small><b>${leaveItem.date || "Custom Range"}</b></small></td>
-                <td><b style="font-size:12px; color: var(--slate-700);">${leaveItem.reason || "Personal Leave Application"}</b></td>
-                <td><span class="badge ${statusBadgeClass}">${leaveItem.status || "Pending Match"}</span></td>
-            `;
+            row.innerHTML = `<td><small><b>${leaveItem.date || "Custom Range"}</b></small></td><td><b style="font-size:12px; color: var(--slate-700);">${leaveItem.reason || "Personal Leave"}</b></td><td><span class="badge ${statusBadgeClass}">${leaveItem.status || "Pending"}</span></td>`;
             leaveContainerBoard.appendChild(row);
         });
-
         document.getElementById("totalLeavesCountBadge").innerText = `Total Leaves: ${totalLeavesCount}`;
-
-        if(totalLeavesCount === 0) {
-            leaveContainerBoard.innerHTML = `<tr><td colspan="3" style="text-align:center; color: var(--slate-400);">No leaves logged.</td></tr>`;
-        }
+        if(totalLeavesCount === 0) leaveContainerBoard.innerHTML = `<tr><td colspan="3" style="text-align:center; color: var(--slate-400);">No leaves logged.</td></tr>`;
     });
 
     db.collection("vc_biometrics").doc(globalEmpIdClean).get().then(bioDoc => {
         const bioBadge = document.getElementById("biometricMapStatus");
-        if(bioDoc.exists) {
-            bioBadge.innerText = "Linked Template";
-            bioBadge.className = "badge badge-success";
-        } else {
-            bioBadge.innerText = "No Template Found";
-            bioBadge.className = "badge badge-danger";
-        }
+        if(bioDoc.exists) { bioBadge.innerText = "Linked Template"; bioBadge.className = "badge badge-success"; } 
+        else { bioBadge.innerText = "No Template Found"; bioBadge.className = "badge badge-danger"; }
     });
 }
 
 let referenceGaugeChartInstance = null;
 function updateEfficiencyGaugeWidget(score) {
     document.getElementById("gaugeScoreValue").innerText = score + "%";
-    let textStatus = "EXCELLENT STATUS";
-    let colorHexValue = "#10b981";
-
-    if(score < 50) { textStatus = "CRITICAL AUDIT"; colorHexValue = "#ef4444"; }
+    let textStatus = "EXCELLENT STATUS"; let colorHexValue = "#10b981";
+    if(score < 50) { textStatus = "CRITICAL AUDIT"; colorHexValue = "#ef4444"; } 
     else if(score < 80) { textStatus = "AVERAGE BOUND"; colorHexValue = "#ffb100"; }
-    
-    document.getElementById("gaugeStatusText").innerText = textStatus;
-    document.getElementById("gaugeStatusText").style.color = colorHexValue;
+    document.getElementById("gaugeStatusText").innerText = textStatus; document.getElementById("gaugeStatusText").style.color = colorHexValue;
 
     const ctxCanvas = document.getElementById('efficiencyGaugeCanvas').getContext('2d');
     if(referenceGaugeChartInstance) referenceGaugeChartInstance.destroy();
-
     referenceGaugeChartInstance = new Chart(ctxCanvas, {
         type: 'doughnut',
-        data: {
-            datasets: [{
-                data: [score, 100 - score],
-                backgroundColor: [colorHexValue, '#f1f5f9'],
-                borderWidth: 0,
-                circumference: 180,
-                rotation: 270,
-                cutout: '80%',
-                borderRadius: 10
-            }]
-        },
+        data: { datasets: [{ data: [score, 100 - score], backgroundColor: [colorHexValue, '#f1f5f9'], borderWidth: 0, circumference: 180, rotation: 270, cutout: '80%', borderRadius: 10 }] },
         options: { plugins: { legend: { display: false }, tooltip: { enabled: false } }, maintainAspectRatio: false }
     });
 }
@@ -787,118 +669,17 @@ function exportDataToExcel() {
     const fromYear = document.getElementById("filterYearFrom").value;
     const toText = document.getElementById("filterMonthTo").options[document.getElementById("filterMonthTo").selectedIndex].text;
     const toYear = document.getElementById("filterYearTo").value;
-    
     const matrix = [];
-
     matrix.push(["MERCALIX ENTERPRISE HRMS - CONSOLIDATED MULTI-MONTH RECORD"]);
     matrix.push([`Audit Execution Range Block: ${fromText} ${fromYear} to ${toText} ${toYear}`]);
     matrix.push([]); 
-
     matrix.push(["1. EMPLOYEE DEMOGRAPHICS & PROFILE RECORD"]);
     matrix.push(["Employee Name:", fetchedEmployeeData.name || "N/A", "", "Staff ID Reference:", fetchedEmployeeData.id || globalRawEmpId]);
-    matrix.push(["Designation Role:", fetchedEmployeeData.desig || fetchedEmployeeData.job?.designation || "Staff Professional", "", "Reporting Manager:", fetchedEmployeeData.reportingManager || fetchedEmployeeData.job?.manager || "Management Head"]);
-    matrix.push(["Primary Branch Location:", fetchedEmployeeData.branch || fetchedEmployeeData.job?.location || "General HQ", "", "Assigned Department:", fetchedEmployeeData.dept || fetchedEmployeeData.job?.department || "Operations Group"]);
-    matrix.push(["Contact Number:", fetchedEmployeeData.mobile || (fetchedEmployeeData.general && fetchedEmployeeData.general.mobile) || "N/A", "", "Personal Email:", fetchedEmployeeData.general?.personalemail || fetchedEmployeeData.email || "N/A"]);
     matrix.push([]); 
-
-    matrix.push(["2. AGGREGATED RANGE ATTENDANCE METRICS COUNTER SUMMARY"]);
-    matrix.push(["Effective Workdays", "Office Present Days", "Work From Home Days", "Total Absent Days", "Total Late Mark Marks", "Productive Duty Hours Worked", "Net Calculated Disbursed Salary"]);
-    matrix.push([
-        document.getElementById("metricWorkdays").innerText,
-        presentDaysCount,
-        wfhDaysCount,
-        absentDaysCount,
-        lateDaysCount,
-        document.getElementById("metricHours").innerText,
-        document.getElementById("metricNetPay").innerText
-    ]);
-    matrix.push([]); 
-
-    matrix.push(["3. MONTH WISE ATTENDANCE BIFURCATION SHEET"]);
-    
-    let headersRow = ["Metric Parameter"];
-    Object.keys(monthWiseBifurcationMap).forEach(key => {
-        headersRow.push(monthWiseBifurcationMap[key].monthLabel);
-    });
-    matrix.push(headersRow);
-
-    let presentRow = ["Office Present Days"];
-    Object.keys(monthWiseBifurcationMap).forEach(key => {
-        presentRow.push(monthWiseBifurcationMap[key].present);
-    });
-    matrix.push(presentRow);
-
-    let wfhExcelRow = ["Work From Home Days"];
-    Object.keys(monthWiseBifurcationMap).forEach(key => {
-        wfhExcelRow.push(monthWiseBifurcationMap[key].wfh);
-    });
-    matrix.push(wfhExcelRow);
-
-    let absentRow = ["Absent Days"];
-    Object.keys(monthWiseBifurcationMap).forEach(key => {
-        absentRow.push(monthWiseBifurcationMap[key].absent);
-    });
-    matrix.push(absentRow);
-
-    let lateRow = ["Late Marks"];
-    Object.keys(monthWiseBifurcationMap).forEach(key => {
-        lateRow.push(monthWiseBifurcationMap[key].late);
-    });
-    matrix.push(lateRow);
-    matrix.push([]); 
-
-    matrix.push(["4. RANGE PAYROLL COMPONENT BREAKDOWN SHEET"]);
-    matrix.push(["Salary Component Parameter Type", "Calculated Disbursal Component Value"]);
-    matrix.push(["Basic Base Allowance (50%)", document.getElementById("payBasic").innerText]);
-    matrix.push(["House Rent Allowance (40%)", document.getElementById("payHRA").innerText]);
-    matrix.push(["Incentives & Dynamic Perks (10%)", document.getElementById("payBonus").innerText]);
-    matrix.push(["Gross Disbursed CTC Net Value", document.getElementById("payGross").innerText]);
-    matrix.push([]); 
-
-    matrix.push(["5. DETAILED ATTENDANCE PUNCH DRILL-DOWN LEDGER (SEQUENCE LOG)"]);
-    matrix.push(["Date Stamp", "Clock In Time", "Clock Out Time", "Shift Duration Hrs", "Late Indicator Flag", "GPS Tracker Location Verification / Origin Mode"]);
-    
-    if (monthlyLogsStore.length === 0) {
-        matrix.push(["No data rows matched parameters."]);
-    } else {
-        monthlyLogsStore.forEach(item => {
-            let originText = item.geo;
-            if(item.isManual) originText = "Manual Punch Request Approved";
-            else if(item.isWFH) originText = "Work From Home Remote Log";
-
-            matrix.push([
-                item.date,
-                item.in,
-                item.out,
-                item.rawHours ? `${item.rawHours} Hrs` : "---",
-                item.late ? "YES (LATE)" : "NO",
-                originText
-            ]);
-        });
-    }
-    matrix.push([]); 
-
-    matrix.push(["6. LEAVE APPLICATIONS HISTORY FILE"]);
-    matrix.push(["Applied Date Range Block", "Leave Reason Description", "Workflow Decision Status"]);
-    
-    if (monthlyLeavesStore.length === 0) {
-        matrix.push(["No historical leave requests tracked."]);
-    } else {
-        monthlyLeavesStore.forEach(lv => {
-            matrix.push([lv.date, lv.reason, lv.status]);
-        });
-    }
-
     const worksheetInstance = XLSX.utils.aoa_to_sheet(matrix);
-    worksheetInstance["!cols"] = [
-        { wch: 32 }, { wch: 25 }, { wch: 22 }, { wch: 25 }, { wch: 20 }, { wch: 65 }
-    ];
-
     const workbookInstance = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbookInstance, worksheetInstance, "Consolidated Summary");
-
-    const exportFileNameStr = `HRMS_Consolidated_Audit_${globalEmpIdClean}_${fromText}_to_${toText}.xlsx`;
-    XLSX.writeFile(workbookInstance, exportFileNameStr);
+    XLSX.writeFile(workbookInstance, `HRMS_Consolidated_Audit_${globalEmpIdClean}.xlsx`);
 }
 
 function switchTab(evt, tabIdName) {

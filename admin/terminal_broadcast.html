@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Terminal Broadcast Manager | Mercalix OS</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap');
+        
+        :root {
+            --primary: #ffb100; --dark: #1e293b; --bg: #f1f5f9; 
+            --header: #1a1a1a; --white: #ffffff; --border: #e2e8f0;
+            --success: #10b981; --danger: #ef4444; --info: #3b82f6;
+        }
+
+        body, html { font-family: 'Plus Jakarta Sans', sans-serif; background: var(--bg); margin: 0; padding: 0; height: 100vh; overflow: hidden; }
+        .p-container { display: flex; height: 100vh; width: 100%; }
+
+        .sidebar { width: 260px; background: #0f172a; flex-shrink: 0; display: flex; flex-direction: column; }
+        .sidebar-logo { padding: 25px; color: white; font-weight: 800; font-size: 18px; border-bottom: 1px solid rgba(255,255,255,0.1); text-transform: uppercase; }
+        .sidebar-logo span { color: var(--primary); }
+        .sidebar a { padding: 18px 25px; text-decoration: none; color: #94a3b8; font-weight: 700; font-size: 11px; text-transform: uppercase; border-left: 4px solid transparent; transition: 0.3s; cursor: pointer; display: flex; align-items: center; gap: 10px; }
+        .sidebar a:hover, .sidebar a.active { background: rgba(255, 177, 0, 0.08); color: var(--primary); border-left-color: var(--primary); }
+
+        .main { flex: 1; display: flex; flex-direction: column; overflow-y: auto; }
+        .top-nav { height: 60px; background: var(--header); display: flex; justify-content: space-between; align-items: center; padding: 0 30px; border-bottom: 2px solid var(--primary); flex-shrink: 0; }
+        .top-nav b { color: white; font-size: 14px; text-transform: uppercase; }
+
+        .content-padding { padding: 30px; box-sizing: border-box; }
+        .grid-layout { display: grid; grid-template-columns: 1.2fr 1fr; gap: 25px; }
+
+        .card { background: white; border-radius: 18px; padding: 25px; border: 1px solid var(--border); box-shadow: 0 4px 15px rgba(0,0,0,0.02); }
+        .section-title { font-size: 12px; font-weight: 800; text-transform: uppercase; color: #475569; margin-bottom: 20px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #f1f5f9; padding-bottom: 10px; }
+
+        .form-group { margin-bottom: 18px; }
+        .form-group label { display: block; font-size: 10px; font-weight: 800; color: #64748b; text-transform: uppercase; margin-bottom: 6px; }
+        .form-control { width: 100%; padding: 12px; border: 1.5px solid var(--border); border-radius: 10px; font-size: 13px; font-weight: 600; outline: none; background: #f8fafc; font-family: inherit; box-sizing: border-box; transition: 0.2s; }
+        .form-control:focus { border-color: var(--primary); background: white; box-shadow: 0 0 0 3px rgba(255,177,0,0.1); }
+
+        .btn { width: 100%; padding: 14px; border: none; border-radius: 10px; font-weight: 800; text-transform: uppercase; font-size: 12px; cursor: pointer; transition: 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px; }
+        .btn-primary { background: var(--dark); color: var(--primary); border: 2px solid var(--primary); }
+        .btn-primary:hover { background: var(--primary); color: var(--dark); transform: translateY(-2px); }
+        .btn-danger { background: #fef2f2; color: var(--danger); border: 1px dashed var(--danger); margin-top: 10px; }
+        .btn-danger:hover { background: var(--danger); color: white; }
+
+        /* Preview Badging Layout */
+        .live-preview-box { background: #0f172a; color: white; border-radius: 12px; padding: 15px; border-left: 5px solid var(--primary); margin-top: 15px; }
+        .badge-live { background: var(--danger); color: white; font-size: 8px; font-weight: 900; padding: 2px 6px; rounded: 4px; text-transform: uppercase; animation: pulse 1.5s infinite; display: inline-block; margin-bottom: 8px; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+    </style>
+</head>
+<body onload="initBroadcastManager()">
+
+<div class="p-container">
+    <aside class="sidebar">
+        <div class="sidebar-logo">MERCALIX <span>SUITE</span></div>
+        <a href="index.html"><i class="fas fa-arrow-left"></i> Back to Login </a>
+        <a href="terminal_broadcast.html" class="active"><i class="fas fa-bullhorn"></i> Terminal Broadcast</a>
+        <a onclick="logout()" style="color:var(--danger); margin-top:auto; border-top:1px solid rgba(255,255,255,0.05);"><i class="fas fa-power-off"></i> Logout Security</a>
+    </aside>
+
+    <main class="main">
+        <nav class="top-nav">
+            <b>Terminal Intercrept Channels | Central Broadcast</b>
+            <div id="liveTimer" style="color:white; font-weight:800; font-size:12px;">00:00:00</div>
+        </nav>
+
+        <div class="content-padding">
+            <div class="grid-layout">
+                
+                <div class="card">
+                    <div class="section-title"><i class="fas fa-pen-fancy" style="color:var(--primary)"></i> Compose Notification Board Message</div>
+                    
+                    <div class="form-group">
+                        <label><i class="flag-icon fi fi-us"></i> Announcement Message (English)</label>
+                        <textarea id="msgEnglish" class="form-control" rows="3" placeholder="Type English broadcast notice here... e.g., All employees are requested to complete facial verification entry by 10 AM."></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label>📢 घोषणा संदेश (Hindi)</label>
+                        <textarea id="msgHindi" class="form-control" rows="3" placeholder="हिंदी घोषणा संदेश यहाँ टाइप करें... उदा: सभी कर्मचारियों से अनुरोध है कि सुबह 10 बजे तक अपनी उपस्थिति दर्ज करें।"></textarea>
+                    </div>
+
+                    <button class="btn btn-primary" onclick="dispatchNoticeToKiosk()"><i class="fas fa-paper-plane"></i> Launch Live Broadcast Terminal Notice</button>
+                    <button class="btn btn-danger" id="deleteBtn" style="display:none;" onclick="killActiveNotice()"><i class="fas fa-trash-alt"></i> Delete & Remove Active Notice From Kiosk</button>
+                </div>
+
+                <div>
+                    <div class="card" style="height: 100%;">
+                        <div class="section-title"><i class="fas fa-desktop" style="color:var(--info)"></i> Attendance Terminal Live Sync Status</div>
+                        
+                        <div id="statusPlaceholder" style="text-align: center; color:#94a3b8; padding: 40px 0; font-style: italic; font-size: 12px;">
+                            <i class="fas fa-circle-notch animate-spin text-[24px] text-amber-500 mb-3 block"></i> Syncing active data layers...
+                        </div>
+
+                        <div id="activeNoticeStateBox" class="hidden">
+                            <span class="badge-live">Live on Terminal</span>
+                            <div class="live-preview-box">
+                                <small style="color:var(--primary); font-weight:800; font-size:9px; display:block; text-transform:uppercase; margin-bottom:4px;">English Active String</small>
+                                <p id="prevEN" style="margin:0 0 12px 0; font-size:12px; font-weight:600; line-height:1.4; color:#f8fafc;"></p>
+                                
+                                <small style="color:#10b981; font-weight:800; font-size:9px; display:block; text-transform:uppercase; margin-bottom:4px;">Hindi Active String</small>
+                                <p id="prevHI" style="margin:0; font-size:12px; font-weight:600; line-height:1.4; color:#f8fafc;"></p>
+                            </div>
+                            <div style="margin-top:15px; background:#f0fdf4; border:1px dashed #bbf7d0; padding:12px; border-radius:10px; font-size:11px; color:#166534; font-weight:700;">
+                                <i class="fas fa-shield-check"></i> This message is locked on `index.html` interface kiosk terminal framework panels until cleared.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </main>
+</div>
+
+<script>
+const firebaseConfig = {
+    apiKey: "AIzaSyCkBeHploRe3UHq6ndukFUtfYc8sCkfx9g",
+    authDomain: "hrmsmercalixportal.firebaseapp.com",
+    projectId: "hrmsmercalixportal",
+    storageBucket: "hrmsmercalixportal.firebasestorage.app",
+    messagingSenderId: "126979860674",
+    appId: "1:126979860674:web:f486ad4b470b59189c735b",
+    measurementId: "G-EM1HY6T4NF"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+function initBroadcastManager() {
+    setInterval(() => {
+        document.getElementById("liveTimer").innerText = new Date().toLocaleTimeString();
+    }, 1000);
+
+    // Sync state controller with Firestore documents tracking mechanism
+    db.collection("terminal_broadcasts").doc("active_notice").onSnapshot(doc => {
+        const placeholder = document.getElementById("statusPlaceholder");
+        const stateBox = document.getElementById("activeNoticeStateBox");
+        const deleteBtn = document.getElementById("deleteBtn");
+        
+        if (doc.exists && doc.data().isActive === true) {
+            const data = doc.data();
+            document.getElementById("msgEnglish").value = data.messageEN || "";
+            document.getElementById("msgHindi").value = data.messageHI || "";
+            
+            document.getElementById("prevEN").innerText = data.messageEN || "None";
+            document.getElementById("prevHI").innerText = data.messageHI || "None";
+            
+            placeholder.classList.add("hidden");
+            stateBox.classList.remove("hidden");
+            deleteBtn.style.display = "block";
+        } else {
+            placeholder.classList.remove("hidden");
+            placeholder.innerHTML = `<div style="padding:20px; color:#64748b;"><i class="fas fa-ban style="font-size:20px; margin-bottom:8px; display:block;"></i>No active notice running on kiosk board right now.</div>`;
+            stateBox.classList.add("hidden");
+            deleteBtn.style.display = "none";
+            
+            document.getElementById("msgEnglish").value = "";
+            document.getElementById("msgHindi").value = "";
+        }
+    });
+}
+
+async function dispatchNoticeToKiosk() {
+    const en = document.getElementById("msgEnglish").value.trim();
+    const hi = document.getElementById("msgHindi").value.trim();
+
+    if(!en || !hi) return alert("⚠️ Error: Both English and Hindi notice bounds strings are mandatory!");
+
+    try {
+        await db.collection("terminal_broadcasts").doc("active_notice").set({
+            messageEN: en,
+            messageHI: hi,
+            isActive: true,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        alert("🚀 Notice Broadcasted Globally!\nKiosk marquee channel updated in sub-1 sec intervals.");
+    } catch(e) {
+        alert("Firestore sync dropped: " + e.message);
+    }
+}
+
+async function killActiveNotice() {
+    if(!confirm("Are you sure you want to remove the message from the live Kiosk Terminal board?")) return;
+    try {
+        await db.collection("terminal_broadcasts").doc("active_notice").update({
+            isActive: false
+        });
+        alert("🗑 Broadcast terminated successfully!");
+    } catch(e) { alert(e.message); }
+}
+
+function logout() { sessionStorage.clear(); window.location.href="index.html"; }
+</script>
+</body>
+</html>

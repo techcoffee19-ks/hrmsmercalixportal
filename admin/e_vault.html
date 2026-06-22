@@ -47,7 +47,7 @@
         body { margin: 0; font-family: 'Inter', sans-serif; background: var(--bg); color: var(--dark); overflow-x: hidden; display: flex; flex-direction: column; min-height: 100vh; }
         
         .top-nav { width: 100%; padding: 0 20px; height: 70px; display: flex; justify-content: space-between; align-items: center; background: #ffffff; border-bottom: 3px solid var(--primary); position: sticky; top: 0; z-index: 1000; box-sizing: border-box; }
-        .logo-text { font-size: 18px; font-weight: 800; text-decoration: none; color: var(--dark); }
+        .logo-text { font-size: 18px; font-weight: 800; color: var(--dark); text-decoration: none; }
         .logo-text span { color: var(--primary); }
 
         .container { display: flex; flex: 1; min-height: calc(100vh - 70px); }
@@ -55,7 +55,7 @@
         .nav-links { display: flex; flex-direction: column; padding-top: 10px; flex-grow: 1; }
         .nav-item, .dropdown-btn { width: 100%; padding: 15px 20px; text-decoration: none; color: #cbd5e1; font-weight: 600; font-size: 11px; display: flex; justify-content: space-between; align-items: center; border-left: 4px solid transparent; transition: 0.3s; cursor: pointer; background: none; border: none; outline: none; text-transform: uppercase; text-align: left; }
         .nav-item:hover, .dropdown-btn:hover { background: rgba(255,177,0,0.1); color: var(--primary); border-left-color: var(--primary); }
-        .dropdown-container { display: none; background-color: #111827; }
+        .dropdown-container { display: none; background-color: #111827; width: 100%; }
         .dropdown-container a { padding: 12px 20px 12px 45px; text-decoration: none; color: #94a3b8; font-size: 10px; display: block; font-weight: 700; text-transform: uppercase; border-bottom: 1px solid rgba(255,255,255,0.02); }
 
         .main { flex: 1; padding: 20px 25px; box-sizing: border-box; width: 100%; }
@@ -110,8 +110,7 @@
                 <a href="javascript:void(0)" onclick="validateAccess('workforce', 'e_vault.html')" style="color:var(--primary);">🔒 E-Vault Documents</a>
                 <a href="javascript:void(0)" onclick="validateAccess('workforce', 'lifecycle.html')">🔄 Employee Lifecycle</a>
                 <a href="javascript:void(0)" onclick="validateAccess('workforce', 'assets.html')">💻 Asset Tracking</a>
-                                <a href="javascript:void(0)" onclick="validateAccess('workforce', 'hr_staff_directory.html')">📁 Workforce Directory</a>
-
+                <a href="javascript:void(0)" onclick="validateAccess('workforce', 'hr_staff_directory.html')">📁 Workforce Directory</a>
             </div>
             <button class="dropdown-btn" onclick="toggleSidebarDropdown(this)">🕒 Attendance & Leaves <span>▼</span></button>
             <div class="dropdown-container">
@@ -123,8 +122,7 @@
                 <a href="javascript:void(0)" onclick="validateAccess('payroll', 'run-payroll.html')">🚀 Process Salary</a>
                 <a href="javascript:void(0)" onclick="validateAccess('payroll', 'advance-requests.html')">💰 Advance Salary</a>
                 <a href="javascript:void(0)" onclick="validateAccess('payroll', 'salary-slip.html')">📄 Generate Payslips</a>
-                                <a href="javascript:void(0)" onclick="validateAccess('payroll', 'export-attendance.html')">📄 Employee Data</a>
-
+                <a href="javascript:void(0)" onclick="validateAccess('payroll', 'export-attendance.html')">📄 Employee Data</a>
             </div>
             <a onclick="logout()" style="margin-top:auto; color:var(--danger); font-weight:900; font-size:11px; padding:20px; display:block; border-top: 1px solid #334155; cursor:pointer;">🔓 SECURE LOGOUT</a>
         </div>
@@ -153,7 +151,7 @@
             <div class="filter-item">
                 <select id="kycFilter" onchange="applyFilters()">
                     <option value="All">-- KYC STATUS --</option>
-                    <option value="Verified">VERIFIED</option>
+                    <option value="Verified">VERIFIED (100%)</option>
                     <option value="Pending">PENDING</option>
                 </select>
             </div>
@@ -204,7 +202,7 @@
                 <div class="info-item"><label>Branch</label><span id="v_branch">---</span></div>
                 <div class="info-item"><label>Mobile</label><span id="v_mobile">---</span></div>
             </div>
-            <div class="section-title">Identity & Academic Docs (Real-time)</div>
+            <div class="section-title">Identity, Academic & Bank Docs (Real-time)</div>
             <div id="docLinks"></div>
         </div>
     </div>
@@ -218,7 +216,7 @@ const firebaseConfig = {
   apiKey: "AIzaSyCkBeHploRe3UHq6ndukFUtfYc8sCkfx9g",
   authDomain: "hrmsmercalixportal.firebaseapp.com",
   projectId: "hrmsmercalixportal",
-  storageBucket: "hrmsmercalixportal.firebasestorage.app",
+  storageBucket: "hrmsmercalixportal.firebasresostorage.app",
   messagingSenderId: "126979860674",
   appId: "1:126979860674:web:f486ad4b470b59189c735b",
   measurementId: "G-EM1HY6T4NF"
@@ -228,27 +226,61 @@ const db = firebase.firestore();
 
 let allEmployees = [];
 
+// FIXED CRITICAL: Live Dynamic Percentage Calculation Core Processor Loop
+function calculateLiveKYCProgress(empData) {
+    const fields = [
+        empData.name, 
+        empData.general?.dob || empData.fullDob || empData.dob, 
+        empData.general?.gender, 
+        empData.general?.personalemail, 
+        empData.mobile,
+        empData.general?.emergencycontact,
+        empData.general?.curraddress,
+        empData.payroll?.bankname,
+        empData.payroll?.accnumber,
+        empData.payroll?.ifsc,
+        empData.payroll?.pan
+    ];
+
+    // Checked directly against user profile schemas map
+    const docs = [
+        empData.kyc?.aadhar_url,
+        empData.kyc?.pan_url,
+        empData.kyc?.address_url,
+        empData.kyc?.education_url,
+        empData.kyc?.Check_url
+    ];
+
+    const filledFields = fields.filter(f => f && f !== "").length;
+    const filledDocs = docs.filter(doc => doc && doc !== "").length;
+
+    const totalItems = fields.length + docs.length;
+    const totalFilled = filledFields + filledDocs;
+
+    return Math.round((totalFilled / totalItems) * 100);
+}
+
 async function fetchVaultData() {
     syncFilterOptions();
     
-    // MASTER REAL-TIME SYNC LOGIC
     db.collection("employees").onSnapshot(snap => {
-        let tempEmps = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        let tempEmps = snap.docs.map(doc => {
+            const data = doc.data();
+            // Injected computed live progress block to overwrite fallback empty codes
+            const liveProgress = calculateLiveKYCProgress(data);
+            return { id: doc.id, ...data, kycProgress: liveProgress };
+        });
 
-        // Company Code bypass for Global/Boss admin, else filter
         if (!adminCompanyCode || adminCompanyCode === "" || adminCompanyCode === "null" || adminCompanyCode === "GENERAL") {
             allEmployees = tempEmps;
-            console.log("Vault Bypass: Showing all staff.");
         } else {
             allEmployees = tempEmps.filter(e => e.companyCode === adminCompanyCode);
-            console.log("Vault Filtered by Code: " + adminCompanyCode);
         }
         applyFilters();
     });
 }
 
 function syncFilterOptions() {
-    // Syncing Filters from org_structure logic
     db.collection("branches").onSnapshot(snap => {
         const sel = document.getElementById("branchFilter");
         if(sel) {
@@ -282,7 +314,7 @@ function applyFilters() {
     const kyc = document.getElementById("kycFilter").value;
 
     const filtered = allEmployees.filter(e => {
-        const matchesSearch = (!term || e.name.toLowerCase().includes(term) || e.id.toLowerCase().includes(term));
+        const matchesSearch = (!term || (e.name && e.name.toLowerCase().includes(term)) || (e.id && e.id.toLowerCase().includes(term)));
         const matchesBranch = (branch === "All" || e.branch === branch);
         const matchesDept = (dept === "All" || e.dept === dept);
         const matchesMgr = (mgr === "All" || e.reportingManager === mgr);
@@ -327,14 +359,16 @@ function openVault(id) {
     
     const docLinks = document.getElementById("docLinks");
     docLinks.innerHTML = "";
+    
+    // FIXED: Real-time dynamic path sync matches exact keys mapped inside employee-profile.html
     const docMap = [
-        { label: "Aadhar Card", url: emp.kyc?.aadhar_url || emp.aadhar_url },
-        { label: "PAN Card", url: emp.kyc?.pan_url || emp.pan_url },
-        { label: "Address Proof", url: emp.kyc?.address_proof_url || emp.address_url },
-        { label: "10th Certificate", url: emp.education?.doc_10th || emp.doc_10th },
-        { label: "12th Certificate", url: emp.education?.doc_12th || emp.doc_12th },
-        { label: "Degree Certificate", url: emp.education?.doc_ug || emp.doc_ug }
+        { label: "Aadhar Card Copy", url: emp.kyc?.aadhar_url },
+        { label: "PAN Card Copy", url: emp.kyc?.pan_url },
+        { label: "Address Proof Document", url: emp.kyc?.address_url },
+        { label: "Degree / Educational Certificates", url: emp.kyc?.education_url },
+        { label: "Cancel Cheque Node File", url: emp.kyc?.Check_url }
     ];
+
     docMap.forEach(doc => {
         docLinks.innerHTML += `
             <div class="doc-item">

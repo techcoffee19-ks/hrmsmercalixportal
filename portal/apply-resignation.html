@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Resignation & Exit Clearance | Mercalix OS</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght=400;600;700;800&display=swap');
+        
+        :root {
+            --primary: #00d4ff; --dark: #002b3d; --bg: #f3f7f9;
+            --header: #1a1a1a; --white: #ffffff; --border: #e2e8f0;
+            --success: #10b981; --danger: #ef4444; --orange: #fcc419;
+            --holiday: #94a3b8; --wfh: #a855f7; --indigo: #4338ca;
+        }
+
+        body, html { font-family: 'Plus Jakarta Sans', sans-serif; background: var(--bg); margin: 0; padding: 0; height: 100vh; overflow: hidden; }
+        .p-container { display: flex; height: 100vh; width: 100%; }
+
+        .sidebar { width: 260px; background: var(--dark); flex-shrink: 0; display: flex; flex-direction: column; }
+        .sidebar-logo { padding: 25px; color: white; font-weight: 800; font-size: 18px; border-bottom: 1px solid rgba(255,255,255,0.1); text-transform: uppercase; }
+        .sidebar a { padding: 18px 25px; text-decoration: none; color: #94a3b8; font-weight: 700; font-size: 11px; text-transform: uppercase; border-left: 4px solid transparent; transition: 0.3s; cursor: pointer; display: flex; align-items: center; gap: 10px; }
+        .sidebar a:hover, .sidebar a.active { background: rgba(0, 212, 255, 0.08); color: var(--primary); border-left-color: var(--primary); }
+
+        .main { flex: 1; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+        .top-nav { height: 60px; background: var(--header); display: flex; justify-content: space-between; align-items: center; padding: 0 30px; border-bottom: 2px solid var(--primary); flex-shrink: 0; }
+
+        .dashboard-grid { padding: 20px; display: grid; grid-template-columns: repeat(12, 1fr); gap: 15px; height: calc(100vh - 60px); box-sizing: border-box; overflow-y: auto; align-content: start; }
+        .card { background: white; border-radius: 18px; padding: 18px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); border: 1px solid var(--border); box-sizing: border-box; }
+        .section-title { font-size: 11.5px; font-weight: 800; text-transform: uppercase; color: #475569; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+
+        .form-group { margin-bottom: 12px; }
+        .form-group label { display: block; font-size: 10px; font-weight: 800; margin-bottom: 5px; color: var(--dark); text-transform: uppercase; }
+        .form-control { width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 12px; box-sizing: border-box; outline: none; font-weight: 600; }
+        .form-control:focus { border-color: var(--primary); }
+        .form-control[readonly] { background-color: #f8fafc; color: var(--indigo); font-weight: 700; cursor: not-allowed; }
+        textarea.form-control { resize: none; font-family: inherit; }
+
+        .btn-submit-res { background: var(--dark); color: var(--primary); border: 1px solid var(--primary); padding: 12px; border-radius: 10px; font-weight: 800; font-size: 11px; text-transform: uppercase; cursor: pointer; width: 100%; transition: 0.3s; letter-spacing: 0.5px; }
+        .btn-submit-res:hover { background: var(--primary); color: var(--dark); }
+
+        .duty-tracker-table { width: 100%; border-collapse: collapse; font-size: 10.5px; margin-top: 5px; }
+        .duty-tracker-table th { background: #f8fafc; color: #64748b; padding: 6px 8px; font-weight: 800; text-align: left; border-bottom: 1px solid var(--border); text-transform: uppercase; }
+        .duty-tracker-table td { padding: 8px; border-bottom: 1px solid #f1f5f9; font-weight: 600; color: var(--dark); vertical-align: middle; }
+
+        .status-badge-node { padding: 3px 8px; border-radius: 5px; font-size: 8.5px; font-weight: 800; text-transform: uppercase; display: inline-block; }
+        .sbn-pending { background: #fffbeb; color: #b45309; border: 1px solid #fef3c7; }
+        .sbn-approved { background: #ecfdf5; color: #047857; border: 1px solid #d1fae5; }
+        .sbn-rejected { background: #fef2f2; color: #b91c1c; border: 1px solid #fee2e2; }
+    </style>
+</head>
+<body onload="initResignationWorkspace()">
+
+<div class="p-container">
+    <aside class="sidebar">
+        <div class="sidebar-logo">MERCALIX <span style="color:var(--primary)">PORTAL</span></div>
+        <a href="employee-dashboard.html"><i class="fas fa-th-large"></i> Dashboard Overview</a>
+        <a href="javascript:void(0)" onclick="alert('Late requests can be initialized from main dashboard workspace panel.')"><i class="fas fa-clock"></i> Late Arrival Req</a>
+        <a href="leave.html"><i class="fas fa-envelope-open-text"></i> Leave Applications</a>
+        <a href="user_attendance-log.html"><i class="fas fa-calendar-check"></i> My Attendance</a>
+        <a href="employee-expenses.html"><i class="fas fa-wallet"></i> Expense Claims</a>
+        <a href="apply-resignation.html" class="active"><i class="fas fa-sign-out-alt"></i> Resignation & Exit</a>
+        <a onclick="logout()" style="color:var(--danger); margin-top:auto; cursor:pointer;"><i class="fas fa-power-off"></i> Logout</a>
+    </aside>
+
+    <main class="main">
+        <nav class="top-nav">
+            <div style="color:white; font-weight:800; font-size:14px;">MERCALIX SYSTEM</div>
+            <div style="display:flex; align-items:center; gap:12px; color:white; cursor: pointer;" onclick="window.location.href='employee-profile.html'">
+                <div style="text-align:right"><b id="navName" style="font-size:11px; display:block;">...</b></div>
+                <img id="navAvatar" src="https://ui-avatars.com/api/?name=User" style="width:35px; height:35px; border-radius:50%; border:2px solid var(--primary);">
+            </div>
+        </nav>
+
+        <div class="dashboard-grid">
+            
+            <div class="card" style="grid-column: span 7;">
+                <div class="section-title"><i class="fas fa-file-alt" style="color:var(--primary)"></i> Initiate Exit Application</div>
+                <form id="exitForm" onsubmit="submitResignationDataBlock(event)">
+                    <div class="form-group">
+                        <label>Notice Configuration Strategy</label>
+                        <select id="noticePeriodDays" class="form-control" onchange="runLiveLWDCalculationEngine()">
+                            <option value="30">Serve 30 Days Standard Notice Period</option>
+                            <option value="60">Serve 60 Days Notice Period</option>
+                            <option value="90">Serve 90 Days Notice Period</option>
+                            <option value="0">0 Days Buffer (Immediate Separation Request)</option>
+                        </select>
+                    </div>
+
+                    <div class="form-row" style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                        <div class="form-group">
+                            <label>Resignation Effective From (Resignation Date)</label>
+                            <input type="date" id="resignationSubmissionDate" class="form-control" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Calculated Last Working Date (LWD)</label>
+                            <input type="text" id="calculatedLWD" class="form-control" readonly>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Reason Description / Clearance Justification *</label>
+                        <textarea id="resignationReasonNotes" class="form-control" rows="5" placeholder="Elaborate details for resignation clearance logs..." required></textarea>
+                    </div>
+
+                    <button type="submit" class="btn-submit-res">File Official Resignation File 🚀</button>
+                </form>
+            </div>
+
+            <div style="grid-column: span 5; display:flex; flex-direction:column; gap:15px;">
+                <div class="card">
+                    <div class="section-title" style="color:var(--indigo);"><i class="fas fa-user-shield"></i> HR Admin Gateway Approval</div>
+                    <div style="display:flex; flex-direction:column; gap:10px;">
+                        <div style="background:#f8fafc; border:1px solid var(--border); padding:15px; border-radius:10px;">
+                            <div style="display:flex; justify-content:space-between; align-items:center; font-weight:800; font-size:12px;">
+                                <span>HR Status Panel</span>
+                                <span id="lblHRBadge" class="status-badge-node sbn-pending">Pending</span>
+                            </div>
+                            <div id="lblHRReason" style="display:none; color:var(--danger); font-size:11px; margin-top:10px; font-weight:600; background:#fff5f5; padding:8px; border-radius:6px; border:1px solid #fecaca;"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card" style="flex:1;">
+                    <div class="section-title" style="color:var(--wfh);"><i class="fas fa-laptop-house"></i> Mapped Profile Handover Assets</div>
+                    <div id="allocatedAssetsMasterWrapper">
+                        <table class="duty-tracker-table" style="margin-top:0;">
+                            <thead>
+                                <tr><th>Asset Component</th><th>Serial Code</th><th>Status</th></tr>
+                            </thead>
+                            <tbody id="resignationAssetBody">
+                                <tr><td colspan="3" align="center" style="color:#94a3b8; padding:15px;">Scanning asset tables...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card" style="grid-column: span 12;">
+                <div class="section-title"><i class="fas fa-history"></i> Historic Resignation Applications Ledger</div>
+                <div style="max-height:160px; overflow-y:auto;">
+                    <table class="duty-tracker-table">
+                        <thead>
+                            <tr><th>Apply Date</th><th>Separation Mode</th><th>Calculated LWD</th><th>Approval Lifecycle Updates</th><th>FNF Settlement</th></tr>
+                        </thead>
+                        <tbody id="historicResTableBody">
+                            <tr><td colspan="5" align="center" style="color:#94a3b8; padding:12px;">Syncing ledger logs...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+    </main>
+</div>
+
+<script>
+const firebaseConfig = {
+    apiKey: "AIzaSyCkBeHploRe3UHq6ndukFUtfYc8sCkfx9g",
+    authDomain: "hrmsmercalixportal.firebaseapp.com",
+    projectId: "hrmsmercalixportal",
+    storageBucket: "hrmsmercalixportal.firebasestorage.app",
+    messagingSenderId: "126979860674",
+    appId: "1:126979860674:web:f486ad4b470b59189c735b",
+    measurementId: "G-EM1HY6T4NF"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+const empId = sessionStorage.getItem("empId") || "003";
+
+let extractedProfileAssets = [];
+let employeeMasterObjectHold = {};
+
+function initResignationWorkspace() {
+    if (!sessionStorage.getItem("empId")) { window.location.href = "login.html"; return; }
+    
+    document.getElementById('resignationSubmissionDate').valueAsDate = new Date();
+    runLiveLWDCalculationEngine();
+    document.getElementById('resignationSubmissionDate').addEventListener('change', runLiveLWDCalculationEngine);
+
+    db.collection("employees").doc(empId).get().then(doc => {
+        if (doc.exists) {
+            const d = doc.data();
+            document.getElementById("navName").innerText = d.name;
+            if(d.general?.profilephoto) document.getElementById("navAvatar").src = d.general.profilephoto;
+            employeeMasterObjectHold = d;
+            syncEmployeeProfileAssetsTab(d);
+        }
+    });
+
+    syncLiveHistoryTrackingPipeline();
+}
+
+function runLiveLWDCalculationEngine() {
+    const subDateVal = document.getElementById('resignationSubmissionDate').value;
+    const bufferDays = parseInt(document.getElementById('noticePeriodDays').value) || 0;
+    const lwdField = document.getElementById('calculatedLWD');
+
+    if (!subDateVal) { lwdField.value = ""; return; }
+
+    let targetDate = new Date(subDateVal);
+    targetDate.setDate(targetDate.getDate() + bufferDays);
+
+    const dd = String(targetDate.getDate()).padStart(2, '0');
+    const mm = String(targetDate.getMonth() + 1).padStart(2, '0');
+    const yyyy = targetDate.getFullYear();
+
+    lwdField.value = `${dd}-${mm}-${yyyy}`;
+}
+
+function syncEmployeeProfileAssetsTab(empData) {
+    const tableBody = document.getElementById("resignationAssetBody");
+    const wrapper = document.getElementById("allocatedAssetsMasterWrapper");
+
+    let rawAssetsList = empData.assets || empData.assignedAssets || [];
+
+    extractedProfileAssets = rawAssetsList.map(a => ({
+        name: a.name || a.assetName || "Company Asset Object",
+        serial: a.serial || a.assetCode || "N/A",
+        clearance: "Pending",
+        fine: 0
+    }));
+
+    if (extractedProfileAssets.length === 0) {
+        wrapper.innerHTML = `
+            <div style="text-align:center; padding:35px 15px; color:#64748b; font-size:11.5px; font-weight:700;">
+                <i class="fas fa-check-circle text-emerald-500" style="font-size:24px; display:block; margin-bottom:8px;"></i>
+                No assets assigned to your profile.
+            </div>`;
+        return;
+    }
+
+    tableBody.innerHTML = extractedProfileAssets.map(a => `
+        <tr>
+            <td><b>${a.name}</b></td>
+            <td><code>${a.serial}</code></td>
+            <td><span class="status-badge-node sbn-pending" style="font-size:7.5px;">Pending Return</span></td>
+        </tr>
+    `).join("");
+}
+
+function syncLiveHistoryTrackingPipeline() {
+    db.collection("vc_resignations").where("empId", "==", empId).onSnapshot(snap => {
+        const historyBody = document.getElementById("historicResTableBody");
+        if(snap.empty) {
+            historyBody.innerHTML = `<tr><td colspan="5" align="center" style="color:#94a3b8; padding:12px;">No historic exit profiles filed.</td></tr>`;
+            return;
+        }
+
+        let sortedDocs = snap.docs.map(doc => doc.data());
+        sortedDocs.sort((a,b) => (b.timestamp || 0) - (a.timestamp || 0));
+
+        const latestDoc = sortedDocs[0];
+        updateMatrixSideCardsUI(latestDoc);
+
+        historyBody.innerHTML = sortedDocs.map(r => {
+            let hCls = "sbn-pending";
+            if(r.hrStatus === "Approved") hCls = "sbn-approved";
+            if(r.hrStatus === "Rejected") hCls = "sbn-rejected";
+
+            return `
+                <tr>
+                    <td><b>${r.applyDate}</b></td>
+                    <td><span style="color:var(--indigo); font-weight:700;">Notice: ${r.noticePeriod} Days</span></td>
+                    <td><code>${r.requestedLastWorkingDate}</code></td>
+                    <td>
+                        <div>
+                            <span class="status-badge-node ${hCls}" style="font-size:7px;">HR Admin: ${r.hrStatus || 'Pending'}</span>
+                            ${r.hrRejectionReason ? `<br><small style="color:var(--danger); font-weight:bold;">Reason: ${r.hrRejectionReason}</small>` : ''}
+                        </div>
+                    </td>
+                    <td><b style="color:var(--orange); font-size:10px; text-transform:uppercase;">${r.fnfStatus || 'INITIATED'}</b></td>
+                </tr>`;
+        }).join("");
+    });
+}
+
+function updateMatrixSideCardsUI(record) {
+    if(!record) return;
+    
+    const hBadge = document.getElementById("lblHRBadge");
+    const hReason = document.getElementById("lblHRReason");
+    
+    hBadge.innerText = record.hrStatus || "Pending";
+    hBadge.className = `status-badge-node sbn-${record.hrStatus === "Approved" ? "approved" : (record.hrStatus === "Rejected" ? "rejected" : "pending")}`;
+    
+    // REAL-TIME REJECTION VISUALIZATION INSTANT DISPATCH FEED
+    if(record.hrStatus === "Rejected" && record.hrRejectionReason) { 
+        hReason.style.display = "block"; 
+        hReason.innerHTML = `<i class="fas fa-exclamation-triangle"></i> <b>HR Disapproval Note:</b> ${record.hrRejectionReason}`; 
+    } else { 
+        hReason.style.display = "none"; 
+    }
+}
+
+async function submitResignationDataBlock(e) {
+    e.preventDefault();
+    const reasonText = document.getElementById("resignationReasonNotes").value.trim();
+    const noticeDays = document.getElementById("noticePeriodDays").value;
+    const computedLwd = document.getElementById("calculatedLWD").value;
+    
+    const subDateVal = document.getElementById('resignationSubmissionDate').value;
+    const [y, m, d] = subDateVal.split("-");
+    const formattedSubmissionDate = `${d}-${m}-${y}`;
+
+    try {
+        await db.collection("vc_resignations").add({
+            empId: empId,
+            name: employeeMasterObjectHold.name || sessionStorage.getItem("empName") || "Staff Member",
+            companyCode: employeeMasterObjectHold.companyCode || sessionStorage.getItem("companyCode") || "GENERAL",
+            reportingManager: "HR Admin", 
+            branch: employeeMasterObjectHold.branch || "Main",
+            dept: employeeMasterObjectHold.dept || "Operations",
+            noticePeriod: Number(noticeDays),
+            applyDate: formattedSubmissionDate,
+            requestedLastWorkingDate: computedLwd,
+            reason: reasonText,
+            status: "Pending HR Approval",
+            hrStatus: "Pending",
+            hrRejectionReason: "",
+            fnfStatus: "Pending Settlement",
+            allocatedAssets: extractedProfileAssets,
+            isPayrollFinalized: false,
+            excessSalaryPaid: 0,
+            timestamp: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        alert("🎉 DEPLOYED SUCCESSFULLY!\nYour resignation tracking manifest has logged into data infrastructure directly under HR Admin Panel.");
+        document.getElementById("resignationReasonNotes").value = "";
+    } catch(err) {
+        alert("Pipeline transaction error: " + err.message);
+    }
+}
+
+function logout() { sessionStorage.clear(); window.location.href="login.html"; }
+</script>
+</body>
+</html>

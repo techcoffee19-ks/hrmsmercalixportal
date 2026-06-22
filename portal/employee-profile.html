@@ -493,7 +493,20 @@ function calcProgress(d) {
 }
 
 async function uploadDoc(type, input) {
-    const file = input.files[0]; if(!file) return;
+    const file = input.files[0]; 
+    if(!file) return;
+
+    // 🔒 MAXIMUM SIZE LIMIT CONSTRAINT: 2 MB (2 * 1024 * 1024 Bytes)
+    const maxSizeBytes = 2 * 1024 * 1024; 
+
+    if (file.size > maxSizeBytes) {
+        // Agar file 2MB se badi hai, toh upload block ho jayega aur filter input clear ho jayega
+        alert(`⚠️ FILE SIZE BLOCK:\n"${file.name}" ka size ${(file.size / (1024 * 1024)).toFixed(2)} MB hai. Please 2 MB se choti file upload karein taaki storage par load na aaye!`);
+        input.value = ""; // Input selection clear karne ke liye
+        return;
+    }
+
+    // Agar file size valid (2MB se choti) hai, tabhi niche wala upload logic chalega
     const storageRef = storage.ref(`employees/${empId}/vault/${type}_${Date.now()}`);
     try {
         const snapshot = await storageRef.put(file);
@@ -501,8 +514,10 @@ async function uploadDoc(type, input) {
         let updateObj = {};
         updateObj[`kyc.${type}_url`] = url;
         await db.collection("employees").doc(empId).update(updateObj);
-        alert("Uploaded!");
-    } catch (e) { alert("Failed"); }
+        alert("🚀 Document uploaded & vault index updated successfully!");
+    } catch (e) { 
+        alert("Upload network pipeline failure: " + e.message); 
+    }
 }
 
 function loadHandbook() {

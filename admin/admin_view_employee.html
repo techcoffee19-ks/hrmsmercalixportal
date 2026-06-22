@@ -10,7 +10,7 @@
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght=400;500;600;700;800&display=swap');
         
         :root {
             --primary: #ffb100;
@@ -108,6 +108,7 @@
             padding: 10px 0;
             border-bottom: 1px solid #f1f5f9;
             font-size: 13px;
+            align-items: center;
         }
         .spec-item span { color: var(--slate-400); font-weight: 500; }
         .spec-item b { color: var(--slate-700); font-weight: 600; }
@@ -314,6 +315,9 @@
             color: var(--slate-700);
             font-size: 11px;
             font-weight: 700;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
         }
 
         .gauge-block {
@@ -334,6 +338,8 @@
         }
         .gauge-text b { font-size: 22px; display: block; color: var(--dark); font-weight: 800; }
         .gauge-text small { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+        
+        .vault-item-container { background: #f8fafc; border: 1px solid var(--border); padding: 10px 12px; border-radius: 8px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
     </style>
 </head>
 <body onload="initAuditPortal()">
@@ -343,7 +349,7 @@
         <div class="profile-card-center">
             <div class="emp-pfp-wrapper">
                 <img id="pfp" src="https://cdn-icons-png.flaticon.com/512/3135/3135715.png" class="emp-pfp" alt="Employee Photo">
-                <div class="status-badge" id="livePresence">LIVE SYNC</div>
+                <div class="status-badge" id="livePresence" style="background: var(--success);">LIVE SYNC</div>
             </div>
             <h2 id="name">Loading...</h2>
             <p class="designation" id="role">Fetching Profile...</p>
@@ -552,18 +558,16 @@
                     <div class="card-header-v2">
                         <h3><i class="fas fa-vault" style="color: var(--dark);"></i> Compliance & Security</h3>
                     </div>
-                    <div class="spec-item" style="padding: 12px 0;">
-                        <span>KYC Status Verification</span>
-                        <span class="badge badge-success" id="complianceKycStatus">Verified</span>
+                    <div class="spec-item" style="padding: 10px 0; border-bottom: 2px solid var(--bg);">
+                        <span>KYC Progress Tracking Status</span>
+                        <span class="badge" id="complianceKycStatus" style="font-weight: 800;">0% Complete</span>
                     </div>
-                    <div class="spec-item" style="padding: 12px 0;">
-                        <span>PAN Card Vault Attachment</span>
-                        <a href="#" class="btn-action-view" id="vaultPanFile" target="_blank"><i class="fas fa-eye"></i> View Doc</a>
+                    <div class="spec-item" style="padding: 10px 0; border-bottom: 2px solid var(--bg);">
+                        <span>Biometric Template Record</span>
+                        <span class="badge badge-blue" id="biometricMapStatus">Scanning Template...</span>
                     </div>
-                    <div class="spec-item" style="padding: 12px 0;">
-                        <span>Biometric Descriptor Array</span>
-                        <span class="badge badge-blue" id="biometricMapStatus">Linked</span>
-                    </div>
+                    <div style="margin-top: 15px; display: flex; flex-direction: column; gap: 6px;" id="vaultFileGridRows">
+                        </div>
                 </div>
 
             </div>
@@ -611,9 +615,25 @@ function initAuditPortal() {
 
     const urlParams = new URLSearchParams(window.location.search);
     globalRawEmpId = urlParams.get('empId') || "MBS0001/0003"; 
-    globalEmpIdClean = globalRawEmpId.replace(/\//g, "");
+    globalEmpIdClean = globalRawRawId = globalRawEmpId.replace(/\//g, "");
 
     streamCoreEmployeeFile();
+}
+
+function calculateLiveKYCProgress(empData) {
+    const fields = [
+        empData.name, empData.general?.dob || empData.fullDob || empData.dob, 
+        empData.general?.gender, empData.general?.personalemail, empData.mobile,
+        empData.general?.emergencycontact, empData.general?.curraddress,
+        empData.payroll?.bankname, empData.payroll?.accnumber, empData.payroll?.ifsc, empData.payroll?.pan
+    ];
+    const docs = [
+        empData.kyc?.aadhar_url, empData.kyc?.pan_url, empData.kyc?.address_url,
+        empData.kyc?.education_url, empData.kyc?.Check_url
+    ];
+    const filledFields = fields.filter(f => f && f !== "").length;
+    const filledDocs = docs.filter(doc => doc && doc !== "").length;
+    return Math.round(((filledFields + filledDocs) / (fields.length + docs.length)) * 100);
 }
 
 function streamCoreEmployeeFile() {
@@ -651,8 +671,29 @@ function streamCoreEmployeeFile() {
             document.getElementById("detMobile").innerText = data.mobile || data.general?.mobile || "---";
             document.getElementById("detAddress").innerText = data.general?.curraddress || data.address || "India Office Base";
 
-            document.getElementById("complianceKycStatus").innerText = data.kycStatus || (data.kyc?.status) || "Active";
-            if(data.kyc?.pan_url) document.getElementById("vaultPanFile").href = data.kyc.pan_url;
+            // UPGRADED METRIC CONTROL: Realtime percentage parser loader
+            const percentage = calculateLiveKYCProgress(data);
+            const kycStatusBadge = document.getElementById("complianceKycStatus");
+            kycStatusBadge.innerText = percentage === 100 ? "Verified (100%)" : `Pending (${percentage}%)`;
+            kycStatusBadge.className = percentage === 100 ? "badge badge-success" : "badge badge-danger";
+
+            // UPGRADED 5-SLOT INTEGRATED REPOSITORY VIEW
+            const fileContainer = document.getElementById("vaultFileGridRows");
+            fileContainer.innerHTML = "";
+            const docMap = [
+                { label: "Aadhar Card Copy", url: data.kyc?.aadhar_url },
+                { label: "PAN Card Copy", url: data.kyc?.pan_url },
+                { label: "Address Proof Document", url: data.kyc?.address_url },
+                { label: "Degree Certificates", url: data.kyc?.education_url },
+                { label: "Cancel Cheque Attachment", url: data.kyc?.Check_url }
+            ];
+            docMap.forEach(doc => {
+                fileContainer.innerHTML += `
+                    <div class="vault-item-container">
+                        <small style="font-weight:700; color:var(--slate-700); font-size:11px;">${doc.label}</small>
+                        ${doc.url ? `<a href="${doc.url}" target="_blank" class="btn-action-view"><i class="fas fa-eye"></i> View File</a>` : `<span style="font-size:9.5px; color:var(--danger); font-weight:800;">NOT UPLOADED</span>`}
+                    </div>`;
+            });
 
             syncMonthlyMetrics();
         }
@@ -701,7 +742,7 @@ function syncMonthlyMetrics() {
         Object.keys(manualLogsMap).forEach(logDateKey => {
             const parts = logDateKey.split('-');
             if(parts.length === 3) {
-                const logYearInt = parseInt(parts[0]);
+                const logYearInt = parseInt(parts[2]);
                 const logMonthInt = parseInt(parts[1]);
                 const uniqueKey = `${logYearInt}-${String(logMonthInt).padStart(2, '0')}`;
                 
@@ -754,7 +795,6 @@ function syncMonthlyMetrics() {
                         }
                         
                         const rawStatus = String(logData.status || "").toUpperCase().trim();
-                        // ─── 🌟 STRICTOR SECURITY FILTER: ONLY EXPLICIT APPROVED MATCHES WFH ───
                         if ((logData.isWFH === true && logData.wfhStatus === "Approved") || rawStatus === "WFH APPROVED") {
                             organizedDailyLogsMap[targetDay].isWFHLog = true;
                         }
@@ -777,64 +817,52 @@ function syncMonthlyMetrics() {
         attendanceRowContainer.innerHTML = "";
         
         const sortedDaysKeys = Object.keys(organizedDailyLogsMap).sort((a,b) => {
-            if(organizedDailyLogsMap[a].yearSort !== organizedDailyLogsMap[b].yearSort) {
-                return organizedDailyLogsMap[a].yearSort - organizedDailyLogsMap[b].yearSort;
-            }
-            if(organizedDailyLogsMap[a].monthSort !== organizedDailyLogsMap[b].monthSort) {
-                return organizedDailyLogsMap[a].monthSort - organizedDailyLogsMap[b].monthSort;
-            }
+            if(organizedDailyLogsMap[a].yearSort !== organizedDailyLogsMap[b].yearSort) return organizedDailyLogsMap[a].yearSort - organizedDailyLogsMap[b].yearSort;
+            if(organizedDailyLogsMap[a].monthSort !== organizedDailyLogsMap[b].monthSort) return organizedDailyLogsMap[a].monthSort - organizedDailyLogsMap[b].monthSort;
             return organizedDailyLogsMap[a].daySort - organizedDailyLogsMap[b].daySort;
         });
 
-        if (sortedDaysKeys.length === 0) {
-            attendanceRowContainer.innerHTML = `<tr><td colspan="5" style="text-align:center; color: var(--slate-400);">No attendance metrics logged for this period.</td></tr>`;
-        } else {
-            sortedDaysKeys.forEach(dayKey => {
-                const dayObj = organizedDailyLogsMap[dayKey];
-                
-                if (dayObj.isWFHLog) {
-                    wfhDaysCount++;
-                    if(monthWiseBifurcationMap[dayObj.monthKey]) monthWiseBifurcationMap[dayObj.monthKey].wfh++;
-                } else {
-                    presentDaysCount++; 
-                    if(monthWiseBifurcationMap[dayObj.monthKey]) monthWiseBifurcationMap[dayObj.monthKey].present++;
+        sortedDaysKeys.forEach(dayKey => {
+            const dayObj = organizedDailyLogsMap[dayKey];
+            
+            if (dayObj.isWFHLog) {
+                wfhDaysCount++;
+                if(monthWiseBifurcationMap[dayObj.monthKey]) monthWiseBifurcationMap[dayObj.monthKey].wfh++;
+            } else {
+                presentDaysCount++; 
+                if(monthWiseBifurcationMap[dayObj.monthKey]) monthWiseBifurcationMap[dayObj.monthKey].present++;
+            }
+
+            if(monthWiseBifurcationMap[dayObj.monthKey] && !dayObj.isWFHLog) {
+                if (dayObj.late) {
+                    lateDaysCount++;
+                    monthWiseBifurcationMap[dayObj.monthKey].late++;
                 }
+            }
 
-                if(monthWiseBifurcationMap[dayObj.monthKey] && !dayObj.isWFHLog) {
-                    if (dayObj.late) {
-                        lateDaysCount++;
-                        monthWiseBifurcationMap[dayObj.monthKey].late++;
-                    }
-                }
+            let calculatedHoursString = "---";
+            if(dayObj.in !== "---" && dayObj.out !== "---") {
+                const mockComputedHrs = (8 + Math.random() * 1.2);
+                combinedProductiveHours += mockComputedHrs;
+                calculatedHoursString = `${mockComputedHrs.toFixed(1)} Hrs`;
+                dayObj.rawHours = parseFloat(mockComputedHrs.toFixed(1));
+            }
 
-                let calculatedHoursString = "---";
-                if(dayObj.in !== "---" && dayObj.out !== "---") {
-                    const mockComputedHrs = (8 + Math.random() * 1.2);
-                    combinedProductiveHours += mockComputedHrs;
-                    calculatedHoursString = `${mockComputedHrs.toFixed(1)} Hrs`;
-                    dayObj.rawHours = parseFloat(mockComputedHrs.toFixed(1));
-                } else if (dayObj.in !== "---") {
-                    calculatedHoursString = "Active Shift";
-                    dayObj.rawHours = 4.0;
-                    combinedProductiveHours += 4.0;
-                }
+            monthlyLogsStore.push(dayObj);
 
-                monthlyLogsStore.push(dayObj);
+            const row = document.createElement("tr");
+            let inBadgeClass = dayObj.isWFHLog ? "badge-wfh" : "badge-success";
+            let inBadgeText = dayObj.isWFHLog ? `<i class="fa fa-home"></i> ${dayObj.in}` : dayObj.in;
 
-                const row = document.createElement("tr");
-                let inBadgeClass = dayObj.isWFHLog ? "badge-wfh" : "badge-success";
-                let inBadgeText = dayObj.isWFHLog ? `<i class="fa fa-home"></i> ${dayObj.in}` : dayObj.in;
-
-                row.innerHTML = `
-                    <td><b>${dayObj.date}</b></td>
-                    <td><span class="badge ${inBadgeClass}">${inBadgeText}</span></td>
-                    <td><span class="badge badge-blue">${dayObj.out}</span></td>
-                    <td><span class="badge ${dayObj.rawHours >= 8 ? 'badge-success' : 'badge-warning'}">${calculatedHoursString}</span></td>
-                    <td><small style="font-size:11px; font-weight:600;"><i class="fas fa-map-marker-alt ${dayObj.isWFHLog ? 'text-purple' : 'text-danger'}"></i> ${dayObj.geo}</small></td>
-                `;
-                attendanceRowContainer.appendChild(row);
-            });
-        }
+            row.innerHTML = `
+                <td><b>${dayObj.date}</b></td>
+                <td><span class="badge ${inBadgeClass}">${inBadgeText}</span></td>
+                <td><span class="badge badge-blue">${dayObj.out}</span></td>
+                <td><span class="badge ${dayObj.rawHours >= 8 ? 'badge-success' : 'badge-warning'}">${calculatedHoursString}</span></td>
+                <td><small style="font-size:11px; font-weight:600;"><i class="fas fa-map-marker-alt ${dayObj.isWFHLog ? 'text-purple' : 'text-danger'}"></i> ${dayObj.geo}</small></td>
+            `;
+            attendanceRowContainer.appendChild(row);
+        });
 
         effectiveWorkdays = presentDaysCount + wfhDaysCount + absentDaysCount;
 
@@ -846,23 +874,13 @@ function syncMonthlyMetrics() {
         document.getElementById("metricHours").innerText = `${combinedProductiveHours.toFixed(1)} Hrs`;
 
         let incomingSalaryFieldRaw = fetchedEmployeeData.salary;
-        if(fetchedEmployeeData.payroll && fetchedEmployeeData.payroll.basic) {
-            incomingSalaryFieldRaw = fetchedEmployeeData.payroll.basic;
-        }
-        if (incomingSalaryFieldRaw && typeof incomingSalaryFieldRaw === 'string') {
-            incomingSalaryFieldRaw = incomingSalaryFieldRaw.replace(/[^0-9.]/g, '');
-        }
-        let operationalSalaryBasis = parseFloat(incomingSalaryFieldRaw);
-        if (isNaN(operationalSalaryBasis) || operationalSalaryBasis <= 0) {
-            operationalSalaryBasis = 45000; 
-        }
+        if(fetchedEmployeeData.payroll && fetchedEmployeeData.payroll.basic) incomingSalaryFieldRaw = fetchedEmployeeData.payroll.basic;
+        if (incomingSalaryFieldRaw && typeof incomingSalaryFieldRaw === 'string') incomingSalaryFieldRaw = incomingSalaryFieldRaw.replace(/[^0-9.]/g, '');
+        let operationalSalaryBasis = parseFloat(incomingSalaryFieldRaw) || 45000;
 
         const totalActiveMonthsCount = Object.keys(monthWiseBifurcationMap).length;
         const totalRangeSalaryBasis = operationalSalaryBasis * totalActiveMonthsCount;
-
-        const latePenaltiesDeduction = lateDaysCount * 250; 
-        const absentPenaltiesDeduction = absentDaysCount * 1200;
-        const normalizedNetCalculatedPay = Math.max(0, totalRangeSalaryBasis - latePenaltiesDeduction - absentPenaltiesDeduction);
+        const normalizedNetCalculatedPay = Math.max(0, totalRangeSalaryBasis - (lateDaysCount * 250) - (absentDaysCount * 1200));
 
         document.getElementById("metricNetPay").innerText = "₹ " + normalizedNetCalculatedPay.toLocaleString('en-IN');
         document.getElementById("payGross").innerText = "₹ " + normalizedNetCalculatedPay.toLocaleString('en-IN');
@@ -872,91 +890,46 @@ function syncMonthlyMetrics() {
 
         let calculatedEfficiencyPercentage = 100;
         let activePerformanceDays = presentDaysCount + wfhDaysCount;
-        if (activePerformanceDays > 0) {
-            const lateDeductionRatio = (lateDaysCount / activePerformanceDays) * 40;
-            calculatedEfficiencyPercentage = Math.round(Math.max(15, 100 - lateDeductionRatio));
-        } else if (absentDaysCount > 0) {
-            calculatedEfficiencyPercentage = 0;
-        }
+        if (activePerformanceDays > 0) calculatedEfficiencyPercentage = Math.round(Math.max(15, 100 - ((lateDaysCount / activePerformanceDays) * 40)));
+        else if (absentDaysCount > 0) calculatedEfficiencyPercentage = 0;
         updateEfficiencyGaugeWidget(calculatedEfficiencyPercentage);
     });
 
     const leaveContainerBoard = document.getElementById("leaveHistoryRows");
     db.collection("emp_leaves").where("empId", "==", globalEmpIdClean).get().then(snap => {
-        leaveContainerBoard.innerHTML = "";
-        monthlyLeavesStore = [];
-        totalLeavesCount = 0;
-
+        leaveContainerBoard.innerHTML = ""; monthlyLeavesStore = []; totalLeavesCount = 0;
         snap.forEach(doc => {
-            const leaveItem = doc.data();
-            totalLeavesCount++;
-            
-            monthlyLeavesStore.push({
-                date: leaveItem.date || "N/A",
-                reason: leaveItem.reason || "N/A",
-                status: leaveItem.status || "Pending"
-            });
-
-            let statusBadgeClass = "badge-warning";
-            if(leaveItem.status === "Approved") statusBadgeClass = "badge-success";
-            if(leaveItem.status === "Rejected" || leaveItem.status === "Denied") statusBadgeClass = "badge-danger";
-
+            const leaveItem = doc.data(); totalLeavesCount++;
+            monthlyLeavesStore.push({ date: leaveItem.date || "N/A", reason: leaveItem.reason || "N/A", status: leaveItem.status || "Pending" });
+            let statusBadgeClass = leaveItem.status === "Approved" ? "badge-success" : (leaveItem.status === "Rejected" ? "badge-danger" : "badge-warning");
             const row = document.createElement("tr");
-            row.innerHTML = `
-                <td><small><b>${leaveItem.date || "Custom Range"}</b></small></td>
-                <td><b style="font-size:12px; color: var(--slate-700);">${leaveItem.reason || "Personal Leave Application"}</b></td>
-                <td><span class="badge ${statusBadgeClass}">${leaveItem.status || "Pending Match"}</span></td>
-            `;
+            row.innerHTML = `<td><small><b>${leaveItem.date || "Custom Range"}</b></small></td><td><b style="font-size:12px; color: var(--slate-700);">${leaveItem.reason || "Personal Leave"}</b></td><td><span class="badge ${statusBadgeClass}">${leaveItem.status || "Pending"}</span></td>`;
             leaveContainerBoard.appendChild(row);
         });
-
         document.getElementById("totalLeavesCountBadge").innerText = `Total Leaves: ${totalLeavesCount}`;
-
-        if(totalLeavesCount === 0) {
-            leaveContainerBoard.innerHTML = `<tr><td colspan="3" style="text-align:center; color: var(--slate-400);">No leave records found.</td></tr>`;
-        }
+        if(totalLeavesCount === 0) leaveContainerBoard.innerHTML = `<tr><td colspan="3" style="text-align:center; color: var(--slate-400);">No leave records found.</td></tr>`;
     });
 
     db.collection("vc_biometrics").doc(globalEmpIdClean).get().then(bioDoc => {
         const bioBadge = document.getElementById("biometricMapStatus");
-        if(bioDoc.exists) {
-            bioBadge.innerText = "Linked Template";
-            bioBadge.className = "badge badge-success";
-        } else {
-            bioBadge.innerText = "No Template Found";
-            bioBadge.className = "badge badge-danger";
-        }
+        if(bioDoc.exists) { bioBadge.innerText = "Linked Template"; bioBadge.className = "badge badge-success"; } 
+        else { bioBadge.innerText = "No Template Found"; bioBadge.className = "badge badge-danger"; }
     });
 }
 
 let referenceGaugeChartInstance = null;
 function updateEfficiencyGaugeWidget(score) {
     document.getElementById("gaugeScoreValue").innerText = score + "%";
-    let textStatus = "EXCELLENT STATUS";
-    let colorHexValue = "#10b981";
-
-    if(score < 50) { textStatus = "CRITICAL AUDIT"; colorHexValue = "#ef4444"; }
+    let textStatus = "EXCELLENT STATUS"; let colorHexValue = "#10b981";
+    if(score < 50) { textStatus = "CRITICAL AUDIT"; colorHexValue = "#ef4444"; } 
     else if(score < 80) { textStatus = "AVERAGE BOUND"; colorHexValue = "#ffb100"; }
-    
-    document.getElementById("gaugeStatusText").innerText = textStatus;
-    document.getElementById("gaugeStatusText").style.color = colorHexValue;
+    document.getElementById("gaugeStatusText").innerText = textStatus; document.getElementById("gaugeStatusText").style.color = colorHexValue;
 
     const ctxCanvas = document.getElementById('efficiencyGaugeCanvas').getContext('2d');
     if(referenceGaugeChartInstance) referenceGaugeChartInstance.destroy();
-
     referenceGaugeChartInstance = new Chart(ctxCanvas, {
         type: 'doughnut',
-        data: {
-            datasets: [{
-                data: [score, 100 - score],
-                backgroundColor: [colorHexValue, '#f1f5f9'],
-                borderWidth: 0,
-                circumference: 180,
-                rotation: 270,
-                cutout: '80%',
-                borderRadius: 10
-            }]
-        },
+        data: { datasets: [{ data: [score, 100 - score], backgroundColor: [colorHexValue, '#f1f5f9'], borderWidth: 0, circumference: 180, rotation: 270, cutout: '80%', borderRadius: 10 }] },
         options: { plugins: { legend: { display: false }, tooltip: { enabled: false } }, maintainAspectRatio: false }
     });
 }
@@ -966,114 +939,16 @@ function exportDataToExcel() {
     const fromYear = document.getElementById("filterYearFrom").value;
     const toText = document.getElementById("filterMonthTo").options[document.getElementById("filterMonthTo").selectedIndex].text;
     const toYear = document.getElementById("filterYearTo").value;
-    
     const matrix = [];
-
     matrix.push(["MERCALIX ENTERPRISE HRMS - CONSOLIDATED MULTI-MONTH RECORD"]);
     matrix.push([`Audit Execution Range Block: ${fromText} ${fromYear} to ${toText} ${toYear}`]);
     matrix.push([]); 
-
     matrix.push(["1. EMPLOYEE DEMOGRAPHICS & PROFILE RECORD"]);
     matrix.push(["Employee Name:", fetchedEmployeeData.name || "N/A", "", "Staff ID Reference:", fetchedEmployeeData.id || globalRawEmpId]);
-    matrix.push(["Designation Role:", fetchedEmployeeData.desig || fetchedEmployeeData.job?.designation || "Staff Professional", "", "Reporting Manager:", fetchedEmployeeData.reportingManager || fetchedEmployeeData.job?.manager || "Management Head"]);
-    matrix.push(["Primary Branch Location:", fetchedEmployeeData.branch || fetchedEmployeeData.job?.location || "General HQ", "", "Assigned Department:", fetchedEmployeeData.dept || fetchedEmployeeData.job?.department || "Operations Group"]);
-    matrix.push(["Contact Number:", fetchedEmployeeData.mobile || (fetchedEmployeeData.general && fetchedEmployeeData.general.mobile) || "N/A", "", "Personal Email:", fetchedEmployeeData.general?.personalemail || fetchedEmployeeData.email || "N/A"]);
-    matrix.push([]); 
-
-    matrix.push(["2. AGGREGATED RANGE ATTENDANCE METRICS COUNTER SUMMARY"]);
-    matrix.push(["Effective Workdays", "Office Present Days", "WFH Approved Days", "Total Absent Days", "Total Late Mark Marks", "Productive Duty Hours Worked", "Net Calculated Disbursed Salary"]);
-    matrix.push([
-        document.getElementById("metricWorkdays").innerText,
-        presentDaysCount,
-        wfhDaysCount,
-        absentDaysCount,
-        lateDaysCount,
-        document.getElementById("metricHours").innerText,
-        document.getElementById("metricNetPay").innerText
-    ]);
-    matrix.push([]); 
-
-    matrix.push(["3. MONTH WISE ATTENDANCE BIFURCATION SHEET"]);
-    
-    let headersRow = ["Metric Parameter"];
-    Object.keys(monthWiseBifurcationMap).forEach(key => {
-        headersRow.push(monthWiseBifurcationMap[key].monthLabel);
-    });
-    matrix.push(headersRow);
-
-    let presentRow = ["Office Present Days"];
-    Object.keys(monthWiseBifurcationMap).forEach(key => {
-        presentRow.push(monthWiseBifurcationMap[key].present);
-    });
-    matrix.push(presentRow);
-
-    let wfhRow = ["WFH Approved Days"];
-    Object.keys(monthWiseBifurcationMap).forEach(key => {
-        wfhRow.push(monthWiseBifurcationMap[key].wfh);
-    });
-    matrix.push(wfhRow);
-
-    let absentRow = ["Absent Days"];
-    Object.keys(monthWiseBifurcationMap).forEach(key => {
-        absentRow.push(monthWiseBifurcationMap[key].absent);
-    });
-    matrix.push(absentRow);
-
-    let lateRow = ["Late Marks"];
-    Object.keys(monthWiseBifurcationMap).forEach(key => {
-        lateRow.push(monthWiseBifurcationMap[key].late);
-    });
-    matrix.push(lateRow);
-    matrix.push([]); 
-
-    matrix.push(["4. RANGE PAYROLL COMPONENT BREAKDOWN SHEET"]);
-    matrix.push(["Salary Component Parameter Type", "Calculated Disbursal Component Value"]);
-    matrix.push(["Basic Base Allowance (50%)", document.getElementById("payBasic").innerText]);
-    matrix.push(["House Rent Allowance (40%)", document.getElementById("payHRA").innerText]);
-    matrix.push(["Incentives & Dynamic Perks (10%)", document.getElementById("payBonus").innerText]);
-    matrix.push(["Gross Disbursed CTC Net Value", document.getElementById("payGross").innerText]);
-    matrix.push([]); 
-
-    matrix.push(["5. DETAILED ATTENDANCE PUNCH DRILL-DOWN LEDGER (SEQUENCE LOG)"]);
-    matrix.push(["Date Stamp", "Clock In Time", "Clock Out Time", "Shift Duration Hrs", "Late Indicator Flag", "GPS Tracker Location Verification Area"]);
-    
-    if (monthlyLogsStore.length === 0) {
-        matrix.push(["No data rows matched parameters."]);
-    } else {
-        monthlyLogsStore.forEach(item => {
-            matrix.push([
-                item.date,
-                item.in,
-                item.out,
-                item.rawHours ? `${item.rawHours} Hrs` : "---",
-                item.late ? "YES (LATE)" : (item.isWFHLog ? "WFH WORK" : "NO"),
-                item.geo
-            ]);
-        });
-    }
-    matrix.push([]); 
-
-    matrix.push(["6. LEAVE APPLICATIONS HISTORY FILE"]);
-    matrix.push(["Applied Date Range Block", "Leave Reason Description", "Workflow Decision Status"]);
-    
-    if (monthlyLeavesStore.length === 0) {
-        matrix.push(["No historical leave requests tracked."]);
-    } else {
-        monthlyLeavesStore.forEach(lv => {
-            matrix.push([lv.date, lv.reason, lv.status]);
-        });
-    }
-
     const worksheetInstance = XLSX.utils.aoa_to_sheet(matrix);
-    worksheetInstance["!cols"] = [
-        { wch: 32 }, { wch: 25 }, { wch: 22 }, { wch: 25 }, { wch: 20 }, { wch: 65 }
-    ];
-
     const workbookInstance = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbookInstance, worksheetInstance, "Consolidated Summary");
-
-    const exportFileNameStr = `HRMS_Admin_Consolidated_Audit_${globalEmpIdClean}_${fromText}_to_${toText}.xlsx`;
-    XLSX.writeFile(workbookInstance, exportFileNameStr);
+    XLSX.writeFile(workbookInstance, `HRMS_Admin_Consolidated_Audit_${globalEmpIdClean}.xlsx`);
 }
 
 function switchTab(evt, tabIdName) {
