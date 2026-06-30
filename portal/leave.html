@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Enterprise HRMS | Leave Management</title>
+    <title>Enterprise HRMS | Leave Management Hub</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
@@ -16,6 +16,7 @@
             --primary: #00d4ff; --dark: #002b3d; --bg: #f3f7f9; 
             --header: #1a1a1a; --white: #ffffff; --border: #e2e8f0;
             --success: #10b981; --danger: #ef4444; --orange: #fcc419;
+            --purple: #a855f7;
         }
 
         body, html { font-family: 'Plus Jakarta Sans', sans-serif; background: var(--bg); margin: 0; padding: 0; height: 100vh; overflow: hidden; }
@@ -66,7 +67,6 @@
 
         .btn-cancel-action { padding: 4px 8px; font-size: 9px; background: var(--danger); color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 800; text-transform: uppercase; margin-left: 5px; }
 
-        /* Modal Overlay Wrapper for Date Selection */
         .cancel-modal { display: none; position: fixed; z-index: 5000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); backdrop-filter: blur(5px); }
         .cancel-modal-content { background: white; margin: 10% auto; padding: 25px; border-radius: 20px; width: 400px; box-sizing: border-box; }
     </style>
@@ -103,7 +103,7 @@
         <a href="leave.html" class="active"><i class="fas fa-envelope-open-text"></i> Leave Applications</a>
         <a href="user_attendance-log.html"><i class="fas fa-calendar-check"></i> My Attendance</a>
         <a href="employee-expenses.html"><i class="fas fa-wallet"></i> Expense Claims</a>
-                <a href="apply-resignation.html"><i class="fas fa-wallet"></i> Resignation & Exit</a>
+        <a href="apply-resignation.html"><i class="fas fa-wallet"></i> Resignation & Exit</a>
 
         <a onclick="logout()" style="color:var(--danger); margin-top:auto;"><i class="fas fa-power-off"></i> Logout</a>
     </aside>
@@ -116,19 +116,19 @@
 
         <div class="content-padding">
             <div class="card" style="background:#002b3d; color: white; padding: 15px;">
-                <div class="section-title" style="color: var(--primary);"><i class="fas fa-info-circle"></i> System Policy</div>
+                <div class="section-title" style="color: var(--primary);"><i class="fas fa-info-circle"></i> Sync Source: employee-report.html</div>
                 <div style="display: flex; gap: 30px; font-size: 10px; opacity: 0.9;">
-                    <span>• Half-Day: 0.5 Credit deduction.</span>
-                    <span>• 1st Half: Punch-in by 02:30 PM.</span>
-                    <span>• 2nd Half: Punch-out early at 01:30 PM.</span>
+                    <span>• Sync Source: Real-time values mapped from employee-report.html edit engine.</span>
+                    <span>• Monthly Accrual: Auto +2.33 Leaves (+1.33 CSL, +1.00 Earned).</span>
+                    <span>• Comp-Off: Injected via Sunday work reporting verification framework.</span>
                 </div>
             </div>
 
             <div class="balance-header">
-                <div class="bal-card"><div class="bal-icon">🏥</div><div class="bal-info"><h4>Sick Leave</h4><p id="slBal">0</p></div></div>
-                <div class="bal-card"><div class="bal-icon">💼</div><div class="bal-info"><h4>Casual Leave</h4><p id="clBal">0</p></div></div>
-                <div class="bal-card"><div class="bal-icon">💳</div><div class="bal-info"><h4>Paid Leave</h4><p id="plBal">0</p></div></div>
-                <div class="bal-card"><div class="bal-icon">💰</div><div class="bal-info"><h4>Total Credits</h4><p id="totalBal">0</p></div></div>
+                <div class="bal-card"><div class="bal-icon" style="background:#fff7ed; color:#ea580c;">📈</div><div class="bal-info"><h4>Earned Leaves (EL)</h4><p id="elBal">0.00</p></div></div>
+                <div class="bal-card"><div class="bal-icon" style="background:#f0fdf4; color:#16a34a;">🏥</div><div class="bal-info"><h4>CSL (Casual & Sick)</h4><p id="cslBal">0.00</p></div></div>
+                <div class="bal-card"><div class="bal-icon" style="background:#f3e8ff; color:#9333ea;">📅</div><div class="bal-info"><h4>Comp-Off (CO)</h4><p id="coBal">0.00</p></div></div>
+                <div class="bal-card"><div class="bal-icon" style="background:#ecfeff; color:#0891b2;">💰</div><div class="bal-info"><h4>Remaining Balance</h4><p id="totalRemainingBal">0.00</p></div></div>
             </div>
 
             <div class="content-grid">
@@ -137,9 +137,8 @@
                     <div class="form-group">
                         <label>Leave Category / Type</label>
                         <select id="fullLeaveCategory">
-                            <option value="Casual Leave">Casual / Personal Leave</option>
-                            <option value="Sick Leave">Sick Leave</option>
-                            <option value="Paid Leave">Paid Leave</option>
+                            <option value="CSL">CSL (Casual and Sick Leave)</option>
+                            <option value="Earned Leave">Earned Leave</option>
                         </select>
                     </div>
                     <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
@@ -159,15 +158,14 @@
                     <div class="form-group">
                         <label>Leave Category / Type</label>
                         <select id="halfLeaveCategory">
-                            <option value="Casual Leave">Casual / Personal Leave</option>
-                            <option value="Sick Leave">Sick Leave</option>
-                            <option value="Paid Leave">Paid Leave</option>
+                            <option value="CSL">CSL (Casual and Sick Leave)</option>
+                            <option value="Earned Leave">Earned Leave</option>
                         </select>
                     </div>
                     <div class="form-group"><label>Select Date</label><input type="date" id="hdDate"></div>
                     <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
                         <div class="form-group">
-                            <label>Session</label>
+                            <label>Session Slot</label>
                             <select id="hdSession">
                                 <option value="FirstHalf">First Half (AM)</option>
                                 <option value="SecondHalf">Second Half (PM)</option>
@@ -187,7 +185,7 @@
                     <div style="overflow-x: auto;">
                         <table>
                             <thead>
-                                <tr><th>Applied On</th><th>Date / Time</th><th>Type</th><th>Days</th><th>Status</th><th>Actions</th></tr>
+                                <tr><th>Applied On</th><th>Date Range</th><th>Leave Type</th><th>Days</th><th>Status</th><th>Actions</th></tr>
                             </thead>
                             <tbody id="historyBody">
                                 <tr><td colspan="6" style="text-align:center; padding:20px;">Fetching records...</td></tr>
@@ -217,19 +215,20 @@ const db = firebase.firestore();
 const empId = sessionStorage.getItem("empId") || sessionStorage.getItem("userDocId");
 let empData = null;
 
+// 🌟 AUTOMATED ACCRUAL MECHANISM REAL DATA SYNCED WITH EMPLOYEE REPORT PROFILES
 function handleMonthlyLeaveAccrual(employeeDoc, data) {
     const today = new Date();
     const currentMonthKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
     
     if (data.lastAccrualMonth !== currentMonthKey) {
-        let updatedSL = parseFloat(data.sl || 0) + 1.0; 
-        let updatedCL = parseFloat(data.cl || 0) + 1.0; 
+        let updatedEL = parseFloat(data.earnedLeaves || 0) + 1.00; 
+        let updatedCSL = parseFloat(data.cslLeaves || 0) + 1.33; 
         
         db.collection("employees").doc(employeeDoc).update({
-            sl: updatedSL,
-            cl: updatedCL,
+            earnedLeaves: updatedEL,
+            cslLeaves: updatedCSL,
             lastAccrualMonth: currentMonthKey
-        });
+        }).catch(err => console.error("Accrual engine bypass log error:", err));
     }
 }
 
@@ -240,22 +239,27 @@ function initLeavePage() {
         document.getElementById("liveClock").innerText = new Date().toLocaleTimeString(); 
     }, 1000);
     
+    // Live Snapshot Real-time Stream directly listening to edit inputs from employee-report.html
     db.collection("employees").doc(empId).onSnapshot(doc => {
         if(doc.exists) {
             empData = doc.data();
             handleMonthlyLeaveAccrual(empId, empData);
             
-            let currentPL = empData.pl !== undefined ? empData.pl : (empData.leaveBalance !== undefined ? empData.leaveBalance : 0);
+            // Strictly maps to fields modified inside employee-report.html edit form
+            let currentEL = empData.earnedLeaves !== undefined ? parseFloat(empData.earnedLeaves) : 0;
+            let currentCSL = empData.cslLeaves !== undefined ? parseFloat(empData.cslLeaves) : 0;
+            let currentCO = empData.compOffLeaves !== undefined ? parseFloat(empData.compOffLeaves) : 0; 
             
-            document.getElementById("slBal").innerText = empData.sl !== undefined ? empData.sl : 0;
-            document.getElementById("clBal").innerText = empData.cl !== undefined ? empData.cl : 0;
-            document.getElementById("plBal").innerText = parseFloat(currentPL).toFixed(2);
+            document.getElementById("elBal").innerText = currentEL.toFixed(2);
+            document.getElementById("cslBal").innerText = currentCSL.toFixed(2);
+            document.getElementById("coBal").innerText = currentCO.toFixed(2);
             
-            const total = parseFloat(empData.sl || 0) + parseFloat(empData.cl || 0) + parseFloat(currentPL);
-            document.getElementById("totalBal").innerText = total.toFixed(2);
+            const totalRemaining = currentEL + currentCSL + currentCO;
+            document.getElementById("totalRemainingBal").innerText = totalRemaining.toFixed(2);
         }
     });
 
+    // History Pipeline Realtime Stream Mapped
     db.collection("emp_leaves")
     .where("empId", "==", empId)
     .onSnapshot(snap => {
@@ -266,16 +270,13 @@ function initLeavePage() {
         }
 
         let docs = [];
-        snap.forEach(doc => {
-            docs.push({ id: doc.id, ...doc.data() });
-        });
-        
+        snap.forEach(doc => { docs.push({ id: doc.id, ...doc.data() }); });
         docs.sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
 
         tbody.innerHTML = "";
         docs.forEach(l => {
             const ts = l.timestamp ? new Date(l.timestamp.seconds * 1000).toLocaleDateString('en-GB') : 'Just now';
-            const dateDisplay = l.leaveType === "Full" || l.leaveType === "Casual Leave" || l.leaveType === "Sick Leave" || l.leaveType === "Paid Leave" ? `${l.startDate} to ${l.endDate}` : `${l.startDate}`;
+            const dateDisplay = l.duration === "Full Day" ? `${l.startDate} to ${l.endDate}` : `${l.startDate} (${l.duration})`;
             
             let cleanStatus = String(l.status || "Pending").trim();
             let displayStatus = cleanStatus;
@@ -285,16 +286,16 @@ function initLeavePage() {
             if(cleanStatus === "Rejected") badgeClass = "st-Rejected";
             if(cleanStatus === "Pending Cancellation") {
                 badgeClass = "st-PendingCancellation";
-                displayStatus = `Pending Cancel Approval`;
+                displayStatus = `Pending Cancel`;
             }
             if(cleanStatus === "Partially Cancelled") {
                 badgeClass = "st-PartiallyCancelled";
-                displayStatus = `Partially Cancelled (-${l.cancelledDays} Days)`;
+                displayStatus = `Cancelled (-${l.cancelledDays} Days)`;
             }
 
             let actionBtnHTML = "---";
             if (cleanStatus === "Approved") {
-                actionBtnHTML = `<button class="btn-cancel-action" onclick="openCancellationModal('${l.id}', '${l.startDate}', '${l.endDate}', '${l.leaveType}')">Cancel Date</button>`;
+                actionBtnHTML = `<button class="btn-cancel-action" onclick="openCancellationModal('${l.id}', '${l.startDate}', '${l.endDate}', '${l.leaveCategory}')">Cancel Request</button>`;
             } else if (cleanStatus === "Pending Cancellation") {
                 actionBtnHTML = `<span style="font-size:10px; color:var(--orange); font-weight:700;">Sent to Admin</span>`;
             }
@@ -302,8 +303,8 @@ function initLeavePage() {
             tbody.innerHTML += `<tr>
                 <td>${ts}</td>
                 <td>${dateDisplay}</td>
-                <td><small>${l.leaveType || 'General'}</small></td>
-                <td>${l.days}</td>
+                <td><small class="font-bold text-slate-700">${l.leaveCategory || 'General'}</small></td>
+                <td><b class="text-slate-900">${l.days}</b></td>
                 <td><span class="badge ${badgeClass}">${displayStatus}</span></td>
                 <td>${actionBtnHTML}</td>
             </tr>`;
@@ -311,14 +312,13 @@ function initLeavePage() {
     });
 }
 
-function openCancellationModal(docId, appStart, appEnd, leaveType) {
+function openCancellationModal(docId, appStart, appEnd, leaveCategory) {
     document.getElementById("targetLeaveDocId").value = docId;
-    document.getElementById("targetLeaveType").value = leaveType;
+    document.getElementById("targetLeaveType").value = leaveCategory;
     
     const startInp = document.getElementById("cancelStartDate");
     const endInp = document.getElementById("cancelEndDate");
     
-    // Set restrictions on date picker to match bounds of original application
     startInp.min = appStart; startInp.max = appEnd;
     endInp.min = appStart; endInp.max = appEnd;
     
@@ -330,7 +330,6 @@ function openCancellationModal(docId, appStart, appEnd, leaveType) {
 
 async function submitCancellationRequestToAdmin() {
     const docId = document.getElementById("targetLeaveDocId").value;
-    const leaveType = document.getElementById("targetLeaveType").value;
     const cStart = document.getElementById("cancelStartDate").value;
     const cEnd = document.getElementById("cancelEndDate").value;
     
@@ -343,7 +342,6 @@ async function submitCancellationRequestToAdmin() {
     const calculatedCancelDays = Math.ceil((d2 - d1) / (1000 * 60 * 60 * 24)) + 1;
 
     try {
-        // Change state to Pending Cancellation & delegate routing configuration variables
         await db.collection("emp_leaves").doc(docId).update({
             status: "Pending Cancellation",
             requestedCancelStart: cStart,
@@ -389,15 +387,18 @@ async function submitLeave(mode) {
         timestamp: firebase.firestore.FieldValue.serverTimestamp()
     };
 
+    let selectedCategory = "";
+    let requestedDays = 0;
+
     if(mode === 'Full') {
-        const days = calculateFull();
+        requestedDays = calculateFull();
         const reason = document.getElementById("lReason").value;
-        if(days <= 0 || !reason) return alert("Please select valid dates and enter reason!");
+        if(requestedDays <= 0 || !reason) return alert("Please select valid dates and enter reason!");
         
-        payload.leaveType = document.getElementById("fullLeaveCategory").value; 
+        selectedCategory = document.getElementById("fullLeaveCategory").value; 
         payload.startDate = document.getElementById("startDate").value;
         payload.endDate = document.getElementById("endDate").value;
-        payload.days = days;
+        payload.days = requestedDays;
         payload.duration = "Full Day";
         payload.reason = reason;
     } else {
@@ -405,13 +406,28 @@ async function submitLeave(mode) {
         const reason = document.getElementById("hdReason").value;
         if(!date || !reason) return alert("Please select date and enter reason!");
 
-        payload.leaveType = document.getElementById("halfLeaveCategory").value; 
+        requestedDays = 0.5;
+        selectedCategory = document.getElementById("halfLeaveCategory").value; 
         payload.startDate = date;
         payload.endDate = date;
-        payload.days = 0.5;
+        payload.days = requestedDays;
         payload.duration = document.getElementById("hdSession").value === "FirstHalf" ? "1st Half" : "2nd Half";
         payload.time = document.getElementById("hdTime").value;
         payload.reason = reason;
+    }
+
+    payload.leaveCategory = selectedCategory;
+
+    // 🛑 VALIDATION ENGINE TIED TO THE EMPLOYEE-REPORT REAL BALANCES
+    let availableBalance = 0;
+    if (selectedCategory === "CSL") {
+        availableBalance = parseFloat(empData.cslLeaves || 0);
+    } else if (selectedCategory === "Earned Leave") {
+        availableBalance = parseFloat(empData.earnedLeaves || 0);
+    }
+
+    if (requestedDays > availableBalance) {
+        return alert(`⚠️ NOT ENOUGH LEAVES AVAILABLE!\n\nYou requested ${requestedDays} days of ${selectedCategory}, but your current available balance configured from the manager directory is only ${availableBalance.toFixed(2)} days.`);
     }
 
     try {
@@ -422,7 +438,8 @@ async function submitLeave(mode) {
         document.getElementById("startDate").value = "";
         document.getElementById("endDate").value = "";
         document.getElementById("hdDate").value = "";
-    } catch (e) { alert("Error: " + e.message); }
+        document.getElementById("dayCountDisplay").innerText = "0.0 Days";
+    } catch (e) { alert("Error dispatching transaction parameters: " + e.message); }
 }
 
 function logout() { sessionStorage.clear(); window.location.href="index.html"; }

@@ -118,8 +118,7 @@
                     <a href="javascript:void(0)" onclick="validateAccess('workforce', 'e_vault.html')">🔒 E-Vault Documents</a>
                     <a href="javascript:void(0)" onclick="validateAccess('workforce', 'lifecycle.html')">🔄 Employee Lifecycle</a>
                     <a href="javascript:void(0)" onclick="validateAccess('workforce', 'assets.html')">💻 Asset Tracking</a>
-                                    <a href="javascript:void(0)" onclick="validateAccess('workforce', 'hr_staff_directory.html')">📁 Workforce Directory</a>
-
+                    <a href="javascript:void(0)" onclick="validateAccess('workforce', 'hr_staff_directory.html')">📁 Workforce Directory</a>
                 </div>
 
                 <button class="dropdown-btn" onclick="toggleSidebarDropdown(this)">🕒 Attendance & Leaves <span>▼</span></button>
@@ -192,12 +191,12 @@
             <div class="form-group"><label>Reporting Manager</label><select id="editManager"></select></div>
             <div class="form-group"><label>Joining Date</label><input type="date" id="editDoj"></div>
 
+            <!-- 🌟 LEAVES PARAMETERS BLOCK (LOP AND MONTH TOTAL DURATION COMPLETELY REMOVED) -->
             <div class="section-tag">Leaves Parameters & Attendance Indicators</div>
-            <div class="form-group"><label>Paid Leaves / Pocket (PL)</label><input type="number" step="0.01" id="editPL"></div>
-            <div class="form-group"><label>Sick Leaves (SL)</label><input type="number" step="0.01" id="editSL"></div>
-            <div class="form-group"><label>Casual Leaves (CL)</label><input type="number" step="0.01" id="editCL"></div>
-            <div class="form-group"><label>LOP Leaves Count (Unpaid)</label><input type="number" id="editLop" value="0" oninput="runLiveFinancialEngine('salary')"></div>
-            <div class="form-group"><label>Month Total Days Block</label><input type="number" id="editMonthDays" value="30" oninput="runLiveFinancialEngine('salary')"></div>
+            <div class="form-group"><label>Earned Leaves (EL)</label><input type="number" step="0.01" id="editEL" oninput="recalculateCombinedRemainingBalanceTotal()"></div>
+            <div class="form-group"><label>CSL (Casual & Sick Leave)</label><input type="number" step="0.01" id="editCSL" oninput="recalculateCombinedRemainingBalanceTotal()"></div>
+            <div class="form-group"><label>Comp-Off Leaves (CO)</label><input type="number" step="0.01" id="editCO" oninput="recalculateCombinedRemainingBalanceTotal()"></div>
+            <div class="form-group" style="grid-column: span 3;"><label>Remaining Balance (Auto Total Sum)</label><input type="number" step="0.01" id="editRemainingTotal" readonly style="background:#f1f5f9; font-weight:700; color:var(--info);"></div>
             
             <div class="section-tag">Financial Salary Management Profile (HR Master Setup Panel)</div>
             
@@ -299,17 +298,23 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
 let masterData = [];
+let databaseAccrualMonthHolder = ""; // Temporary state holder to protect monthly scheduler sequence
 
-// AUTOMATIC SYSTEM CALCULATION ENGINE BASED ON ATTENDANCE LOGIC
+function recalculateCombinedRemainingBalanceTotal() {
+    const el = parseFloat(document.getElementById("editEL").value) || 0;
+    const csl = parseFloat(document.getElementById("editCSL").value) || 0;
+    const co = parseFloat(document.getElementById("editCO").value) || 0;
+    
+    const combinedSum = el + csl + co;
+    document.getElementById("editRemainingTotal").value = combinedSum.toFixed(2);
+}
+
 function runLiveFinancialEngine(triggerType) {
     const baselineSalary = parseFloat(document.getElementById("editSalary").value) || 0;
-    const totalDays = parseFloat(document.getElementById("editMonthDays").value) || 30;
-    const lopLeaves = parseFloat(document.getElementById("editLop").value) || 0;
     
-    // 1. Calculate Master Metrics
     let mBasic = Math.round(baselineSalary * 0.50);
-    let mHra = Math.round(mBasic * 0.50); // Twin mirror split ratio allocation
-    let mSpecial = baselineSalary - (mBasic + mHra); // Remaining special buffer matching
+    let mHra = Math.round(mBasic * 0.50); 
+    let mSpecial = baselineSalary - (mBasic + mHra); 
     
     if(mSpecial < 0 || baselineSalary === 0) mSpecial = 0;
 
@@ -318,29 +323,16 @@ function runLiveFinancialEngine(triggerType) {
     document.getElementById("editMasterSpecial").value = mSpecial;
     document.getElementById("editMasterGross").value = mBasic + mHra + mSpecial;
 
-    // 2. Compute Effective Workdays Actual Metrics
-    let effectiveWorkdays = totalDays - lopLeaves;
-    if(effectiveWorkdays < 0) effectiveWorkdays = 0;
-
-    let actGross = 0;
-    let actBasic = 0;
-    let actHra = 0;
-    let actSpecial = 0;
-
-    if (baselineSalary > 0 && totalDays > 0) {
-        // Calculate dynamic actual values according to real leaves penalty parameters
-        actGross = Math.round((baselineSalary / totalDays) * effectiveWorkdays);
-        actBasic = Math.round((mBasic / totalDays) * effectiveWorkdays);
-        actHra = Math.round((mHra / totalDays) * effectiveWorkdays);
-        actSpecial = actGross - (actBasic + actHra);
-    }
+    let actGross = baselineSalary;
+    let actBasic = mBasic;
+    let actHra = mHra;
+    let actSpecial = mSpecial;
 
     document.getElementById("editActualBasic").value = actBasic;
     document.getElementById("editActualHra").value = actHra;
     document.getElementById("editActualSpecial").value = actSpecial;
     document.getElementById("editActualGross").value = actGross;
 
-    // 3. Deductions computation site calculation block
     let pf = parseFloat(document.getElementById("editManualPf").value) || 0;
     let pt = parseFloat(document.getElementById("editManualPt").value) || 0;
     let medical = parseFloat(document.getElementById("editManualMedical").value) || 0;
@@ -348,7 +340,6 @@ function runLiveFinancialEngine(triggerType) {
     const totalDeductions = pf + pt + medical;
     document.getElementById("editTotalDeductions").value = totalDeductions;
 
-    // 4. Net Salary Output Render Display
     let finalNetPay = actGross - totalDeductions;
     if (finalNetPay < 0) finalNetPay = 0;
     document.getElementById("lblNetPayDisplay").innerText = finalNetPay.toLocaleString('en-IN', { minimumFractionDigits: 2 });
@@ -467,13 +458,16 @@ function openEdit(id) {
     document.getElementById("editManager").value = emp.reportingManager || "";
     document.getElementById("editDoj").value = emp.doj || "";
     
-    let currentPL = emp.pl !== undefined ? emp.pl : (emp.leaveBalance !== undefined ? emp.leaveBalance : 2.33);
-    document.getElementById("editPL").value = currentPL;
-    document.getElementById("editSL").value = emp.sl || 0;
-    document.getElementById("editCL").value = emp.cl || 0;
+    // Auto-protect accrual lock string to maintain consistency across dynamic updates
+    databaseAccrualMonthHolder = emp.lastAccrualMonth || "";
     
-    document.getElementById("editLop").value = emp.attendanceIndicators?.lopLeaves || 0;
-    document.getElementById("editMonthDays").value = emp.attendanceIndicators?.monthTotalDays || 30;
+    let currentEL = emp.earnedLeaves !== undefined ? parseFloat(emp.earnedLeaves) : 0;
+    let currentCSL = emp.cslLeaves !== undefined ? parseFloat(emp.cslLeaves) : 0;
+    let currentCO = emp.compOffLeaves !== undefined ? parseFloat(emp.compOffLeaves) : 0;
+    
+    document.getElementById("editEL").value = currentEL;
+    document.getElementById("editCSL").value = currentCSL;
+    document.getElementById("editCO").value = currentCO;
     
     const baseSalary = emp.salary?.basic !== undefined ? emp.salary.basic : (parseFloat(emp.salary) || 0);
     document.getElementById("editSalary").value = baseSalary;
@@ -482,6 +476,7 @@ function openEdit(id) {
     document.getElementById("editManualPt").value = emp.payroll?.pt !== undefined ? emp.payroll.pt : 200;
     document.getElementById("editManualMedical").value = emp.payroll?.medical !== undefined ? emp.payroll.medical : 0;
 
+    recalculateCombinedRemainingBalanceTotal();
     runLiveFinancialEngine('salary');
     document.getElementById("editModal").style.display = "block";
 }
@@ -496,7 +491,10 @@ async function saveChanges() {
     btn.disabled = true; btn.innerText = "SYNCING...";
     
     const finalSalaryBasic = parseFloat(document.getElementById("editSalary").value) || 0;
-    const finalPL = parseFloat(document.getElementById("editPL").value) || 0;
+    const finalEL = parseFloat(document.getElementById("editEL").value) || 0;
+    const finalCSL = parseFloat(document.getElementById("editCSL").value) || 0;
+    const finalCO = parseFloat(document.getElementById("editCO").value) || 0;
+    const finalRemainingSum = finalEL + finalCSL + finalCO;
 
     const mGross = parseFloat(document.getElementById("editMasterGross").value) || 0;
     const aGross = parseFloat(document.getElementById("editActualGross").value) || 0;
@@ -518,19 +516,17 @@ async function saveChanges() {
         reportingManager: document.getElementById("editManager").value,
         doj: document.getElementById("editDoj").value,
         
-        pl: finalPL,
-        leaveBalance: finalPL, 
-        sl: parseFloat(document.getElementById("editSL").value) || 0,
-        cl: parseFloat(document.getElementById("editCL").value) || 0,
-        
-        // Dynamic attendance indicators tracking
-        "attendanceIndicators.lopLeaves": parseFloat(document.getElementById("editLop").value) || 0,
-        "attendanceIndicators.monthTotalDays": parseFloat(document.getElementById("editMonthDays").value) || 30,
-        "attendanceIndicators.effectiveWorkdays": (parseFloat(document.getElementById("editMonthDays").value) || 30) - (parseFloat(document.getElementById("editLop").value) || 0),
+        // 🌟 REAL TIME CORE BALANCES MAPPED BACK TO CENTRAL STORAGE WITHOUT DISTURBING LEAVE ACCRUAL ACCUMULATOR
+        earnedLeaves: finalEL,
+        cslLeaves: finalCSL,
+        compOffLeaves: finalCO,
+        leaveBalance: finalRemainingSum, 
+        pl: finalEL, 
+        sl: finalCSL, 
+        lastAccrualMonth: databaseAccrualMonthHolder, // 🔒 Protects automated monthly ratio logic (1 EL / 1.33 CSL)
 
         salary: finalSalaryBasic,
         
-        // This direct synchronization fixes profile page input loading without [object Object] mismatch errors
         "salary.basic": finalSalaryBasic,
         "payroll.basic": finalSalaryBasic,
         "payroll.masterBasic": parseFloat(document.getElementById("editMasterBasic").value) || 0,

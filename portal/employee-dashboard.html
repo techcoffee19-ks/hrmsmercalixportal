@@ -19,27 +19,24 @@
             --header: #1a1a1a; --white: #ffffff; --border: #e2e8f0;
             --success: #10b981; --danger: #ef4444; --orange: #fcc419;
             --holiday: #94a3b8; --wfh: #a855f7; --indigo: #4338ca;
+            --purple: #9333ea;
         }
 
         body, html { font-family: 'Plus Jakarta Sans', sans-serif; background: var(--bg); margin: 0; padding: 0; height: 100vh; overflow: hidden; }
         .p-container { display: flex; height: 100vh; width: 100%; }
 
-        /* Sidebar Navigation Design Layout mapping */
         .sidebar { width: 260px; background: var(--dark); flex-shrink: 0; display: flex; flex-direction: column; }
         .sidebar-logo { padding: 25px; color: white; font-weight: 800; font-size: 18px; border-bottom: 1px solid rgba(255,255,255,0.1); text-transform: uppercase; }
         .sidebar a { padding: 18px 25px; text-decoration: none; color: #94a3b8; font-weight: 700; font-size: 11px; text-transform: uppercase; border-left: 4px solid transparent; transition: 0.3s; cursor: pointer; display: flex; align-items: center; gap: 10px; }
         .sidebar a:hover, .sidebar a.active { background: rgba(0, 212, 255, 0.08); color: var(--primary); border-left-color: var(--primary); }
 
-        /* Main Workspace Content Core Box */
         .main { flex: 1; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         .top-nav { height: 60px; background: var(--header); display: flex; justify-content: space-between; align-items: center; padding: 0 30px; border-bottom: 2px solid var(--primary); flex-shrink: 0; }
 
-        /* Dashboard Scannable Layout Matrix Grid */
         .dashboard-grid { padding: 20px; display: grid; grid-template-columns: repeat(12, 1fr); gap: 15px; height: calc(100vh - 60px); box-sizing: border-box; overflow-y: auto; align-content: start; }
         .card { background: white; border-radius: 18px; padding: 18px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); border: 1px solid var(--border); box-sizing: border-box; }
         .section-title { font-size: 11.5px; font-weight: 800; text-transform: uppercase; color: #475569; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
 
-        /* Welcome Dashboard Card Element */
         .welcome-card { grid-column: span 8; background: linear-gradient(135deg, #004e92, #000428); color: white; display: flex; justify-content: space-between; align-items: center; padding: 25px 30px; position: relative; overflow: hidden; height: 180px; }
         .thought-badge { position: absolute; top: 0; left: 0; width: 100%; background: rgba(0, 212, 255, 0.25); backdrop-filter: blur(10px); padding: 8px 20px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid rgba(255,255,255,0.1); z-index: 5; box-sizing: border-box; }
         #thoughtSlider { font-size: 10.5px; font-weight: 800; text-transform: uppercase; color: #fff; transition: opacity 0.5s ease; white-space: nowrap; overflow: hidden; }
@@ -47,21 +44,22 @@
         .late-status-container { position: absolute; right: 20px; bottom: 15px; text-align: center; display: none; }
         .status-circle { width: 50px; height: 50px; border-radius: 50%; border: 4px solid var(--orange); display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 800; background: rgba(255,255,255,0.1); }
 
-        /* Quick Action Cards Fitted Flex Setup Grid */
         .quick-actions { grid-column: span 8; }
-        .action-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; }
+        .action-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px; } 
         .action-box { background: #f8fafc; padding: 14px 6px; border-radius: 15px; text-align: center; cursor: pointer; border: 1px solid var(--border); transition: 0.3s; box-sizing: border-box; }
         .action-box:hover { transform: translateY(-2px); border-color: var(--primary); background: white; }
         .action-box i { font-size: 20px; margin-bottom: 6px; display: block; }
         .action-box b { font-size: 10px; display: block; line-height: 1.2; }
 
-        /* Counter Metric Panels Grid Group */
-        .stat-group { grid-column: span 8; display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; }
-        .stat-mini { background: white; padding: 15px; border-radius: 15px; border: 1px solid var(--border); display: flex; flex-direction: column; justify-content: space-between; cursor: pointer; transition: 0.3s; min-height: 95px; box-sizing: border-box; }
-        .stat-mini:hover { border-color: var(--primary); transform: translateY(-2px); }
-        .stat-mini .val { font-size: 22px; font-weight: 800; margin: 3px 0; }
+        .leave-stat-group { grid-column: span 8; display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; }
+        .leave-stat-mini { background: white; padding: 15px; border-radius: 15px; border: 1px solid var(--border); display: flex; flex-direction: column; justify-content: space-between; min-height: 95px; box-sizing: border-box; }
+        .leave-stat-mini .val { font-size: 22px; font-weight: 800; margin: 3px 0; }
 
-        /* Birthday Card Elements */
+        .history-stat-group { grid-column: span 8; display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; }
+        .history-stat-mini { background: white; padding: 15px; border-radius: 15px; border: 1px solid var(--border); display: flex; flex-direction: column; justify-content: space-between; cursor: pointer; transition: 0.3s; min-height: 95px; box-sizing: border-box; }
+        .history-stat-mini:hover { border-color: var(--primary); transform: translateY(-2px); }
+        .history-stat-mini .val { font-size: 22px; font-weight: 800; margin: 3px 0; }
+
         .bday-flip-card { background-color: transparent; width: 100%; height: 120px; perspective: 1000px; }
         .bday-flip-inner { position: relative; width: 100%; height: 100%; text-align: center; transition: transform 0.6s; transform-style: preserve-3d; }
         .bday-flip-card.flipped .bday-flip-inner { transform: rotateY(180deg); }
@@ -77,7 +75,6 @@
         .gauge-container { height: 110px; position: relative; }
         .gauge-text { position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); text-align: center; }
 
-        /* Window Overlay Containers */
         .modal { display: none; position: fixed; z-index: 4000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); backdrop-filter: blur(8px); }
         .modal-content { background: white; margin: 4% auto; padding: 25px; border-radius: 24px; width: 450px; max-height: 88vh; overflow-y: auto; box-sizing: border-box; }
         
@@ -104,13 +101,11 @@
         .award-slide-img.active { opacity: 1; }
         .award-caption-overlay { position: absolute; bottom: 0; left: 0; width: 100%; background: linear-gradient(transparent, rgba(0,0,0,0.9)); color: white; padding: 12px 15px; box-sizing: border-box; z-index: 5; }
 
-        /* Biometric Camera View Ports layouts mapping */
         #regCameraFeedContainer { position: relative; width: 100%; height: 240px; background: #000; border-radius: 12px; overflow: hidden; margin: 15px 0; }
         #regVideo { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
         #regScannerLine { position: absolute; top: 0; left: 0; width: 100%; height: 2px; background: #10b981; box-shadow: 0 0 10px #10b981; animation: scanAnim 2s infinite linear; display: none; }
         @keyframes scanAnim { 0% { top: 0%; } 50% { top: 100%; } 100% { top: 0%; } }
 
-        /* Multi Year Dynamic Continuous Grid Maps Calendar Framework CSS Layouts */
         .calendar-container { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-top: 15px; }
         .month-box { border: 1px solid #e2e8f0; padding: 10px; border-radius: 12px; background: #fff; }
         .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-top: 8px; }
@@ -124,7 +119,6 @@
         .day-sunday { background: #e2e8f0 !important; color: #64748b !important; }
         .cal-day .wfh-home-icon { font-size: 6px; position: absolute; bottom: 1px; right: 1px; color: white; }
 
-        /* Professional Holiday Table Container layout formatting mapping */
         .professional-holiday-table { width: 100%; border-collapse: collapse; font-size: 11.5px; margin-top: 10px; }
         .professional-holiday-table th { background: #f1f5f9; padding: 10px; font-weight: 800; text-align: left; color: var(--dark); border-bottom: 2px solid var(--border); }
         .professional-holiday-table td { padding: 10px; border-bottom: 1px solid #f1f5f9; font-weight: 600; color: #334155; }
@@ -163,7 +157,7 @@
         </div>
         <div class="form-group">
             <label>Select Attendance Timestamp</label>
-            <input type="time" id="mpTime" class="form-control" value="09:30">
+            <input type="time" id="mpTime" class="form-control" value="19:00">
         </div>
 
         <div id="mpStatusLogger" style="font-size:11.5px; font-weight:800; color:var(--orange); margin-bottom:12px; min-height:18px;">Select a date parameter...</div>
@@ -223,7 +217,7 @@
 <div id="attendanceModal" class="modal">
     <div class="modal-content" style="width: 650px; max-width: 95vw;">
         <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 1px solid var(--border); padding-bottom:10px;">
-            <h3 style="margin:0; font-size: 15px;"><i class="fas fa-calendar-alt" style="color:var(--primary);"></i> Dynamic Attendance Tracker Panel</h3>
+            <h3 style="margin:0; font-size: 15px;"><i class="fas fa-calendar-alt" style="color:var(--primary);"></i> Dynamic Annual Attendance Ledger Tracker</h3>
             <span onclick="closeModal('attendanceModal')" style="cursor:pointer; font-size:22px; color:#64748b; font-weight:700;">&times;</span>
         </div>
         <div style="display:flex; gap:12px; margin: 12px 0; justify-content:center; font-size:9.5px; font-weight:800; flex-wrap:wrap; background: #f8fafc; padding: 10px; border-radius: 10px;">
@@ -334,7 +328,8 @@
                     <div class="action-box" onclick="location.href='payslip.html'"><i class="fas fa-file-download" style="color:#f97316"></i><b>Download Payslip</b></div>
                     <div class="action-box" onclick="openRegModal()" style="border: 1px solid var(--primary); background: #f0f9ff;"><i class="fas fa-user-circle" style="color:#10b981"></i><b>Face Registration</b></div>
                     <div class="action-box" onclick="location.href='advance_salary.html'"><i class="fa-regular fa-money-check-dollar" style="color:#01a703"></i><b>Advance Salary</b></div>
-                    <div class="action-box" onclick="openManualPunchModal()" style="border: 2px solid var(--wfh); background: #faf5ff;"><i class="fas fa-fingerprint" style="color:var(--wfh);"></i><b>Manual Punch</b></div>
+                    <div class="action-box" onclick="openManualPunchModal()" style="border: 1px solid var(--wfh); background: #faf5ff;"><i class="fas fa-fingerprint" style="color:var(--wfh);"></i><b>Manual Punch</b></div>
+                    <div class="action-box" onclick="openAttendanceModal()" style="border: 2px solid var(--success); background: #f0fdf4;"><i class="fas fa-calendar-alt" style="color:var(--success);"></i><b>View Calendar</b></div>
                 </div>
             </div>
             
@@ -379,26 +374,49 @@
                 </div>
             </div>
 
-            <div class="stat-group">
-                <div class="stat-mini" onclick="openAttendanceModal()">
-                    <span class="section-title" style="margin:0">Attendance Record</span>
-                    <div class="val" id="cPresent" style="color:var(--success)">0</div>
-                    <a style="font-size:9px; color:var(--primary); font-weight:800; text-decoration:none;">VIEW CALENDAR</a>
+            <div class="leave-stat-group">
+                <div class="leave-stat-mini" style="border-left: 5px solid var(--orange);">
+                    <span class="section-title" style="margin:0; color:#c2410c;">Earned Leaves (EL)</span>
+                    <div class="val" id="lblEarnedLeavesBucketVal" style="color:var(--dark)">0.00</div>
+                    <span style="font-size:9px; color:#94a3b8; font-weight:700;">REALTIME SYNC</span>
                 </div>
-                <div class="stat-mini" onclick="viewLeaves('Pending')">
-                    <span class="section-title" style="margin:0">Pending Leaves</span>
+                <div class="leave-stat-mini" style="border-left: 5px solid var(--success);">
+                    <span class="section-title" style="margin:0; color:#16a34a;">CSL (Casual & Sick)</span>
+                    <div class="val" id="lblCslLeavesBucketVal" style="color:var(--dark)">0.00</div>
+                    <span style="font-size:9px; color:#94a3b8; font-weight:700;">REALTIME SYNC</span>
+                </div>
+                <div class="leave-stat-mini" style="border-left: 5px solid var(--purple);">
+                    <span class="section-title" style="margin:0; color:#7c3aed;">Comp-Off Leaves (CO)</span>
+                    <div class="val" id="lblCompOffLeavesBucketVal" style="color:var(--dark)">0.00</div>
+                    <span style="font-size:9px; color:#94a3b8; font-weight:700;">GRANTED BY MGR</span>
+                </div>
+                <div class="leave-stat-mini" style="border-left: 5px solid var(--primary); background: #f0f9ff;">
+                    <span class="section-title" style="margin:0; color:#0369a1;">Remaining Balance</span>
+                    <div class="val" id="lblTotalRemainingCalculatedSum" style="color:var(--dark)">0.00</div>
+                    <span style="font-size:9px; color: var(--info); font-weight:800;">AGGREGATE TOTAL</span>
+                </div>
+            </div>
+
+            <div class="history-stat-group">
+                <div class="history-stat-mini" style="border-top: 4px solid var(--orange);" onclick="viewLeaves('Pending')">
+                    <span class="section-title" style="margin:0; color:var(--orange);">Pending Applications</span>
                     <div class="val" id="cPending" style="color:var(--orange)">0</div>
-                    <span style="font-size:9px; opacity:0.5;">WAITING</span>
+                    <span style="font-size:9px; color:#94a3b8; font-weight:700;">WAITING APPROVAL</span>
                 </div>
-                <div class="stat-mini" onclick="viewLeaves('Approved')">
-                    <span class="section-title" style="margin:0">Approved</span>
+                <div class="history-stat-mini" style="border-top: 4px solid var(--success);" onclick="viewLeaves('Approved')">
+                    <span class="section-title" style="margin:0; color:var(--success);">Approved Applications</span>
                     <div class="val" id="cApproved" style="color:var(--success)">0</div>
-                    <span style="font-size:9px; opacity:0.5;">HISTORY</span>
+                    <span style="font-size:9px; color:#94a3b8; font-weight:700;">HISTORY LEDGER</span>
                 </div>
-                <div class="stat-mini" onclick="viewLeaves('Rejected')">
-                    <span class="section-title" style="margin:0">Rejected</span>
+                <div class="history-stat-mini" style="border-top: 4px solid var(--danger);" onclick="viewLeaves('Rejected')">
+                    <span class="section-title" style="margin:0; color:var(--danger);">Rejected Applications</span>
                     <div class="val" id="cRejected" style="color:var(--danger)">0</div>
-                    <span style="font-size:9px; opacity:0.5;">REASONS</span>
+                    <span style="font-size:9px; color:#94a3b8; font-weight:700;">REJECTIONS REASONS</span>
+                </div>
+                <div class="history-stat-mini" style="border-top: 4px solid var(--indigo);">
+                    <span class="section-title" style="margin:0; color:var(--indigo);">Monthly Attendance Present</span>
+                    <div class="val" id="cPresent" style="color:var(--indigo)">0</div>
+                    <span style="font-size:9px; color:#94a3b8; font-weight:700;">CURRENT MONTH</span>
                 </div>
             </div>
 
@@ -409,7 +427,7 @@
                         <div style="font-size: 13px; font-weight: 800;" id="hName">Loading...</div>
                         <span style="font-size: 9px; opacity: 0.8;" id="hDate">Date</span>
                     </div>
-                    <span class="view-all-link" onclick="showAllHolidays()">View All</span>
+                    <span class="view-all-link" style="cursor:pointer;" onclick="showAllHolidays()">View All</span>
                 </div>
 
                 <div class="card" style="height: 165px; box-sizing: border-box; padding: 12px 15px;">
@@ -494,8 +512,6 @@ function initManualPunchLiveHistory() {
                     <td><span style="color:${badgeColor}; font-weight:800;">${(item.status || 'Pending').toUpperCase()}</span></td>
                 </tr>`;
             }).join("");
-        }, err => {
-            console.error("Manual history payload sync dropped:", err);
         });
 }
 
@@ -645,8 +661,6 @@ function openManualPunchModal() {
     document.getElementById('manualPunchModal').style.display = 'block';
     switchManualPunchTab("IN");
     initManualPunchLiveHistory();
-    
-    // Direct User Gesture Context standard pipeline flow call
     initManualPunchCamera();
 }
 
@@ -826,6 +840,7 @@ function updatePerf(c, t) {
     renderGauge(score);
 }
 
+// 🌟 FULLY SECURED AND PARSED SYNTAX GRAPH CALENDAR LEDGER MATRIX
 async function openAttendanceModal() {
     document.getElementById("attendanceModal").style.display = "block";
     const container = document.getElementById("yearCalendar");
@@ -934,6 +949,16 @@ function listenLiveAttendanceCounters(sessionEmpId) {
 
         if(document.getElementById("wManager")) { document.getElementById("wManager").innerText = empData.reportingManager || "Main Admin"; }
 
+        let currentEL = empData.earnedLeaves !== undefined ? parseFloat(empData.earnedLeaves) : 0;
+        let currentCSL = empData.cslLeaves !== undefined ? parseFloat(empData.cslLeaves) : 0;
+        let currentCO = empData.compOffLeaves !== undefined ? parseFloat(empData.compOffLeaves) : 0;
+        let aggregateSumRemaining = currentEL + currentCSL + currentCO;
+
+        if(document.getElementById("lblEarnedLeavesBucketVal")) document.getElementById("lblEarnedLeavesBucketVal").innerText = currentEL.toFixed(2);
+        if(document.getElementById("lblCslLeavesBucketVal")) document.getElementById("lblCslLeavesBucketVal").innerText = currentCSL.toFixed(2);
+        if(document.getElementById("lblCompOffLeavesBucketVal")) document.getElementById("lblCompOffLeavesBucketVal").innerText = currentCO.toFixed(2);
+        if(document.getElementById("lblTotalRemainingCalculatedSum")) document.getElementById("lblTotalRemainingCalculatedSum").innerText = aggregateSumRemaining.toFixed(2);
+
         db.collection("vc_logs").onSnapshot(logsSnap => {
             const allLogs = logsSnap.docs.map(d => d.data()).filter(l => (l.id === displayId || l.id === cleanId || l.empId === displayId || l.empId === cleanId));
             const logsByDate = {};
@@ -1000,7 +1025,7 @@ function listenLiveAttendanceCounters(sessionEmpId) {
                 updateTicker(); liveDutyTimerInterval = setInterval(updateTicker, 1000);
             } else if (todaysBlock && todaysBlock.inTime && todaysBlock.outTime) {
                 badgeEl.innerText = "SHIFT COMPLETED"; badgeEl.style.background = "var(--primary)";
-                clockEl.innerText = "Completed";
+                clockEl.innerText = "Shift End";
             } else {
                 badgeEl.innerText = "OFF DUTY"; badgeEl.style.background = "var(--holiday)"; clockEl.innerText = "00:00:00";
             }
@@ -1035,6 +1060,7 @@ function listenLiveAttendanceCounters(sessionEmpId) {
     });
 }
 
+// 🌟 FIXED LINK PIPELINE: UNLOCKS OPTICAL HARDWARE CAMERA CHANNELS INSTANTLY ON QUICK CLICK
 async function openRegModal() {
     document.getElementById('regModal').style.display = 'block';
     const status = document.getElementById('regStatus');
@@ -1226,6 +1252,35 @@ function postThought() {
     db.collection("global_thoughts").add({ text: txt, author: document.getElementById("navName").innerText, timestamp: Date.now() }).then(() => { document.getElementById("thoughtInp").value = ""; alert("Shared!"); });
 }
 
+// 🌟 MEMORY CLEANER COMPONENT INTERACTION PIPELINE
+function initManualPunchLiveHistory() {
+    const tableBody = document.getElementById("manualPunchHistoryBody");
+    if(manualPunchHistoryListener) manualPunchHistoryListener();
+
+    manualPunchHistoryListener = db.collection("manual_punch_requests")
+        .where("empId", "==", empId)
+        .onSnapshot(snap => {
+            if(snap.empty) {
+                tableBody.innerHTML = `<tr><td colspan="4" align="center" style="color:#94a3b8; padding:8px; font-size:9px;">No items sent.</td></tr>`;
+                return;
+            }
+            let sortedDocs = snap.docs.map(doc => ({id: doc.id, ...doc.data()}));
+            sortedDocs.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+
+            tableBody.innerHTML = sortedDocs.map(item => {
+                let badgeColor = "var(--orange)";
+                if(item.status === "Approved") badgeColor = "var(--success)";
+                if(item.status === "Rejected") badgeColor = "var(--danger)";
+                return `<tr>
+                    <td><b>${item.date || '--'}</b></td>
+                    <td><span style="font-weight:800; text-transform:uppercase;">${item.punchType || 'IN'}</span></td>
+                    <td>${item.time || '--'}</td>
+                    <td><span style="color:${badgeColor}; font-weight:800;">${(item.status || 'Pending').toUpperCase()}</span></td>
+                </tr>`;
+            }).join("");
+        });
+}
+
 function fetchLeaveCounts(currentId) {
     db.collection("emp_leaves").where("empId", "==", currentId).onSnapshot(snap => {
         let p = 0, a = 0, r = 0;
@@ -1245,7 +1300,7 @@ function viewLeaves(status) {
     document.getElementById("leaveModal").style.display = "block";
     db.collection("emp_leaves").where("empId", "==", empId).where("status", "==", status).get().then(snap => {
         list.innerHTML = snap.empty ? "<p>No entries found.</p>" : snap.docs.map(doc => {
-            const d = doc.data(); return `<div><b>${d.reason}</b> - <small>${d.startDate}</small></div>`;
+            const d = doc.data(); return `<div><b>${d.reason || 'Personal Reason'}</b> - <small>${d.startDate} to ${d.endDate || d.startDate}</small></div>`;
         }).join("");
     });
 }
